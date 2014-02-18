@@ -17,6 +17,7 @@ int main(void) {
 
   // Just idle on the main loop
   while (TRUE) {
-    chThdSleepMilliseconds(1000);
+	  uartStartSend(&UARTD1, 13, "Starting...\r\n");
+	  chThdSleepMilliseconds(1000);
   }
 }

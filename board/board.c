@@ -17,13 +17,15 @@
 #include "ch.h"
 #include "hal.h"
 
+#include "board.h"
+
 /**
  * @brief   PAL setup.
  * @details Digital I/O ports static configuration as defined in @p board.h.
  *          This variable is used by the HAL when initializing the PAL driver.
  */
 #if HAL_USE_PAL || defined(__DOXYGEN__)
-const PALConfig pal_default_config =
+const PALConfig pal_default_config =  // from the STM32F1x3 template
 {
   {VAL_GPIOAODR, VAL_GPIOACRL, VAL_GPIOACRH},
   {VAL_GPIOBODR, VAL_GPIOBCRL, VAL_GPIOBCRH},
@@ -31,6 +33,21 @@ const PALConfig pal_default_config =
   {VAL_GPIODODR, VAL_GPIODCRL, VAL_GPIODCRH},
   {VAL_GPIOEODR, VAL_GPIOECRL, VAL_GPIOECRH},
 };
+
+/*const PALConfig pal_default_config = // from Kjell's STM32F0x5 setup
+{
+  {VAL_GPIOA_MODER, VAL_GPIOA_OTYPER, VAL_GPIOA_OSPEEDR, VAL_GPIOA_PUPDR,
+   VAL_GPIOA_ODR, VAL_GPIOA_AFRL, VAL_GPIOA_AFRH},
+  {VAL_GPIOB_MODER, VAL_GPIOB_OTYPER, VAL_GPIOB_OSPEEDR, VAL_GPIOB_PUPDR,
+   VAL_GPIOB_ODR, VAL_GPIOB_AFRL, VAL_GPIOB_AFRH},
+  {VAL_GPIOC_MODER, VAL_GPIOC_OTYPER, VAL_GPIOC_OSPEEDR, VAL_GPIOC_PUPDR,
+   VAL_GPIOC_ODR, VAL_GPIOC_AFRL, VAL_GPIOC_AFRH},
+  {VAL_GPIOD_MODER, VAL_GPIOD_OTYPER, VAL_GPIOD_OSPEEDR, VAL_GPIOD_PUPDR,
+   VAL_GPIOD_ODR, VAL_GPIOD_AFRL, VAL_GPIOD_AFRH},
+  {VAL_GPIOF_MODER, VAL_GPIOF_OTYPER, VAL_GPIOF_OSPEEDR, VAL_GPIOF_PUPDR,
+   VAL_GPIOF_ODR, VAL_GPIOF_AFRL, VAL_GPIOF_AFRH}
+};*/
+
 #endif
 
 /*
