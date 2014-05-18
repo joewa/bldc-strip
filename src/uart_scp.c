@@ -85,7 +85,7 @@ static void rxchar(UARTDriver *uartp, uint16_t c) {
 static void rxend(UARTDriver *uartp) {
   (void)uartp;
 
-  chSysLockFromIsr();
+  chSysLockFromISR();
 
   uint8_t crc = crc8(rxBuffer, SCP_PACKET_LENGTH - 1);
 
@@ -132,7 +132,7 @@ static void rxend(UARTDriver *uartp) {
     uartStartSendI(&UARTD1, SCP_PACKET_LENGTH, txBuffer);
     uartStartReceiveI(&UARTD1, SCP_PACKET_LENGTH, rxBuffer);
 
-    chSysUnlockFromIsr();
+    chSysUnlockFromISR();
   }
 }
 

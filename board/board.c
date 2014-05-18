@@ -14,10 +14,10 @@
     limitations under the License.
 */
 
-#include "ch.h"
+//#include "ch.h"
 #include "hal.h"
 
-#include "board.h"
+//#include "board.h"
 
 /**
  * @brief   PAL setup.
@@ -60,23 +60,12 @@ void __early_init(void) {
   stm32_clock_init();
 }
 
-#if HAL_USE_MMC_SPI
-/* Board-related functions related to the MMC_SPI driver.*/
-bool_t mmc_lld_is_card_inserted(MMCDriver *mmcp) {
-
-  (void)mmcp;
-  return palReadPad(GPIOC, GPIOC_MMCCP);
-}
-
-bool_t mmc_lld_is_write_protected(MMCDriver *mmcp) {
-
-  (void)mmcp;
-  return !palReadPad(GPIOC, GPIOC_MMCWP);
-}
-#endif
-
 /*
  * Board-specific initialization code.
  */
 void boardInit(void) {
+	/* Configure PB4 as GPIO. */
+	AFIO->MAPR |= AFIO_MAPR_SWJ_CFG_NOJNTRST;
+	/* Make USART1 working */
+	AFIO->MAPR |= AFIO_MAPR_USART1_REMAP;
 }

@@ -428,8 +428,15 @@
                                      PIN_AFIO_AF(GPIOB_W_NDTS, 0))
 
 // ported for STM32F103
-#define VAL_GPIOBCRL            0x4B668888      /*  PB7...PB0 */
+
+
+//#define VAL_GPIOBCRL            0x4B668888      /*  PB7...PB0 */
+//#define VAL_GPIOBCRH            0xAAA88888      /* PB15...PB8 */
+//#define VAL_GPIOBCRL            0x4B338888      /*  PB7...PB0 */
+//#define VAL_GPIOBCRH            0xAAA88888      /* PB15...PB8 */
+#define VAL_GPIOBCRL            0x4B778888      /*  PB7...PB0 */
 #define VAL_GPIOBCRH            0xAAA88888      /* PB15...PB8 */
+
 #define VAL_GPIOBODR            0xFFFFFFFF
 
 /*

@@ -118,8 +118,8 @@ typedef void (*pwmcallback_t)(PWMDriver *pwmp);
  * @api
  */
 #define PWM_FRACTION_TO_WIDTH(pwmp, denominator, numerator)                 \
-  ((uint16_t)((((uint32_t)(pwmp)->period) *                                 \
-               (uint32_t)(numerator)) / (uint32_t)(denominator)))
+  ((pwmcnt_t)((((pwmcnt_t)(pwmp)->period) *                                 \
+               (pwmcnt_t)(numerator)) / (pwmcnt_t)(denominator)))
 
 /**
  * @brief   Converts from degrees to pulse width.
@@ -169,13 +169,13 @@ typedef void (*pwmcallback_t)(PWMDriver *pwmp);
  *          guaranteed.
  *
  * @param[in] pwmp      pointer to a @p PWMDriver object
- * @param[in] value     new cycle time in ticks
+ * @param[in] period    new cycle time in ticks
  *
  * @iclass
  */
-#define pwmChangePeriodI(pwmp, value) {                                     \
-  (pwmp)->period = (value);                                                 \
-  pwm_lld_change_period(pwmp, value);                                       \
+#define pwmChangePeriodI(pwmp, period) {                                    \
+  (pwmp)->period = (period);                                                \
+  pwm_lld_change_period(pwmp, period);                                      \
 }
 
 /**
