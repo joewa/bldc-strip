@@ -46,8 +46,10 @@ void mystartPWM(void) {
     pwmStart(&PWMD1, &pwmcfg);
     //pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 5000));
     //palSetPad(GPIOB, GPIOB_U_NDTS); // activate driver
-    //pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
-    //palSetPad(GPIOB, GPIOB_V_NDTS); // activate driver
-    pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
-    palSetPad(GPIOB, GPIOB_W_NDTS); // activate driver
+    palClearPad(GPIOB, GPIOB_U_NDTS); // deactivate driver
+    pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
+    palSetPad(GPIOB, GPIOB_V_NDTS); // activate driver
+    //pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
+    //palSetPad(GPIOB, GPIOB_W_NDTS); // activate driver
+    palClearPad(GPIOB, GPIOB_W_NDTS); // deactivate driver
 }
