@@ -308,7 +308,7 @@
 
 // ported for STM32F103
 #define VAL_GPIOACRL            0x88000000      /*  PA7...PA0 */
-#define VAL_GPIOACRH            0x88888AAA      /* PA15...PA8 */
+#define VAL_GPIOACRH            0x88888BBB      /* PA15...PA8 */
 #define VAL_GPIOAODR            0xFFFFFFFF
 /*
  * GPIOB setup:
@@ -435,7 +435,7 @@
 //#define VAL_GPIOBCRL            0x4B338888      /*  PB7...PB0 */
 //#define VAL_GPIOBCRH            0xAAA88888      /* PB15...PB8 */
 #define VAL_GPIOBCRL            0x4B778888      /*  PB7...PB0 */
-#define VAL_GPIOBCRH            0xAAA88888      /* PB15...PB8 */
+#define VAL_GPIOBCRH            0x77788888      /* PB15...PB8 */
 
 #define VAL_GPIOBODR            0xFFFFFFFF
 

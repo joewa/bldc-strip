@@ -39,9 +39,13 @@ static THD_FUNCTION(tBlinkyGreen, arg) {
   chRegSetThreadName("BlinkyGreen");
   char sbyte = 77;
   while (TRUE) {
-    chThdSleepMilliseconds(300);
+    chThdSleepMilliseconds(100);
     // Use this with the strip
     palTogglePad(GPIOB, GPIOB_LEDG);
+    //palTogglePad(GPIOB, GPIOB_U_NDTS);
+    //palTogglePad(GPIOB, GPIOB_V_NDTS);
+    //palTogglePad(GPIOB, GPIOB_W_NDTS);
+
 
     // Use this with the Discovery board
     //palTogglePad(GPIOC, GPIOC_LED3);

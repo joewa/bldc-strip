@@ -5,8 +5,9 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT = -O0 -ggdb -fomit-frame-pointer -falign-functions=16
 endif
+# vorher O2
 
 # C specific options here (added to USE_OPT).
 ifeq ($(USE_COPT),)
@@ -104,7 +105,9 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/syscalls.c \
        src/main.c \
        src/blinky.c \
-       src/uart_scp.c
+       src/uart_scp.c \
+       src/obldcpwm.c \
+       src/obldcadc.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.

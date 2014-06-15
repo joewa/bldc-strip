@@ -53,10 +53,10 @@ static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
  * Channels:    IN10.
  */
 static const ADCConversionGroup adcgrpcfg1 = {
-  FALSE,
-  ADC_GRP1_NUM_CHANNELS,
-  NULL,
-  adcerrorcallback,
+  FALSE,					// Sets the circular buffer mode for the group.
+  ADC_GRP1_NUM_CHANNELS,	// Enables the circular buffer mode for the group.
+  NULL,						// Callback function associated to the group or NULL.
+  adcerrorcallback,			// Error callback or NULL.
   0, 0,                         /* CR1, CR2 */
   ADC_SMPR1_SMP_AN10(ADC_SAMPLE_1P5),
   0,                            /* SMPR2 */
@@ -71,10 +71,10 @@ static const ADCConversionGroup adcgrpcfg1 = {
  * Channels:    IN10, IN11, IN10, IN11, IN10, IN11, Sensor, VRef.
  */
 static const ADCConversionGroup adcgrpcfg2 = {
-  TRUE,
-  ADC_GRP2_NUM_CHANNELS,
-  adccallback,
-  adcerrorcallback,
+  TRUE,						// Sets the circular buffer mode for the group.
+  ADC_GRP2_NUM_CHANNELS,	// Enables the circular buffer mode for the group.
+  adccallback,				// Callback function associated to the group or NULL.
+  adcerrorcallback,			// Error callback or NULL.
   0, ADC_CR2_TSVREFE,           /* CR1, CR2 */
   ADC_SMPR1_SMP_AN11(ADC_SAMPLE_41P5) | ADC_SMPR1_SMP_AN10(ADC_SAMPLE_41P5) |
   ADC_SMPR1_SMP_SENSOR(ADC_SAMPLE_239P5) | ADC_SMPR1_SMP_VREF(ADC_SAMPLE_239P5),

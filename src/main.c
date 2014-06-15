@@ -3,6 +3,8 @@
 #include "hal.h"
 #include "blinky.h"
 #include "uart_scp.h"
+#include "obldcpwm.h"
+#include "obldcadc.h"
 
 int main(void) {
 
@@ -15,7 +17,9 @@ int main(void) {
   startBlinkyGreen();
 
   uartSCPInit();
+  mystartPWM();
 
+  //startmyadc();
   // Just idle on the main loop
   while (TRUE) {
 	 //   palTogglePad(GPIOB, GPIOB_LEDG);
