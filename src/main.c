@@ -26,5 +26,6 @@ int main(void) {
 	 //   palTogglePad(GPIOB, GPIOB_LEDR);
 	  uartStartSend(&UARTD1, 13, "Starting...\r\n");
 	  chThdSleepMilliseconds(1000);
+	  resetadccount();
   }
 }
