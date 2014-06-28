@@ -34,18 +34,18 @@
  * HAL driver system settings.
  */
 #define STM32_NO_INIT                       FALSE
-#define STM32_HSI_ENABLED                   TRUE
+#define STM32_HSI_ENABLED                   TRUE // 8MHz HSI RC -> 4MHz PLL Source
 #define STM32_LSI_ENABLED                   FALSE
 #define STM32_HSE_ENABLED                   FALSE
 #define STM32_LSE_ENABLED                   FALSE
 #define STM32_SW                            STM32_SW_PLL
 #define STM32_PLLSRC                        STM32_PLLSRC_HSI //STM32_PLLSRC_HSE
 #define STM32_PLLXTPRE                      STM32_PLLXTPRE_DIV1
-#define STM32_PLLMUL_VALUE                  9
-#define STM32_HPRE                          STM32_HPRE_DIV1
-#define STM32_PPRE1                         STM32_PPRE1_DIV2
-#define STM32_PPRE2                         STM32_PPRE2_DIV2
-#define STM32_ADCPRE                        STM32_ADCPRE_DIV4
+#define STM32_PLLMUL_VALUE                  14 // -> SYSCLK 56MHz; 72MHz ist only possible with external oscillator (HSE); 56MHz chosen to be able to have 14MHz ADC clock
+#define STM32_HPRE                          STM32_HPRE_DIV1 // AHB Prescaler: /1
+#define STM32_PPRE1                         STM32_PPRE1_DIV2 // APB 1 Prescaler: /2 -> APB1 frequency 28MHz; 36MHz max; to TIM2-7,12-14 etc
+#define STM32_PPRE2                         STM32_PPRE2_DIV1 // APB 2 Prescaler: /1 -> APB2 frequency 56MHz; 72MHz max (only with HSE); to TIM1,8-11, ADC prescaler etc
+#define STM32_ADCPRE                        STM32_ADCPRE_DIV4 // ADC Prescaler: /4 -> ADC clock frequency 14MHZ; 14MHz max
 #define STM32_USB_CLOCK_REQUIRED            TRUE
 #define STM32_USBPRE                        STM32_USBPRE_DIV1P5
 #define STM32_MCOSEL                        STM32_MCOSEL_NOCLOCK
