@@ -17,9 +17,9 @@ int main(void) {
   startBlinkyGreen();
 
   uartSCPInit();
-  mystartPWM();
-
-  startmyadc();
+  //mystartPWM();
+  int temp = catchmotor();
+  //startmyadc();
   // Just idle on the main loop
   while (TRUE) {
 	 //   palTogglePad(GPIOB, GPIOB_LEDG);

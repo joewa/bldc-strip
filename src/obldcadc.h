@@ -11,4 +11,7 @@
 void startmyadc(void);
 void resetadccount(void);
 
+adcsample_t* getcatchsamples(void);
+int catchmotor(void);
+
 #endif /* OBLDCADC_H_ */

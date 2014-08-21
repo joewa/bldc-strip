@@ -4,6 +4,7 @@
  *  Created on: 22.05.2014
  *      Author: joerg
  */
+#include "obldcadc.h"
 
 // besser aufgehoben im reglerteil -> simulation
 typedef enum {
@@ -31,10 +32,17 @@ typedef enum {
 #define OBLDC_PWM_MIN_DUTY_CYCLE 0.02 // Minimum duty cycle
 #define OBLDC_PWM_MAX_DUTY_CYCLE 0.95 // Maximum duty cycle
 
+#define OBLDC_MIN_CATCH_VOLTAGE 360 // 1V minimum voltage to evaluate for motor position catching; /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage TODO: Check max ADC voltage 3V or 3.3V?
+
 
 #ifndef OBLDCPWM_H_
 #define OBLDCPWM_H_
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#define ABS(a) (((a)>0)?(a):(-a))
+
 void mystartPWM(void);
+void startcatchmodePWM(void);
 
 #endif /* OBLDCPWM_H_ */
