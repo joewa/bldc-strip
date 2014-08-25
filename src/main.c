@@ -18,8 +18,8 @@ int main(void) {
 
   uartSCPInit();
   //mystartPWM();
+  startmyadc();
   int temp = catchmotor();
-  //startmyadc();
   // Just idle on the main loop
   while (TRUE) {
 	 //   palTogglePad(GPIOB, GPIOB_LEDG);

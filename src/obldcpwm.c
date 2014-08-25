@@ -180,7 +180,7 @@ static void pwmcatchmodecb(PWMDriver *pwmp) {
 
 static PWMConfig pwmcatchmodecfg = {
   2e6, /* 2MHz PWM clock frequency */
-  200, /* PWM period 100us => Update-event 10kHz*/
+  20000, /* PWM period 10ms (orig 100us) => Update-event 100Hz (orig 10kHz) */
   pwmcatchmodecb,  /* No callback */
   {
     {PWM_OUTPUT_DISABLED, NULL},

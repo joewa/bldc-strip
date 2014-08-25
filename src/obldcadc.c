@@ -69,6 +69,7 @@ static void adccatcherrorcallback(ADCDriver *adcp, adcerror_t err) {
 
   (void)adcp;
   (void)err;
+  adccount++;
 }
 
 /*
@@ -93,22 +94,19 @@ static const ADCConversionGroup adcgrpcfg1 = {
   ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0)
 };
 
-/* static const ADCConversionGroup adcgrpcfg1 = {
-  TRUE,
-  ADC_GRP1_NUM_CHANNELS,
-  adccallback,
-  adcerrorcallback,
-  0, ADC_CR2_TSVREFE,           // ADC_CR1, ADC_CR2; ADC_CR2_TSVREFE = Temperature sensor and V REFINT enable
-  ADC_SMPR1_SMP_SENSOR(ADC_SAMPLE_28P5) | ADC_SMPR1_SMP_VREF(ADC_SAMPLE_1P5), // ADC sample time register 1 (ADC_SMPR1)
-  ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5) |
-  ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN3(ADC_SAMPLE_1P5) |
-  ADC_SMPR2_SMP_AN4(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN5(ADC_SAMPLE_1P5),                            // SMPR2
-  ADC_SQR1_NUM_CH(ADC_GRP1_NUM_CHANNELS),  // ADC regular sequence register (ADC_SQRx)
-  ADC_SQR2_SQ8_N(ADC_CHANNEL_SENSOR) | ADC_SQR2_SQ7_N(ADC_CHANNEL_VREFINT),
-  ADC_SQR3_SQ6_N(ADC_CHANNEL_IN5) | ADC_SQR3_SQ5_N(ADC_CHANNEL_IN4) |
-  ADC_SQR3_SQ4_N(ADC_CHANNEL_IN3) | ADC_SQR3_SQ3_N(ADC_CHANNEL_IN2) |
-  ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0)
-}; */
+static const ADCConversionGroup adcgrpcfg_example = {
+  FALSE,					// Sets the circular buffer mode for the group.
+  ADC_GRP1_NUM_CHANNELS,	// Enables the circular buffer mode for the group.
+  NULL,						// Callback function associated to the group or NULL.
+  adcerrorcallback,			// Error callback or NULL.
+  0, 0,                         /* CR1, CR2 */
+  ADC_SMPR1_SMP_AN10(ADC_SAMPLE_1P5),
+  0,                            /* SMPR2 */
+  ADC_SQR1_NUM_CH(ADC_GRP1_NUM_CHANNELS),
+  0,                            /* SQR2 */
+  ADC_SQR3_SQ1_N(ADC_CHANNEL_IN10)
+};
+
 
 /* static const ADCConversionGroup adcgrpcfg1 = {
   TRUE,
@@ -126,7 +124,7 @@ static const ADCConversionGroup adcgrpcfg1 = {
 static void testcallback(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 
   (void)adcp;
-  int a = 1;
+  adccount++;
   //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
   //float voltage = avg_ch1/4095.0*3;
 
@@ -143,7 +141,7 @@ static const ADCConversionGroup adccatchgroup = {
 		0, // ADC_CR1
 		0, // ADC_CR2
 		0, // ADC_SMPR1
-		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5), // ADC_SMPR2
+		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN1(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN2(ADC_SAMPLE_239P5), // ADC_SMPR2
 		ADC_SQR1_NUM_CH(ADC_CATCH_NUM_CHANNELS), // ADC_SQR1
 		0, // ADC_SQR2
 		ADC_SQR3_SQ3_N(ADC_CHANNEL_IN2) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0) // ADC_SQR3
@@ -154,8 +152,8 @@ void startmyadc(void) {
 }
 
 void catchconversion(void) {
-	//adcConvert(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);
-	adcStartConversion(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);
+	//adcConvert(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);// kehrt nicht zurueck
+	adcStartConversion(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);// adccatchgroup
 	//adcStartConversion(&ADCD1, &adcgrpcfg1, samples1, ADC_GRP1_BUF_DEPTH);
 }
 
