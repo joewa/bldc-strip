@@ -10,13 +10,13 @@
 #include "blinky.h"
 #include "uart_scp.h"
 
-static THD_WORKING_AREA(waBlinkyBlue, BLINKY_STACK_SIZE);
-static THD_FUNCTION(tBlinkyBlue, arg) {
+static THD_WORKING_AREA(waBlinkyRed, BLINKY_STACK_SIZE);
+static THD_FUNCTION(tBlinkyRed, arg) {
   (void)arg;
   chRegSetThreadName("BlinkyBlue");
 
   while (TRUE) {
-    chThdSleepMilliseconds(200);
+    chThdSleepMilliseconds(250);
     // Use this with the strip
     //palTogglePad(GPIOB, GPIOB_LEDG);
     palTogglePad(GPIOB, GPIOB_LEDR);
@@ -27,10 +27,10 @@ static THD_FUNCTION(tBlinkyBlue, arg) {
   return 0;
 }
 
-void startBlinkyBlue(void) {
-  chThdCreateStatic(waBlinkyBlue, sizeof(waBlinkyBlue),
+void startBlinkyRed(void) {
+  chThdCreateStatic(waBlinkyRed, sizeof(waBlinkyRed),
   NORMALPRIO,
-                    tBlinkyBlue, NULL);
+                    tBlinkyRed, NULL);
 }
 
 static THD_WORKING_AREA(waBlinkyGreen, BLINKY_STACK_SIZE);
@@ -39,7 +39,7 @@ static THD_FUNCTION(tBlinkyGreen, arg) {
   chRegSetThreadName("BlinkyGreen");
   char sbyte = 77;
   while (TRUE) {
-    chThdSleepMilliseconds(100);
+    chThdSleepMilliseconds(200);
     // Use this with the strip
     palTogglePad(GPIOB, GPIOB_LEDG);
     //palTogglePad(GPIOB, GPIOB_U_NDTS);

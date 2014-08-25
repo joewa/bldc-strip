@@ -11,6 +11,7 @@
 #include "uart_scp.h"
 #include "pwm.h"
 
+#include "obldc_def.h"
 #include "obldcpwm.h"
 
 static uint8_t halldecode[8];
@@ -57,7 +58,7 @@ void mystartPWM(void) {
 }
 
 /* ---------- Catch mode ---------- */
-void catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
+void catchcycle_obsolete(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 	static int vdiff_1_last;
 	static int vdiff_2_last;
 	static int vdiff_3_last;
@@ -91,7 +92,7 @@ void catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 		int vdiff_min = MIN(MIN(vdiff_1, vdiff_2), vdiff_3);
 
 		// when difference between min and max values > "MinCatchVoltage" -> Cond 1 fulfilled
-		if (ABS(vdiff_max - vdiff_min) > OBLDC_MIN_CATCH_VOLTAGE) {
+		if (ABS(vdiff_max - vdiff_min) > OBLDC_MIN_CATCH_VOLTAGE_OBSOLETE) {
 			// Cond 1 fulfilled
 			// detect zero crossing of a phase difference voltage
 			if (((vdiff_1 < 0) && (vdiff_1_last > 0)) || ((vdiff_1 > 0) && (vdiff_1_last < 0))) {
@@ -175,7 +176,7 @@ static void pwmcatchmodecb(PWMDriver *pwmp) {
   int voltage_v = getcatchsamples()[1]; // /4095.0 * 3 * 13.6/3.6;
   int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
 
-  catchcycle(voltage_u, voltage_v, voltage_w, FALSE); // evaluate measurements for 'hall decoding'
+  catchcycle_obsolete(voltage_u, voltage_v, voltage_w, FALSE); // evaluate measurements for 'hall decoding'
 }
 
 static PWMConfig pwmcatchmodecfg = {
@@ -196,6 +197,6 @@ void startcatchmodePWM(void) {
 	/* 1. Trigger first ADC measurement
 	 * 2. Start PWM timer for ADC triggering at 10kHz */
 	catchconversion(); // 1.
-	catchcycle(0, 0, 0, TRUE); // initialize catch state variables
+	catchcycle_obsolete(0, 0, 0, TRUE); // initialize catch state variables
 	pwmStart(&PWMD3, &pwmcatchmodecfg);
 }

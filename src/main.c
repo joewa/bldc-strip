@@ -5,6 +5,7 @@
 #include "uart_scp.h"
 #include "obldcpwm.h"
 #include "obldcadc.h"
+#include "obldc_catchmotor.h"
 
 int main(void) {
 
@@ -15,11 +16,17 @@ int main(void) {
 
   //startBlinkyBlue();
   startBlinkyGreen();
+  //startBlinkyRed();
 
   uartSCPInit();
   //mystartPWM();
   startmyadc();
-  int temp = catchmotor();
+  int temp = catchmotor_setup();
+  // start measurements
+  //startcatchmodePWM();
+  startCatchMotorThread();
+
+
   // Just idle on the main loop
   while (TRUE) {
 	 //   palTogglePad(GPIOB, GPIOB_LEDG);

@@ -10,7 +10,7 @@
 
 #define BLINKY_STACK_SIZE	128
 
-extern void startBlinkyBlue(void);
+extern void startBlinkyRed(void);
 extern void startBlinkyGreen(void);
 
 #endif /* BLINKY_H_ */

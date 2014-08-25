@@ -11,6 +11,7 @@
 
 #include "obldcadc.h"
 #include "obldcpwm.h"
+#include "obldc_def.h"
 
 #define ADC_GRP1_NUM_CHANNELS   8
 #define ADC_GRP1_BUF_DEPTH      1
@@ -146,24 +147,37 @@ static const ADCConversionGroup adccatchgroup = {
 		0, // ADC_SQR2
 		ADC_SQR3_SQ3_N(ADC_CHANNEL_IN2) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0) // ADC_SQR3
 };
+
+static const ADCConversionGroup adccatchgroup_simple = {
+		FALSE, // linear mode
+		ADC_CATCH_NUM_CHANNELS,
+		NULL, //adccatchcallback,
+		adccatcherrorcallback,
+		0, // ADC_CR1
+		0, // ADC_CR2
+		0, // ADC_SMPR1
+		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN1(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN2(ADC_SAMPLE_239P5), // ADC_SMPR2
+		ADC_SQR1_NUM_CH(ADC_CATCH_NUM_CHANNELS), // ADC_SQR1
+		0, // ADC_SQR2
+		ADC_SQR3_SQ3_N(ADC_CHANNEL_IN2) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0) // ADC_SQR3
+};
+
 void startmyadc(void) {
 	adcStart(&ADCD1, NULL);
-	//adcStartConversion(&ADCD1, &adcgrpcfg1, samples1, ADC_GRP1_BUF_DEPTH);
 }
 
 void catchconversion(void) {
 	//adcConvert(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);// kehrt nicht zurueck
-	adcStartConversion(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);// adccatchgroup
+	adcStartConversion(&ADCD1, &adccatchgroup_simple, catchsamples, ADC_CATCH_BUF_DEPTH);// adccatchgroup
+	//adcStartConversion(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);
 	//adcStartConversion(&ADCD1, &adcgrpcfg1, samples1, ADC_GRP1_BUF_DEPTH);
 }
 
-int catchmotor(void) {
+int catchmotor_setup(void) {
 	// Set disable signal to open all switches
 	palClearPad(GPIOB, GPIOB_U_NDTS);
 	palClearPad(GPIOB, GPIOB_V_NDTS);
 	palClearPad(GPIOB, GPIOB_W_NDTS);
-	// start measurements
-	startcatchmodePWM();
 	return 1; // TODO: Do sth useful
 }
 

@@ -107,7 +107,8 @@ CSRC = $(PORTSRC) \
        src/blinky.c \
        src/uart_scp.c \
        src/obldcpwm.c \
-       src/obldcadc.c
+       src/obldcadc.c \
+       src/obldc_catchmotor.c 
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
