@@ -28,6 +28,7 @@ int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 	int hall_1, hall_2, hall_3;
 	int hall_code, hall_decoded;
 	//static int last_hall_decoded;
+	int abshalldiff;
 
 	if (init == 1) {
 		halldecode[0]=0; halldecode[1]=4; halldecode[2]=2; halldecode[3]=3; halldecode[4]=6; halldecode[5]=5; halldecode[6]=1; halldecode[7]=0;
@@ -98,7 +99,9 @@ int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 				hall_decoded = halldecode[hall_code]; // determine motor angle in [1-6]
 				crossing_detected = 0;
 				// check if distance to last 'angle' is = 1
-				if (ABS(hall_decoded - last_hall_decoded) == 1 && (last_hall_decoded != 0)) {
+				abshalldiff = hall_decoded - last_hall_decoded;
+				if (abshalldiff < 0) abshalldiff=-abshalldiff;
+				if (abshalldiff == 1 && (last_hall_decoded != 0)) {
 					// determine direction of rotation
 					if (hall_decoded > last_hall_decoded) {
 						direction = 1;// lieber -1 oder 1
@@ -155,7 +158,7 @@ static THD_FUNCTION(tCatchMotorTread, arg) {
   catchcycle(0, 0, 0, TRUE); // initialize catch state variables
   while (TRUE) {
 	  catchconversion(); // start ADC Converter
-	  chThdSleepMicroseconds(200);
+	  chThdSleepMicroseconds(50);
 	  // evaluate last ADC measurement
 	  // determine voltage; for efficiency reasons, we calculating with the ADC value and do not convert to a float for [V]
 	  int voltage_u = getcatchsamples()[0]; // /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
