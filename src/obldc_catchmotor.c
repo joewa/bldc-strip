@@ -17,6 +17,7 @@
 static uint8_t halldecode[8];
 
 int last_hall_decoded;
+int last_halldiff, last_last_halldiff, crossing_counter;
 int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 	static int vdiff_1_last;
 	static int vdiff_2_last;
@@ -28,7 +29,7 @@ int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 	int hall_1, hall_2, hall_3;
 	int hall_code, hall_decoded;
 	//static int last_hall_decoded;
-	int abshalldiff;
+	int halldiff, abshalldiff;
 
 	if (init == 1) {
 		halldecode[0]=0; halldecode[1]=4; halldecode[2]=2; halldecode[3]=3; halldecode[4]=6; halldecode[5]=5; halldecode[6]=1; halldecode[7]=0;
@@ -39,6 +40,7 @@ int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 		direction = 0;
 		stopped_count = 0;
 		last_hall_decoded = 0;
+		last_halldiff = 0; last_last_halldiff = 0; crossing_counter = 0;
 	} else {
 		// init run variables
 		crossing_detected = 0;
@@ -53,7 +55,7 @@ int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 		int vdiff_min = MIN(MIN(vdiff_1_last, vdiff_2_last), vdiff_3_last);
 
 		// when difference between min and max values > "MinCatchVoltage" -> Cond 1 fulfilled
-		if (ABS(vdiff_max - vdiff_min) > OBLDC_MIN_CATCH_VOLTAGE) {
+		if (vdiff_max - vdiff_min > OBLDC_MIN_CATCH_VOLTAGE) {
 			// Cond 1 fulfilled
 			// detect zero crossing of a phase difference voltage
 			if (((vdiff_1 < 0) && (vdiff_1_last > 0)) || ((vdiff_1 > 0) && (vdiff_1_last < 0))) {
@@ -99,17 +101,23 @@ int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 				hall_decoded = halldecode[hall_code]; // determine motor angle in [1-6]
 				crossing_detected = 0;
 				// check if distance to last 'angle' is = 1
-				abshalldiff = hall_decoded - last_hall_decoded;
-				if (abshalldiff < 0) abshalldiff=-abshalldiff;
-				if (abshalldiff == 1 && (last_hall_decoded != 0)) {
+
+				halldiff = (hall_decoded - last_hall_decoded) % 6;
+				if ( halldiff >= 3 ) { halldiff -= 6; } // correct difference
+
+				abshalldiff = halldiff;
+				if (abshalldiff < 0) abshalldiff=-abshalldiff; //ABS
+
+				// check for four consecutive zero crossings to be rock safe!
+				crossing_counter++;
+				if (crossing_counter > 3 && last_last_halldiff == last_halldiff && halldiff == last_halldiff && abshalldiff == 1 && last_hall_decoded != 0) {
 					// determine direction of rotation
-					if (hall_decoded > last_hall_decoded) {
-						direction = 1;// lieber -1 oder 1
-					} else {
-						direction = 2;
-					}
+					direction = halldiff;
+					crossing_counter = 0;
 				}
 				last_hall_decoded = hall_decoded;
+				last_halldiff = halldiff;
+				last_last_halldiff = last_halldiff;
 			}
 
 
