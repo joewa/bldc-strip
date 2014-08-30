@@ -24,7 +24,9 @@ int main(void) {
   int temp = catchmotor_setup();
   // start measurements
   //startcatchmodePWM();
-  startCatchMotorThread();
+  //startCatchMotorThread();
+
+  startRampMotorThread();
 
 
   // Just idle on the main loop

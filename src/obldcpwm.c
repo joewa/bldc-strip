@@ -16,6 +16,81 @@
 
 static uint8_t halldecode[8];
 
+/*
+ * Generic PWM for BLDC motor operation.
+ * duty_cycle in percent * 100
+ * Period in microseconds
+ */
+void set_bldc_pwm(int angle, int duty_cycle, int period) {
+	static PWMConfig genpwmcfg= {
+			2e6, /* 2MHz PWM clock frequency */
+			200, /* PWM period 100us */
+			NULL,  /* No callback */
+			{
+					{PWM_OUTPUT_ACTIVE_HIGH, NULL},
+					{PWM_OUTPUT_ACTIVE_HIGH, NULL},
+					{PWM_OUTPUT_ACTIVE_HIGH, NULL},
+					{PWM_OUTPUT_DISABLED, NULL},
+			},
+			0, // TIM CR2 register initialization data, "should normally be zero"
+			0 // TIM DIER register initialization data, "should normally be zero"
+	};
+	genpwmcfg.period = 2 * period;
+
+    pwmStart(&PWMD1, &genpwmcfg);
+    if (angle == 1) {
+    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    	palSetPad(GPIOB, GPIOB_U_NDTS);
+    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palSetPad(GPIOB, GPIOB_V_NDTS);
+    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_W_NDTS);
+    } else if (angle == 2) {
+    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_U_NDTS);
+    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palSetPad(GPIOB, GPIOB_V_NDTS);
+    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    	palSetPad(GPIOB, GPIOB_W_NDTS);
+    } else if (angle == 3) {
+    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palSetPad(GPIOB, GPIOB_U_NDTS);
+    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_V_NDTS);
+    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    	palSetPad(GPIOB, GPIOB_W_NDTS);
+    } else if (angle == 4) {
+    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palSetPad(GPIOB, GPIOB_U_NDTS);
+    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    	palSetPad(GPIOB, GPIOB_V_NDTS);
+    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_W_NDTS);
+    } else if (angle == 5) {
+    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_U_NDTS);
+    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    	palSetPad(GPIOB, GPIOB_V_NDTS);
+    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palSetPad(GPIOB, GPIOB_W_NDTS);
+    } else if (angle == 6) {
+    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    	palSetPad(GPIOB, GPIOB_U_NDTS);
+    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_V_NDTS);
+    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palSetPad(GPIOB, GPIOB_W_NDTS);
+    } else {
+    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_U_NDTS);
+    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_V_NDTS);
+    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	palClearPad(GPIOB, GPIOB_W_NDTS);
+    }
+}
+
+
 static void pwmpcb(PWMDriver *pwmp) {
 
   (void)pwmp;

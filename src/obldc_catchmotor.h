@@ -13,5 +13,6 @@
 
 //msg_t myThread(void *arg);
 extern void startCatchMotorThread(void);
+extern void startRampMotorThread(void);
 
 #endif /* OBLDC_CATCHMOTOR_H_ */

@@ -12,6 +12,7 @@
 #include "obldc_def.h"
 #include "obldc_catchmotor.h"
 #include "obldcadc.h"
+#include "obldcpwm.h"
 
 
 static uint8_t halldecode[8];
@@ -19,6 +20,8 @@ static uint8_t halldecode[8];
 int last_hall_decoded;
 int last_halldiff, last_last_halldiff, crossing_counter;
 int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
+	static int vdiff_last[3]; // Neu
+	int vdiff[3];
 	static int vdiff_1_last;
 	static int vdiff_2_last;
 	static int vdiff_3_last;
@@ -33,7 +36,8 @@ int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 
 	if (init == 1) {
 		halldecode[0]=0; halldecode[1]=4; halldecode[2]=2; halldecode[3]=3; halldecode[4]=6; halldecode[5]=5; halldecode[6]=1; halldecode[7]=0;
-		vdiff_1_last = 0;
+		vdiff_last[0] = 0; vdiff_last[1] = 0; vdiff_last[2] = 0;
+		vdiff_1_last = 0;//obsolet
 		vdiff_2_last = 0;
 		vdiff_3_last = 0;
 		last_zero_crossing = 0;
@@ -183,5 +187,27 @@ void startCatchMotorThread(void) {
   chThdCreateStatic(waCatchMotorThread, sizeof(waCatchMotorThread),
 		  NORMALPRIO, tCatchMotorTread, NULL);
 }
+
+
+#define RAMPMOTOR_STACK_SIZE 128
+static THD_WORKING_AREA(waRampMotorThread, RAMPMOTOR_STACK_SIZE);
+static THD_FUNCTION(tRampMotorTread, arg) {
+  (void)arg;
+  chRegSetThreadName("RampMotorThread");
+
+  int angle = 1;
+  while (TRUE) {
+	  set_bldc_pwm(angle, 500, 50);
+	  chThdSleepMilliseconds(50);
+	  angle = (angle) % 6 + 1;
+  }
+  return 0;
+}
+
+void startRampMotorThread(void) {
+  chThdCreateStatic(waRampMotorThread, sizeof(waRampMotorThread),
+		  NORMALPRIO, tRampMotorTread, NULL);
+}
+
 
 
