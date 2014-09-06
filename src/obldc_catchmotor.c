@@ -196,9 +196,20 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   chRegSetThreadName("RampMotorThread");
 
   int angle = 1;
+  int acceleration = 3;
+  int speed = 100;  // initial speed
+  int delta_t = 50;
+
   while (TRUE) {
-	  set_bldc_pwm(angle, 500, 50);
-	  chThdSleepMilliseconds(50);
+	  set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
+	  speed = speed + acceleration;
+	  delta_t = 1000000 / speed;
+	  if (speed > 700) { // speed reached --> try to catch motor
+		  set_bldc_pwm(0,0,50);
+		  speed = 100;
+		  chThdSleepMilliseconds(3000);
+	  }
+	  chThdSleepMicroseconds(delta_t);
 	  angle = (angle) % 6 + 1;
   }
   return 0;
