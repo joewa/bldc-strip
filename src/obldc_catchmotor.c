@@ -221,4 +221,33 @@ void startRampMotorThread(void) {
 }
 
 
+// ----------- Alternativeloesung mir Virtuellen Timern
+virtual_timer_t vt;
+int angle = 1;
+int acceleration = 3;
+int speed = 100;  // initial speed
+int delta_t = 50;
+// Bestimmt die System-Tick-Frequenz: CH_CFG_ST_FREQUENCY. Vielleicht besser den Tickless mode verwenden?
+void rampMotorCb(void *p) {
+	angle = (angle) % 6 + 1;
+	set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
+	  speed = speed + acceleration;
+	  delta_t = 1000000 / speed;
+	  if (speed > 700) { // speed reached --> try to catch motor
+		  set_bldc_pwm(0,0,50);
+		  speed = 100;
+		  delta_t = 2000000;
+	  }
+	  // Restart the timer
+	chSysLockFromISR();
+	chVTSetI(&vt, US2ST(delta_t), rampMotorCb, p);
+	chSysUnlockFromISR();
+}
+
+void startRampMotorCb(void) {
+	chSysLock();
+	chVTSetI(&vt, US2ST(1000), rampMotorCb, NULL);
+	chSysUnlock();
+}
+
 

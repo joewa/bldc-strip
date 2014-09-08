@@ -27,6 +27,7 @@ int main(void) {
   //startCatchMotorThread();
 
   startRampMotorThread();
+  //startRampMotorCb();  // works a few cycles then it hangs
 
 
   // Just idle on the main loop
