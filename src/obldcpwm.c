@@ -14,8 +14,82 @@
 #include "obldc_def.h"
 #include "obldcpwm.h"
 
+
+#define ADC_COMMUTATE_NUM_CHANNELS  1
+#define ADC_COMMUTATE_BUF_DEPTH     500
+static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
+
+uint32_t adc_commutate_count;
+void reset_adc_commutate_count() {
+	adc_commutate_count = 0;
+}
+/*
+ * ADC streaming callback.
+ */
+static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
+
+  (void)adcp;
+
+  //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
+  //float voltage = avg_ch1/4095.0*3;
+  adc_commutate_count++;
+
+}
+static void adc_commutate_err_cb(ADCDriver *adcp, adcerror_t err) {
+
+  (void)adcp;
+  (void)err;
+  adc_commutate_count++;
+}
+/*
+ * GPT Callback
+ */
+/*static void gpt_adc_trigger(GPTDriver *gpt_ptr)
+{
+	adc_commutate_count++;
+}*/
+/*
+ * Configure a GPT object
+ */
+/*static GPTConfig gpt_adc_commutate_config =
+{
+	 2e6,  // timer clock: 1Mhz
+	 gpt_adc_trigger //gpt_adc_trigger  // Timer callback function
+};*/
+static const ADCConversionGroup adc_commutate_group = {
+		TRUE, // linear mode
+		ADC_COMMUTATE_NUM_CHANNELS,
+		adc_commutate_cb,
+		adc_commutate_err_cb,
+		0, // ADC_CR1
+		ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_2, // ADC_CR2: use ext event | select Timer3 TRGO event
+		0, // ADC_SMPR1
+		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5), // ADC_SMPR2
+		ADC_SQR1_NUM_CH(ADC_COMMUTATE_NUM_CHANNELS), // ADC_SQR1
+		0, // ADC_SQR2
+		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0) // ADC_SQR3
+};
+
 static uint8_t halldecode[8];
 
+
+
+
+
+void set_bldc_pwm_adc(int angle, int duty_cycle, int period) {
+	// I wanted to use TIM3 timer to get values from ADC on a fixed time rate (100 ms). To do this I setup TIM3 peripheral generate TRGO event:
+	// WARNING this is non-portable code!
+	adcStopConversion(&ADCD1);
+	TIM3->PSC   = (STM32_TIMCLK1/200)-1; // prescaler to get Timer 1 period as clock cycle for one tick
+	TIM3->ARR   =  100;  // 100 periods
+	TIM3->CNT = 0;
+	TIM3->CR2 = TIM_CR2_MMS_1; // TRGO event is timer update event, e.g. overflow
+	TIM3->CR1 = TIM_CR1_CEN | TIM_CR1_OPM; // enable the timer / one pulse mode
+	adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);//HIER HAENGTS!
+	//gptStart(&GPTD3, &gpt_adc_commutate_config);
+	//gptStartOneShot(&GPTD3, 100);
+	set_bldc_pwm(angle, duty_cycle, period);
+}
 /*
  * Generic PWM for BLDC motor operation.
  * duty_cycle in percent * 100
@@ -24,7 +98,7 @@ static uint8_t halldecode[8];
 void set_bldc_pwm(int angle, int duty_cycle, int period) {
 	static PWMConfig genpwmcfg= {
 			2e6, /* 2MHz PWM clock frequency */
-			200, /* PWM period 100us */
+			100, /* PWM period 50us */
 			NULL,  /* No callback */
 			{
 					{PWM_OUTPUT_ACTIVE_HIGH, NULL},
@@ -32,12 +106,14 @@ void set_bldc_pwm(int angle, int duty_cycle, int period) {
 					{PWM_OUTPUT_ACTIVE_HIGH, NULL},
 					{PWM_OUTPUT_DISABLED, NULL},
 			},
-			0, // TIM CR2 register initialization data, "should normally be zero"
+			0,//TIM_CR2_MMS_1, // 010: Update - The update event is selected as trigger output (TRGO). //TIM_CR2_MMS_2, // TIM CR2 register initialization data, OC1REF signal is used as trigger output (TRGO)
 			0 // TIM DIER register initialization data, "should normally be zero"
 	};
-	genpwmcfg.period = 2 * period;
 
-    pwmStart(&PWMD1, &genpwmcfg);
+
+
+	genpwmcfg.period = 2 * period;
+    pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
     if (angle == 1) {
     	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
     	palSetPad(GPIOB, GPIOB_U_NDTS);
@@ -271,7 +347,7 @@ static PWMConfig pwmcatchmodecfg = {
 void startcatchmodePWM(void) {
 	/* 1. Trigger first ADC measurement
 	 * 2. Start PWM timer for ADC triggering at 10kHz */
-	catchconversion(); // 1.
-	catchcycle_obsolete(0, 0, 0, TRUE); // initialize catch state variables
-	pwmStart(&PWMD3, &pwmcatchmodecfg);
+	//catchconversion(); // 1.
+	//catchcycle_obsolete(0, 0, 0, TRUE); // initialize catch state variables
+	//pwmStart(&PWMD3, &pwmcatchmodecfg);
 }

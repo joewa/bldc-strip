@@ -189,7 +189,7 @@ void startCatchMotorThread(void) {
 }
 
 
-#define RAMPMOTOR_STACK_SIZE 128
+#define RAMPMOTOR_STACK_SIZE 256
 static THD_WORKING_AREA(waRampMotorThread, RAMPMOTOR_STACK_SIZE);
 static THD_FUNCTION(tRampMotorTread, arg) {
   (void)arg;
@@ -199,18 +199,50 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   int acceleration = 3;
   int speed = 100;  // initial speed
   int delta_t = 50;
+  int state = 1;
+
+  int catchstate = 0; int catchresult = 0; int catchcount = 0;
 
   while (TRUE) {
-	  set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
-	  speed = speed + acceleration;
-	  delta_t = 1000000 / speed;
-	  if (speed > 700) { // speed reached --> try to catch motor
-		  set_bldc_pwm(0,0,50);
-		  speed = 100;
-		  chThdSleepMilliseconds(3000);
+	  if(state == 1) { // Ramp up the motor
+		  set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
+		  speed = speed + acceleration;
+		  delta_t = 1000000 / speed;
+		  if (speed > 700) { // speed reached --> try to catch motor
+			  set_bldc_pwm(0,0,50);
+			  speed = 100;
+			  catchcycle(0, 0, 0, TRUE); // initialize catch state variables
+			  state = 2;
+		  }
+		  chThdSleepMicroseconds(delta_t);
+		  angle = (angle) % 6 + 1;
 	  }
-	  chThdSleepMicroseconds(delta_t);
-	  angle = (angle) % 6 + 1;
+	  if(state == 2) {
+		  catchcount++;
+		  catchconversion(); // start ADC Converter
+		  chThdSleepMicroseconds(50);
+		  // evaluate last ADC measurement
+		  // determine voltage; for efficiency reasons, we calculating with the ADC value and do not convert to a float for [V]
+		  int voltage_u = getcatchsamples()[0]; // /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
+		  int voltage_v = getcatchsamples()[1]; // /4095.0 * 3 * 13.6/3.6;
+		  int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
+		  catchstate = catchcycle(voltage_u, voltage_v, voltage_w, FALSE);
+		  // Write result TODO
+		  if (catchstate != 0) {
+			  catchresult = catchstate;
+			  palClearPad(GPIOB, GPIOB_LEDR);
+			  set_bldc_pwm_adc(0,0,50);  // YEAHHHH
+			  chThdSleepMilliseconds(5000);
+			  adcStopConversion(&ADCD1);
+			  palSetPad(GPIOB, GPIOB_LEDR);
+			  catchcount = 0;
+			  state = 1;
+		  }
+		  if(catchcount > 10000) { // Timeout!
+			  catchcount = 0;
+			  state = 1;
+		  }
+	  }
   }
   return 0;
 }
@@ -221,7 +253,7 @@ void startRampMotorThread(void) {
 }
 
 
-// ----------- Alternativeloesung mir Virtuellen Timern
+// ----------- Alternativeloesung mit Virtuellen Timern
 virtual_timer_t vt;
 int angle = 1;
 int acceleration = 3;

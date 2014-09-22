@@ -42,6 +42,7 @@ typedef enum {
 
 void mystartPWM(void);
 void set_bldc_pwm(int angle, int duty_cycle, int period);
+void set_bldc_pwm_adc(int angle, int duty_cycle, int period);
 void startcatchmodePWM(void);
 
 #endif /* OBLDCPWM_H_ */
