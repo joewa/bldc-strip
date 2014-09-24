@@ -80,12 +80,18 @@ void set_bldc_pwm_adc(int angle, int duty_cycle, int period) {
 	// I wanted to use TIM3 timer to get values from ADC on a fixed time rate (100 ms). To do this I setup TIM3 peripheral generate TRGO event:
 	// WARNING this is non-portable code!
 	adcStopConversion(&ADCD1);
-	TIM3->PSC   = (STM32_TIMCLK1/200)-1; // prescaler to get Timer 1 period as clock cycle for one tick
-	TIM3->ARR   =  100;  // 100 periods
-	TIM3->CNT = 0;
+	//Bit definition for RCC_APB1ENR register
+	//RCC_APB1ENR_TIM3EN    //< Timer 3 clock enable
+	//RCC->APB1ENR = RCC->APB1ENR | RCC_APB1ENR_TIM3EN;
+    rccEnableTIM3(FALSE); // taken from gpt_lld_start in gpt_lld.c
+    rccResetTIM3();
+    TIM3->PSC   = (STM32_TIMCLK1/10)-1; // prescaler to get Timer 1 period as clock cycle for one tick
+    TIM3->ARR   =  100;  // Time constant;  Here: 100 periods
+    TIM3->EGR   = STM32_TIM_EGR_TG | STM32_TIM_EGR_UG;          // Trigger generation | Update event.
+    TIM3->CNT   = 0;                         // Reset counter.
+    TIM3->CR1 = STM32_TIM_CR1_URS | TIM_CR1_CEN | TIM_CR1_OPM; // Only counter overflow/underflow generates an update interrupt or DMA request if enabled | enable the timer | one pulse mode
 	TIM3->CR2 = TIM_CR2_MMS_1; // TRGO event is timer update event, e.g. overflow
-	TIM3->CR1 = TIM_CR1_CEN | TIM_CR1_OPM; // enable the timer / one pulse mode
-	adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);//HIER HAENGTS!
+	adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
 	//gptStart(&GPTD3, &gpt_adc_commutate_config);
 	//gptStartOneShot(&GPTD3, 100);
 	set_bldc_pwm(angle, duty_cycle, period);
