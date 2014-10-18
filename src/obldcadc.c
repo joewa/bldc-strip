@@ -48,23 +48,23 @@ static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
 /*
  * ADC streaming callback for catching mode
  */
-/*static void adccatchcallback(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
+static void adccatchcallback(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 
   (void)adcp;
 
   //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
   //float voltage = avg_ch1/4095.0*3;
-  //adccount++;
-  float voltage_u = catchsamples[0]/4095.0 * 3 * 13.6/3.6; // convert to voltage: *3 = ADC pin voltage, *13.6/3.6 = phase voltage
+  adccount++;
+  /*float voltage_u = catchsamples[0]/4095.0 * 3 * 13.6/3.6; // convert to voltage: *3 = ADC pin voltage, *13.6/3.6 = phase voltage
   float voltage_v = catchsamples[1]/4095.0 * 3 * 13.6/3.6;
   float voltage_w = catchsamples[2]/4095.0 * 3 * 13.6/3.6;
 
   float vdiff_1 = voltage_v - voltage_u;
   float vdiff_2 = voltage_w - voltage_v;
-  float vdiff_3 = voltage_u - voltage_w;
+  float vdiff_3 = voltage_u - voltage_w;*/
 
 
-}*/
+}
 
 static void adccatcherrorcallback(ADCDriver *adcp, adcerror_t err) {
 

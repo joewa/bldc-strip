@@ -16,7 +16,7 @@
 
 
 #define ADC_COMMUTATE_NUM_CHANNELS  1
-#define ADC_COMMUTATE_BUF_DEPTH     500
+#define ADC_COMMUTATE_BUF_DEPTH     1000
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
 
 uint32_t adc_commutate_count;
@@ -57,12 +57,13 @@ static void adc_commutate_err_cb(ADCDriver *adcp, adcerror_t err) {
 	 gpt_adc_trigger //gpt_adc_trigger  // Timer callback function
 };*/
 static const ADCConversionGroup adc_commutate_group = {
-		TRUE, // linear mode
+		FALSE, // linear mode
 		ADC_COMMUTATE_NUM_CHANNELS,
 		adc_commutate_cb,
 		adc_commutate_err_cb,
 		0, // ADC_CR1
-		ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_2, // ADC_CR2: use ext event | select Timer3 TRGO event
+		//ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_2, // ADC_CR2: use ext event | select Timer3 TRGO event
+		ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_2 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTSEL_0, // ADC_CR2: use ext event | select SWSTART event
 		0, // ADC_SMPR1
 		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5), // ADC_SMPR2
 		ADC_SQR1_NUM_CH(ADC_COMMUTATE_NUM_CHANNELS), // ADC_SQR1
@@ -85,16 +86,28 @@ void set_bldc_pwm_adc(int angle, int duty_cycle, int period) {
 	//RCC->APB1ENR = RCC->APB1ENR | RCC_APB1ENR_TIM3EN;
     rccEnableTIM3(FALSE); // taken from gpt_lld_start in gpt_lld.c
     rccResetTIM3();
-    TIM3->PSC   = (STM32_TIMCLK1/10)-1; // prescaler to get Timer 1 period as clock cycle for one tick
+    TIM3->PSC   = (STM32_TIMCLK1/1000)-1; // prescaler to get Timer 1 period as clock cycle for one tick
     TIM3->ARR   =  100;  // Time constant;  Here: 100 periods
-    TIM3->EGR   = STM32_TIM_EGR_TG | STM32_TIM_EGR_UG;          // Trigger generation | Update event.
+    //TIM3->EGR   = STM32_TIM_EGR_TG | STM32_TIM_EGR_UG;          // Trigger generation | Update event. // Ist Quatsch: Erzeugt Events "von Hand"
     TIM3->CNT   = 0;                         // Reset counter.
-    TIM3->CR1 = STM32_TIM_CR1_URS | TIM_CR1_CEN | TIM_CR1_OPM; // Only counter overflow/underflow generates an update interrupt or DMA request if enabled | enable the timer | one pulse mode
-	TIM3->CR2 = TIM_CR2_MMS_1; // TRGO event is timer update event, e.g. overflow
-	adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
+    TIM3->CR1 = TIM_CR1_OPM; // one pulse mode
+    //TIM3->CR1 = TIM3->CR1 | STM32_TIM_CR1_URS; // Only counter overflow/underflow generates an update interrupt or DMA request if enabled
+    TIM3->CR2 = TIM_CR2_MMS_1; // TRGO event is timer update event, e.g. overflow
+    TIM3->CR1 = TIM3->CR1 | TIM_CR1_CEN ; //  enable the timer
+
+    adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
 	//gptStart(&GPTD3, &gpt_adc_commutate_config);
 	//gptStartOneShot(&GPTD3, 100);
-	set_bldc_pwm(angle, duty_cycle, period);
+	int i,x;
+	for (i=0; i<100000; i++) { // waste some time
+		x=2*i;
+	}
+	ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;
+
+	for (i=0; i<100000; i++) { // waste some time
+		x=2*i;
+	}
+	set_bldc_pwm(angle, duty_cycle, period); // set breakpoint here and check TIM3->CNT
 }
 /*
  * Generic PWM for BLDC motor operation.
@@ -116,59 +129,63 @@ void set_bldc_pwm(int angle, int duty_cycle, int period) {
 			0 // TIM DIER register initialization data, "should normally be zero"
 	};
 
-
+	int activeLegID = 0;
 
 	genpwmcfg.period = 2 * period;
     pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-    if (angle == 1) {
-    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    	palSetPad(GPIOB, GPIOB_U_NDTS);
-    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palSetPad(GPIOB, GPIOB_V_NDTS);
-    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palClearPad(GPIOB, GPIOB_W_NDTS);
-    } else if (angle == 2) {
+    if (angle < 1 || angle > 6) { // no angle --> all legs to gnd
     	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
     	palClearPad(GPIOB, GPIOB_U_NDTS);
     	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palSetPad(GPIOB, GPIOB_V_NDTS);
-    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    	palSetPad(GPIOB, GPIOB_W_NDTS);
-    } else if (angle == 3) {
-    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palSetPad(GPIOB, GPIOB_U_NDTS);
-    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
     	palClearPad(GPIOB, GPIOB_V_NDTS);
-    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    	palSetPad(GPIOB, GPIOB_W_NDTS);
-    } else if (angle == 4) {
-    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palSetPad(GPIOB, GPIOB_U_NDTS);
-    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    	palSetPad(GPIOB, GPIOB_V_NDTS);
     	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
     	palClearPad(GPIOB, GPIOB_W_NDTS);
-    } else if (angle == 5) {
-    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palClearPad(GPIOB, GPIOB_U_NDTS);
-    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    	palSetPad(GPIOB, GPIOB_V_NDTS);
-    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palSetPad(GPIOB, GPIOB_W_NDTS);
-    } else if (angle == 6) {
-    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    	palSetPad(GPIOB, GPIOB_U_NDTS);
-    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palClearPad(GPIOB, GPIOB_V_NDTS);
-    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palSetPad(GPIOB, GPIOB_W_NDTS);
     } else {
-    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palClearPad(GPIOB, GPIOB_U_NDTS);
-    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palClearPad(GPIOB, GPIOB_V_NDTS);
-    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-    	palClearPad(GPIOB, GPIOB_W_NDTS);
+    	if (angle == 1) {
+    		activeLegID = 0;
+    		palSetPad(GPIOB, GPIOB_U_NDTS);
+    		pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palSetPad(GPIOB, GPIOB_V_NDTS);
+    		pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palClearPad(GPIOB, GPIOB_W_NDTS);
+    	} else if (angle == 2) {
+    		pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palClearPad(GPIOB, GPIOB_U_NDTS);
+    		pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palSetPad(GPIOB, GPIOB_V_NDTS);
+    		activeLegID = 2;
+    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    	} else if (angle == 3) {
+    		pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palSetPad(GPIOB, GPIOB_U_NDTS);
+    		pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palClearPad(GPIOB, GPIOB_V_NDTS);
+    		activeLegID = 2;
+    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    	} else if (angle == 4) {
+    		pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palSetPad(GPIOB, GPIOB_U_NDTS);
+    		activeLegID = 1;
+    		palSetPad(GPIOB, GPIOB_V_NDTS);
+    		pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palClearPad(GPIOB, GPIOB_W_NDTS);
+    	} else if (angle == 5) {
+    		pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palClearPad(GPIOB, GPIOB_U_NDTS);
+    		activeLegID = 1;
+    		palSetPad(GPIOB, GPIOB_V_NDTS);
+    		pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    	} else if (angle == 6) {
+    		activeLegID = 0;
+    		palSetPad(GPIOB, GPIOB_U_NDTS);
+    		pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palClearPad(GPIOB, GPIOB_V_NDTS);
+    		pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    	}
+    	pwmEnableChannel(&PWMD1, activeLegID, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    	//Hier einfach PWM und ADC direkt nacheinander starten
     }
 }
 
