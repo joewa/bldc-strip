@@ -14,6 +14,7 @@
 #include "obldcadc.h"
 #include "obldcpwm.h"
 
+extern motor_s motor; // Motor-struct from obldcpwm.c
 
 static uint8_t halldecode[8];
 
@@ -195,32 +196,35 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   (void)arg;
   chRegSetThreadName("RampMotorThread");
 
-  int angle = 1;
+  //int angle = 1;
   int acceleration = 3;
   int speed = 100;  // initial speed
   int delta_t = 50;
-  int state = 1;
 
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
-
+  init_motor_struct(&motor);
+  motor.angle = 1;
+  motor.state = OBLDC_STATE_STARTING;
   while (TRUE) {
-	  if(state == 1) { // Ramp up the motor
-		  set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
+	  if(motor.state == OBLDC_STATE_STARTING) { // Ramp up the motor
+		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
+		  motor.pwm_duty_cycle = 300 + (speed*4)/3;
+		  set_bldc_pwm(&motor);
 		  speed = speed + acceleration;
 		  delta_t = 1000000 / speed;
-		  if (speed > 700) { // speed reached --> try to catch motor
-			  set_bldc_pwm(0,0,50);
+		  if (speed > 710) { // speed reached --> try to catch motor
+			  motor.state = OBLDC_STATE_CATCHING;
+			  set_bldc_pwm(&motor);
 			  speed = 100;
 			  catchcycle(0, 0, 0, TRUE); // initialize catch state variables
-			  state = 2;
 		  }
 		  chThdSleepMicroseconds(delta_t);
-		  angle = (angle) % 6 + 1;
+		  motor.angle = (motor.angle) % 6 + 1;
 	  }
-	  if(state == 2) {
+	  if(motor.state == OBLDC_STATE_CATCHING) {
 		  catchcount++;
 		  catchconversion(); // start ADC Converter
-		  chThdSleepMicroseconds(50);
+		  chThdSleepMicroseconds(40);
 		  // evaluate last ADC measurement
 		  // determine voltage; for efficiency reasons, we calculating with the ADC value and do not convert to a float for [V]
 		  int voltage_u = getcatchsamples()[0]; // /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
@@ -231,16 +235,20 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  if (catchstate != 0) {
 			  catchresult = catchstate;
 			  palClearPad(GPIOB, GPIOB_LEDR);
-			  set_bldc_pwm_adc(0,0,50);  // YEAHHHH
-			  chThdSleepMilliseconds(5000);
 			  adcStopConversion(&ADCD1);
+			  motor.angle = 1;
+			  motor.state = OBLDC_STATE_RUNNING;
+			  motor.pwm_duty_cycle = 300;  // ACHTUNG!!!
+			  set_bldc_pwm(&motor); // YEAHHHH
+			  chThdSleepMilliseconds(5000);
 			  palSetPad(GPIOB, GPIOB_LEDR);
+			  adcStopConversion(&ADCD1);
 			  catchcount = 0;
-			  state = 1;
+			  motor.state = OBLDC_STATE_STARTING;
 		  }
 		  if(catchcount > 10000) { // Timeout!
 			  catchcount = 0;
-			  state = 1;
+			  motor.state = OBLDC_STATE_STARTING;
 		  }
 	  }
   }
@@ -262,11 +270,11 @@ int delta_t = 50;
 // Bestimmt die System-Tick-Frequenz: CH_CFG_ST_FREQUENCY. Vielleicht besser den Tickless mode verwenden?
 void rampMotorCb(void *p) {
 	angle = (angle) % 6 + 1;
-	set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
+	//set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
 	  speed = speed + acceleration;
 	  delta_t = 1000000 / speed;
 	  if (speed > 700) { // speed reached --> try to catch motor
-		  set_bldc_pwm(0,0,50);
+		  //set_bldc_pwm(0,0,50);
 		  speed = 100;
 		  delta_t = 2000000;
 	  }

@@ -10,13 +10,15 @@
 typedef enum {
 	OBLDC_STATE_OFF = 0,
 	OBLDC_STATE_STARTING,
+	OBLDC_STATE_CATCHING,
 	OBLDC_STATE_RUNNING
 } obldc_state;
 
 typedef enum {
 	PWM_MODE_SINGLEPHASE,	// one phase pulses, one phase low side on, one phase open: DANGEROUS when braking
 	PWM_MODE_ANTIPHASE,		// inverted pulses to two phases, one phase open
-	PWM_MODE_COMBINED		// use SINGLEPHASE mode at high load and ANTIPHASE at low load
+	PWM_MODE_COMBINED,		// use SINGLEPHASE mode at high load and ANTIPHASE at low load
+	PWM_MODE_ONEPULSE		// One pulse per commutation, appropriate for very high motor speeds
 } obldc_pwm_mode;
 
 typedef enum {
@@ -25,6 +27,15 @@ typedef enum {
 	FAULT_UNDER_VOLTAGE,
 	FAULT_OVER_CURRENT
 } obldc_fault_code;
+
+typedef struct {
+	obldc_state state;
+	obldc_pwm_mode pwm_mode;
+	int pwm_duty_cycle;
+	int pwm_frequency;
+	int angle;
+	int direction;
+} motor_s;
 
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 8000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 36000 // highest switching frequency [Hz]
@@ -41,8 +52,9 @@ typedef enum {
 
 
 void mystartPWM(void);
-void set_bldc_pwm(int angle, int duty_cycle, int period);
+void set_bldc_pwm(motor_s* m);
 void set_bldc_pwm_adc(int angle, int duty_cycle, int period);
 void startcatchmodePWM(void);
+void init_motor_struct(motor_s* motor);
 
 #endif /* OBLDCPWM_H_ */
