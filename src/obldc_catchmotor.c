@@ -239,7 +239,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.angle = 1;
 			  motor.state = OBLDC_STATE_RUNNING;
 			  motor.pwm_duty_cycle = 300;  // ACHTUNG!!!
-			  set_bldc_pwm(&motor); // YEAHHHH
+			  set_bldc_pwm(&motor); // Start running with back EMF detection
 			  chThdSleepMilliseconds(5000);
 			  palSetPad(GPIOB, GPIOB_LEDR);
 			  adcStopConversion(&ADCD1);
