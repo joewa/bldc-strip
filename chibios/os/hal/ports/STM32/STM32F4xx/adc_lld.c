@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -107,7 +107,7 @@ static void adc_lld_serve_rx_interrupt(ADCDriver *adcp, uint32_t flags) {
  *
  * @isr
  */
-OSAL_IRQ_HANDLER(ADC1_2_3_IRQHandler) {
+OSAL_IRQ_HANDLER(Vector88) {
   uint32_t sr;
 
   OSAL_IRQ_PROLOGUE();

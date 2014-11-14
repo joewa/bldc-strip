@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -36,32 +36,63 @@
 /*===========================================================================*/
 
 /**
- * @brief   Two alarm comparators available on STM32F4x.
+ * @brief   Callback support int the driver.
  */
-#define RTC_ALARMS                  2
+#define RTC_SUPPORTS_CALLBACKS      STM32_RTC_HAS_INTERRUPTS
 
 /**
- * @brief   Data offsets in RTC date and time registers.
+ * @brief   Number of alarms available.
  */
-#define RTC_TR_PM_OFFSET    22
-#define RTC_TR_HT_OFFSET    20
-#define RTC_TR_HU_OFFSET    16
-#define RTC_TR_MNT_OFFSET   12
-#define RTC_TR_MNU_OFFSET   8
-#define RTC_TR_ST_OFFSET    4
-#define RTC_TR_SU_OFFSET    0
+#define RTC_ALARMS                  STM32_RTC_NUM_ALARMS
 
-#define RTC_DR_YT_OFFSET    20
-#define RTC_DR_YU_OFFSET    16
-#define RTC_DR_WDU_OFFSET   13
-#define RTC_DR_MT_OFFSET    12
-#define RTC_DR_MU_OFFSET    8
-#define RTC_DR_DT_OFFSET    4
-#define RTC_DR_DU_OFFSET    0
+/**
+ * @brief   RTC PRER register initializer.
+ */
+#define RTC_PRER(a, s)              ((((a) - 1) << 16) | ((s) - 1))
+
+/**
+ * @name    Alarm helper macros
+ * @{
+ */
+#define RTC_ALRM_MSK4               (1U << 31)
+#define RTC_ALRM_WDSEL              (1U << 30)
+#define RTC_ALRM_DT(n)              ((n) << 28)
+#define RTC_ALRM_DU(n)              ((n) << 24)
+#define RTC_ALRM_MSK3               (1U << 23)
+#define RTC_ALRM_HT(n)              ((n) << 20)
+#define RTC_ALRM_HU(n)              ((n) << 16)
+#define RTC_ALRM_MSK2               (1U << 15)
+#define RTC_ALRM_MNT(n)             ((n) << 12)
+#define RTC_ALRM_MNU(n)             ((n) << 8)
+#define RTC_ALRM_MSK1               (1U << 7)
+#define RTC_ALRM_ST(n)              ((n) << 4)
+#define RTC_ALRM_SU(n)              ((n) << 0)
+/** @} */
 
 /*===========================================================================*/
 /* Driver pre-compile time settings.                                         */
 /*===========================================================================*/
+
+/**
+ * @name    Configuration options
+ * @{
+ */
+/**
+ * @brief   RTC PRES register initialization.
+ * @note    The default is calculated for a 32768Hz clock.
+ */
+#if !defined(STM32_RTC_PRESA_VALUE) || defined(__DOXYGEN__)
+#define STM32_RTC_PRESA_VALUE               32
+#endif
+
+/**
+ * @brief   RTC PRESS divider initialization.
+ * @note    The default is calculated for a 32768Hz clock.
+ */
+#if !defined(STM32_RTC_PRESS_VALUE) || defined(__DOXYGEN__)
+#define STM32_RTC_PRESS_VALUE               1024
+#endif
+/** @} */
 
 /*===========================================================================*/
 /* Derived constants and error checks.                                       */
@@ -77,95 +108,56 @@
 #error "invalid source selected for RTC clock"
 #endif
 
-#if !defined(RTC_USE_INTERRUPTS) || defined(__DOXYGEN__)
-#define RTC_USE_INTERRUPTS                FALSE
+#if STM32_PCLK1 < (STM32_RTCCLK * 7)
+#error "STM32_PCLK1 frequency is too low"
 #endif
 
-#if STM32_PCLK1 < (STM32_RTCCLK * 7)
-#error "STM32_PCLK1 frequency is too low to handle RTC without ugly workaround"
-#endif
+/**
+ * @brief   Initialization for the RTC_PRER register.
+ */
+#define STM32_RTC_PRER_BITS                 RTC_PRER(STM32_RTC_PRESA_VALUE, \
+                                                     STM32_RTC_PRESS_VALUE)
 
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
 
 /**
- * @brief   Type of a structure representing an RTC alarm time stamp.
- */
-typedef struct RTCAlarm RTCAlarm;
-
-/**
- * @brief   Type of a structure representing an RTC wakeup period.
- */
-typedef struct RTCWakeup RTCWakeup;
-
-/**
- * @brief   Type of a structure representing an RTC callbacks config.
- */
-typedef struct RTCCallbackConfig RTCCallbackConfig;
-
-/**
- * @brief   Type of an RTC alarm.
- * @details Meaningful on platforms with more than 1 alarm comparator.
+ * @brief   Type of an RTC alarm number.
  */
 typedef uint32_t rtcalarm_t;
 
 /**
- * @brief   Structure representing an RTC time stamp.
+ * @brief   Type of a structure representing an RTC alarm time stamp.
  */
-struct RTCTime {
+typedef struct {
   /**
-   * @brief RTC date register in STM32 BCD format.
+   * @brief   Type of an alarm as encoded in RTC ALRMxR registers.
    */
-  uint32_t tv_date;
+  uint32_t                  alrmr;
+} RTCAlarm;
+
+#if STM32_RTC_HAS_PERIODIC_WAKEUPS
+/**
+ * @brief   Type of a wakeup as encoded in RTC WUTR register.
+ */
+typedef struct {
   /**
-   * @brief RTC time register in STM32 BCD format.
+   * @brief   Wakeup as encoded in RTC WUTR register.
+   * @note    ((WUTR == 0) || (WUCKSEL == 3)) are a forbidden combination.
    */
-  uint32_t tv_time;
-  /**
-   * @brief Set this to TRUE to use 12 hour notation.
-   */
-  bool_t h12;
-  /**
-   * @brief Fractional part of time.
-   */
-#if STM32_RTC_HAS_SUBSECONDS
-  uint32_t tv_msec;
+  uint32_t                  wutr;
+} RTCWakeup;
 #endif
-};
-
-/**
- * @brief   Structure representing an RTC alarm time stamp.
- */
-struct RTCAlarm {
-  /**
-   * @brief Date and time of alarm in STM32 BCD.
-   */
-  uint32_t tv_datetime;
-};
-
-/**
- * @brief   Structure representing an RTC periodic wakeup period.
- */
-struct RTCWakeup {
-  /**
-   * @brief   RTC WUTR register.
-   * @details Bits [15:0] contain value of WUTR register
-   *          Bits [18:16] contain value of WUCKSEL bits in CR register
-   *
-   * @note    ((WUTR == 0) || (WUCKSEL == 3)) is forbidden combination.
-   */
-  uint32_t wakeup;
-};
 
 /**
  * @brief   Structure representing an RTC driver.
  */
-struct RTCDriver{
+struct RTCDriver {
   /**
-   * @brief Pointer to the RTC registers block.
+   * @brief   Pointer to the RTC registers block.
    */
-  RTC_TypeDef               *id_rtc;
+  RTC_TypeDef               *rtc;
 };
 
 /*===========================================================================*/
@@ -184,17 +176,20 @@ extern RTCDriver RTCD1;
 extern "C" {
 #endif
   void rtc_lld_init(void);
-  void rtc_lld_set_time(RTCDriver *rtcp, const RTCTime *timespec);
-  void rtc_lld_get_time(RTCDriver *rtcp, RTCTime *timespec);
+  void rtc_lld_set_time(RTCDriver *rtcp, const RTCDateTime *timespec);
+  void rtc_lld_get_time(RTCDriver *rtcp, RTCDateTime *timespec);
+#if RTC_ALARMS > 0
   void rtc_lld_set_alarm(RTCDriver *rtcp,
                          rtcalarm_t alarm,
                          const RTCAlarm *alarmspec);
   void rtc_lld_get_alarm(RTCDriver *rtcp,
                          rtcalarm_t alarm,
                          RTCAlarm *alarmspec);
-  void rtcSetPeriodicWakeup_v2(RTCDriver *rtcp, RTCWakeup *wakeupspec);
-  void rtcGetPeriodicWakeup_v2(RTCDriver *rtcp, RTCWakeup *wakeupspec);
-  uint32_t rtc_lld_get_time_fat(RTCDriver *rtcp);
+#endif
+#if STM32_RTC_HAS_PERIODIC_WAKEUPS
+  void rtcSTM32SetPeriodicWakeup(RTCDriver *rtcp, const RTCWakeup *wakeupspec);
+  void rtcSTM32GetPeriodicWakeup(RTCDriver *rtcp, RTCWakeup *wakeupspec);
+#endif /* STM32_RTC_HAS_PERIODIC_WAKEUPS */
 #ifdef __cplusplus
 }
 #endif

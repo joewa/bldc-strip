@@ -1,15 +1,15 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,
+              2011,2012,2013,2014 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -34,16 +34,6 @@
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
-
-/* The following code is not processed when the file is included from an
-   asm module.*/
-#if !defined(_FROM_ASM_)
-
-#define INTC_MCR        *((volatile uint32_t *)0xfff48000)
-#define INTC_CPR        *((volatile uint32_t *)0xfff48008)
-#define INTC_IACKR      *((volatile uint32_t *)0xfff48010)
-
-#endif /* !defined(_FROM_ASM_) */
 
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
@@ -86,19 +76,6 @@ extern "C" {
 /*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
-
-/* The following code is not processed when the file is included from an
-   asm module.*/
-#if !defined(_FROM_ASM_)
-
-static inline void intc_init(void) {
-
-  INTC_MCR   = 0;
-  INTC_CPR   = 0;
-  INTC_IACKR = (uint32_t)_vectors;
-}
-
-#endif /* !defined(_FROM_ASM_) */
 
 #endif /* _VECTORS_H_ */
 

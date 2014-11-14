@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -33,6 +33,19 @@
  * @name    ISR names and numbers remapping
  * @{
  */
+/*
+ * I2C units.
+ */
+#define STM32_I2C1_EVENT_HANDLER    VectorBC
+#define STM32_I2C1_ERROR_HANDLER    VectorC0
+#define STM32_I2C1_EVENT_NUMBER     31
+#define STM32_I2C1_ERROR_NUMBER     32
+
+#define STM32_I2C2_EVENT_HANDLER    VectorC4
+#define STM32_I2C2_ERROR_HANDLER    VectorC8
+#define STM32_I2C2_EVENT_NUMBER     33
+#define STM32_I2C2_ERROR_NUMBER     34
+
 /*
  * TIM units.
  */

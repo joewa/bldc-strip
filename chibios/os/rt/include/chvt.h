@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -146,7 +146,7 @@
  *
  * @api
  */
-#define ST2S(n) ((((n) - 1UL) / CH_CFG_ST_FREQUENCY) + 1UL)
+#define ST2S(n) (((((n) - 1UL) * 1UL) / CH_CFG_ST_FREQUENCY) + 1UL)
 
 /**
  * @brief   System ticks to milliseconds.
@@ -158,7 +158,7 @@
  *
  * @api
  */
-#define ST2MS(n) ((((n) - 1UL) / (CH_CFG_ST_FREQUENCY / 1000UL)) + 1UL)
+#define ST2MS(n) (((((n) - 1UL) * 1000UL) / CH_CFG_ST_FREQUENCY) + 1UL)
 
 /**
  * @brief   System ticks to microseconds.
@@ -170,7 +170,7 @@
  *
  * @api
  */
-#define ST2US(n) ((((n) - 1UL) / (CH_CFG_ST_FREQUENCY / 1000000UL)) + 1UL)
+#define ST2US(n) (((((n) - 1UL) * 1000000UL) / CH_CFG_ST_FREQUENCY) + 1UL)
 /** @} */
 
 /*===========================================================================*/
@@ -218,7 +218,7 @@ static inline void chVTObjectInit(virtual_timer_t *vtp) {
  * @note    The counter can reach its maximum and then restart from zero.
  * @note    This function can be called from any context but its atomicity
  *          is not guaranteed on architectures whose word size is less than
- *          @systime_t size.
+ *          @p systime_t size.
  *
  * @return              The system time in ticks.
  *

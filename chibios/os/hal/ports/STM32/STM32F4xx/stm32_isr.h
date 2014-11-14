@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -66,6 +66,11 @@
 #define STM32_I2C2_ERROR_HANDLER    VectorC8
 #define STM32_I2C2_EVENT_NUMBER     33
 #define STM32_I2C2_ERROR_NUMBER     34
+
+#define STM32_I2C3_EVENT_HANDLER    Vector160
+#define STM32_I2C3_ERROR_HANDLER    Vector164
+#define STM32_I2C3_EVENT_NUMBER     72
+#define STM32_I2C3_ERROR_NUMBER     73
 
 /*
  * OTG units.
@@ -140,11 +145,16 @@
 /*
  * Ethernet
  */
-#define ETH_IRQHandler          Vector134
+#define ETH_IRQHandler              Vector134
+
+/*
+ * FSMC
+ */
+#define STM32_FSMC_HANDLER          Vector100
+
+#define STM32_FSMC_NUMBER           48
 
 /** @} */
-
-
 
 /*===========================================================================*/
 /* Driver pre-compile time settings.                                         */

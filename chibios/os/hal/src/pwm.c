@@ -1,10 +1,10 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
+                  2011,2012,2013,2014 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS/HAL 
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS/HAL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
@@ -73,6 +73,8 @@ void pwmObjectInit(PWMDriver *pwmp) {
 
   pwmp->state    = PWM_STOP;
   pwmp->config   = NULL;
+  pwmp->enabled  = 0;
+  pwmp->channels = 0;
 #if defined(PWM_DRIVER_EXT_INIT_HOOK)
   PWM_DRIVER_EXT_INIT_HOOK(pwmp);
 #endif
@@ -98,6 +100,7 @@ void pwmStart(PWMDriver *pwmp, const PWMConfig *config) {
   pwmp->config = config;
   pwmp->period = config->period;
   pwm_lld_start(pwmp);
+  pwmp->enabled = 0;
   pwmp->state = PWM_READY;
   osalSysUnlock();
 }
@@ -117,7 +120,8 @@ void pwmStop(PWMDriver *pwmp) {
   osalDbgAssert((pwmp->state == PWM_STOP) || (pwmp->state == PWM_READY),
                 "invalid state");
   pwm_lld_stop(pwmp);
-  pwmp->state = PWM_STOP;
+  pwmp->enabled = 0;
+  pwmp->state   = PWM_STOP;
   osalSysUnlock();
 }
 
@@ -155,7 +159,7 @@ void pwmChangePeriod(PWMDriver *pwmp, pwmcnt_t period) {
  *          or immediately (fallback implementation).
  *
  * @param[in] pwmp      pointer to a @p PWMDriver object
- * @param[in] channel   PWM channel identifier (0...PWM_CHANNELS-1)
+ * @param[in] channel   PWM channel identifier (0...channels-1)
  * @param[in] width     PWM pulse width as clock pulses number
  *
  * @api
@@ -164,16 +168,19 @@ void pwmEnableChannel(PWMDriver *pwmp,
                       pwmchannel_t channel,
                       pwmcnt_t width) {
 
-  osalDbgCheck((pwmp != NULL) && (channel < PWM_CHANNELS));
+  osalDbgCheck((pwmp != NULL) && (channel < pwmp->channels));
 
   osalSysLock();
+
   osalDbgAssert(pwmp->state == PWM_READY, "not ready");
-  pwm_lld_enable_channel(pwmp, channel, width);
+
+  pwmEnableChannelI(pwmp, channel, width);
+
   osalSysUnlock();
 }
 
 /**
- * @brief   Disables a PWM channel.
+ * @brief   Disables a PWM channel and its notification.
  * @pre     The PWM unit must have been activated using @p pwmStart().
  * @post    The channel is disabled and its output line returned to the
  *          idle state.
@@ -182,17 +189,122 @@ void pwmEnableChannel(PWMDriver *pwmp,
  *          or immediately (fallback implementation).
  *
  * @param[in] pwmp      pointer to a @p PWMDriver object
- * @param[in] channel   PWM channel identifier (0...PWM_CHANNELS-1)
+ * @param[in] channel   PWM channel identifier (0...channels-1)
  *
  * @api
  */
 void pwmDisableChannel(PWMDriver *pwmp, pwmchannel_t channel) {
 
-  osalDbgCheck((pwmp != NULL) && (channel < PWM_CHANNELS));
+  osalDbgCheck((pwmp != NULL) && (channel < pwmp->channels));
 
   osalSysLock();
+
   osalDbgAssert(pwmp->state == PWM_READY, "not ready");
-  pwm_lld_disable_channel(pwmp, channel);
+
+  pwmDisableChannelI(pwmp, channel);
+
+  osalSysUnlock();
+}
+
+/**
+ * @brief   Enables the periodic activation edge notification.
+ * @pre     The PWM unit must have been activated using @p pwmStart().
+ * @note    If the notification is already enabled then the call has no effect.
+ *
+ * @param[in] pwmp      pointer to a @p PWMDriver object
+ *
+ * @api
+ */
+void pwmEnablePeriodicNotification(PWMDriver *pwmp) {
+
+  osalDbgCheck(pwmp != NULL);
+
+  osalSysLock();
+
+  osalDbgAssert(pwmp->state == PWM_READY, "not ready");
+  osalDbgAssert(pwmp->config->callback != NULL, "undefined periodic callback");
+
+  pwm_lld_enable_periodic_notification(pwmp);
+
+  osalSysUnlock();
+}
+
+/**
+ * @brief   Disables the periodic activation edge notification.
+ * @pre     The PWM unit must have been activated using @p pwmStart().
+ * @note    If the notification is already disabled then the call has no effect.
+ *
+ * @param[in] pwmp      pointer to a @p PWMDriver object
+ *
+ * @api
+ */
+void pwmDisablePeriodicNotification(PWMDriver *pwmp) {
+
+  osalDbgCheck(pwmp != NULL);
+
+  osalSysLock();
+
+  osalDbgAssert(pwmp->state == PWM_READY, "not ready");
+  osalDbgAssert(pwmp->config->callback != NULL, "undefined periodic callback");
+
+  pwm_lld_disable_periodic_notification(pwmp);
+
+  osalSysUnlock();
+}
+
+/**
+ * @brief   Enables a channel de-activation edge notification.
+ * @pre     The PWM unit must have been activated using @p pwmStart().
+ * @pre     The channel must have been activated using @p pwmEnableChannel().
+ * @note    If the notification is already enabled then the call has no effect.
+ *
+ * @param[in] pwmp      pointer to a @p PWMDriver object
+ * @param[in] channel   PWM channel identifier (0...channels-1)
+ *
+ * @api
+ */
+void pwmEnableChannelNotification(PWMDriver *pwmp, pwmchannel_t channel) {
+
+  osalDbgCheck((pwmp != NULL) && (channel < pwmp->channels));
+
+  osalSysLock();
+
+  osalDbgAssert(pwmp->state == PWM_READY, "not ready");
+  osalDbgAssert((pwmp->enabled & (1 << channel)) != 0,
+                "channel not enabled");
+  osalDbgAssert(pwmp->config->channels[channel].callback != NULL,
+                "undefined channel callback");
+
+  pwm_lld_enable_channel_notification(pwmp, channel);
+
+  osalSysUnlock();
+}
+
+/**
+ * @brief   Disables a channel de-activation edge notification.
+ * @pre     The PWM unit must have been activated using @p pwmStart().
+ * @pre     The channel must have been activated using @p pwmEnableChannel().
+ * @note    If the notification is already disabled then the call has no effect.
+ *
+ * @param[in] pwmp      pointer to a @p PWMDriver object
+ * @param[in] channel   PWM channel identifier (0...channels-1)
+ *
+ * @api
+ */
+void pwmDisableChannelNotification(PWMDriver *pwmp, pwmchannel_t channel) {
+
+  osalDbgCheck((pwmp != NULL) && (channel < pwmp->channels));
+
+  osalSysLock();
+
+  osalDbgAssert(pwmp->state == PWM_READY, "not ready");
+  osalDbgAssert((pwmp->enabled & (1 << channel)) != 0,
+                "channel not enabled");
+  osalDbgAssert(pwmp->config->channels[channel].callback != NULL,
+                "undefined channel callback");
+
+  pwm_lld_disable_channel_notification(pwmp, channel);
+
   osalSysUnlock();
 }
 

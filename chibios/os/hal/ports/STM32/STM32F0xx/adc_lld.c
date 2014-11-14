@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -245,13 +245,15 @@ void adc_lld_stop(ADCDriver *adcp) {
  * @notapi
  */
 void adc_lld_start_conversion(ADCDriver *adcp) {
-  uint32_t mode;
+  uint32_t mode, cfgr1;
   const ADCConversionGroup *grpp = adcp->grpp;
 
   /* DMA setup.*/
-  mode = adcp->dmamode;
+  mode  = adcp->dmamode;
+  cfgr1 = grpp->cfgr1 | ADC_CFGR1_DMAEN;
   if (grpp->circular) {
-    mode |= STM32_DMA_CR_CIRC;
+    mode  |= STM32_DMA_CR_CIRC;
+    cfgr1 |= ADC_CFGR1_DMACFG;
     if (adcp->depth > 1) {
       /* If circular buffer depth > 1, then the half transfer interrupt
          is enabled in order to allow streaming processing.*/
@@ -273,8 +275,7 @@ void adc_lld_start_conversion(ADCDriver *adcp) {
   adcp->adc->CHSELR = grpp->chselr;
 
   /* ADC configuration and start.*/
-  adcp->adc->CFGR1  = grpp->cfgr1 | ADC_CFGR1_CONT  | ADC_CFGR1_DMACFG |
-                                    ADC_CFGR1_DMAEN;
+  adcp->adc->CFGR1  = cfgr1;
   adcp->adc->CR    |= ADC_CR_ADSTART;
 }
 

@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -158,6 +158,8 @@ void adc_lld_start(ADCDriver *adcp) {
       rccEnableADC1(FALSE);
     }
 #endif /* STM32_ADC_USE_ADC1 */
+
+    ADC->CCR = (ADC->CCR & ADC_CCR_TSVREFE) | (STM32_ADC_ADCPRE << 16);
 
     /* ADC initial setup, starting the analog part here in order to reduce
        the latency when starting a conversion.*/

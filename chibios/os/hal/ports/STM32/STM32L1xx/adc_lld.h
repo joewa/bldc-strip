@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -173,6 +173,20 @@
 
 #if !defined(STM32_DMA_REQUIRED)
 #define STM32_DMA_REQUIRED
+#endif
+
+/**
+ *  * @brief   ADC frequency.
+ *   */
+/* ADC clock related settings and checks.*/
+#if STM32_ADC_ADCPRE == ADC_CCR_ADCPRE_DIV1
+#define STM32_ADCCLK                        STM32_HSICLK
+#elif STM32_ADC_ADCPRE == ADC_CCR_ADCPRE_DIV2
+#define STM32_ADCCLK                        (STM32_HSICLK / 2)
+#elif STM32_ADC_ADCPRE == ADC_CCR_ADCPRE_DIV4
+#define STM32_ADCCLK                        (STM32_HSICLK / 4)
+#else
+#error "invalid STM32_ADC_ADCPRE value specified"
 #endif
 
 /*===========================================================================*/

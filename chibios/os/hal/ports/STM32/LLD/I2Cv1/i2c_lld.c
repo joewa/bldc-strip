@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -465,7 +465,7 @@ OSAL_IRQ_HANDLER(STM32_I2C2_ERROR_HANDLER) {
  *
  * @notapi
  */
-OSAL_IRQ_HANDLER(I2C3_EV_IRQHandler) {
+OSAL_IRQ_HANDLER(STM32_I2C3_EVENT_HANDLER) {
 
   OSAL_IRQ_PROLOGUE();
 
@@ -479,7 +479,7 @@ OSAL_IRQ_HANDLER(I2C3_EV_IRQHandler) {
  *
  * @notapi
  */
-OSAL_IRQ_HANDLER(I2C3_ER_IRQHandler) {
+OSAL_IRQ_HANDLER(STM32_I2C3_ERROR_HANDLER) {
   uint16_t sr = I2CD3.i2c->SR1;
 
   OSAL_IRQ_PROLOGUE();

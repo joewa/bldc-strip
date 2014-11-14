@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -311,6 +311,11 @@ void chThdSleep(systime_t time) {
 /**
  * @brief   Suspends the invoking thread until the system time arrives to the
  *          specified value.
+ * @note    The function has no concept of "past", all specifiable times
+ *          are in the future, this means that if you call this function
+ *          exceeding your calculated intervals then the function will
+ *          return in a far future time, not immediately.
+ * @see     chThdSleepUntilWindowed()
  *
  * @param[in] time      absolute system time
  *
@@ -322,6 +327,31 @@ void chThdSleepUntil(systime_t time) {
   if ((time -= chVTGetSystemTimeX()) > 0)
     chThdSleepS(time);
   chSysUnlock();
+}
+
+/**
+ * @brief   Suspends the invoking thread until the system time arrives to the
+ *          specified value.
+ * @note    The system time is assumed to be between @p prev and @p time
+ *          else the call is assumed to have been called outside the
+ *          allowed time interval, in this case no sleep is performed.
+ * @see     chThdSleepUntilWindowed()
+ *
+ * @param[in] prev      absolute system time of the previous deadline
+ * @param[in] next      absolute system time of the next deadline
+ * @return				the @p next parameter
+ *
+ * @api
+ */
+systime_t chThdSleepUntilWindowed(systime_t prev, systime_t next) {
+  systime_t time;
+
+  chSysLock();
+  time = chVTGetSystemTimeX();
+  if (chVTIsTimeWithinX(time, prev, next))
+	chThdSleepS(next - time);
+  chSysUnlock();
+  return next;
 }
 
 /**
@@ -610,15 +640,8 @@ msg_t chThdEnqueueTimeoutS(threads_queue_t *tqp, systime_t timeout) {
  */
 void chThdDequeueNextI(threads_queue_t *tqp, msg_t msg) {
 
-  if (queue_notempty(tqp)) {
-    thread_t *tp = queue_fifo_remove(tqp);
-
-    chDbgAssert(tp->p_state == CH_STATE_QUEUED,
-                "not CH_STATE_QUEUED");
-
-    tp->p_u.rdymsg = msg;
-    chSchReadyI(tp);
-  }
+  if (queue_notempty(tqp))
+    chThdDoDequeueNextI(tqp, msg);
 }
 
 /**
@@ -631,15 +654,8 @@ void chThdDequeueNextI(threads_queue_t *tqp, msg_t msg) {
  */
 void chThdDequeueAllI(threads_queue_t *tqp, msg_t msg) {
 
-  while (queue_notempty(tqp)) {
-    thread_t *tp = queue_fifo_remove(tqp);
-
-    chDbgAssert(tp->p_state == CH_STATE_QUEUED,
-                "not CH_STATE_QUEUED");
-
-    tp->p_u.rdymsg = msg;
-    chSchReadyI(tp);
-  }
+  while (queue_notempty(tqp))
+    chThdDoDequeueNextI(tqp, msg);
 }
 
 /** @} */

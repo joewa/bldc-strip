@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -28,6 +28,8 @@
 
 #ifndef _CHCORE_H_
 #define _CHCORE_H_
+
+#include "intc.h"
 
 /*===========================================================================*/
 /* Module constants.                                                         */
@@ -61,6 +63,11 @@
 #else
 #error "unsupported compiler"
 #endif
+
+/**
+ * @brief   This port supports a realtime counter.
+ */
+#define PORT_SUPPORTS_RT                FALSE
 /** @} */
 
 /**
@@ -103,6 +110,16 @@
  */
 #if !defined(PORT_INT_REQUIRED_STACK) || defined(__DOXYGEN__)
 #define PORT_INT_REQUIRED_STACK         256
+#endif
+
+/**
+ * @brief   Enables an alternative timer implementation.
+ * @details Usually the port uses a timer interface defined in the file
+ *          @p nilcore_timer.h, if this option is enabled then the file
+ *          @p nilcore_timer_alt.h is included instead.
+ */
+#if !defined(PORT_USE_ALT_TIMER)
+#define PORT_USE_ALT_TIMER              FALSE
 #endif
 
 /**
@@ -257,7 +274,7 @@ struct port_intctx {
 };
 
 /**
- * @brief   Platform dependent part of the @p Thread structure.
+ * @brief   Platform dependent part of the @p thread_t structure.
  * @details This structure usually contains just the saved stack pointer
  *          defined as a pointer to a @p port_intctx structure.
  */
@@ -339,7 +356,7 @@ struct context {
 #define port_switch(ntp, otp) {                                             \
   register struct port_intctx *sp asm ("%r1");                              \
   if ((stkalign_t *)(sp - 1) < otp->p_stklimit)                             \
-    chDbgPanic("stack overflow");                                           \
+    chSysHalt("stack overflow");                                            \
   _port_switch(ntp, otp);                                                   \
 }
 #endif
@@ -395,6 +412,7 @@ extern "C" {
  */
 static inline void port_init(void) {
   uint32_t n;
+  unsigned i;
 
   /* Initializing the SPRG0 register to zero, it is required for interrupts
      handling.*/
@@ -410,8 +428,13 @@ static inline void port_init(void) {
                 "mtIVOR10    %%r3" : : : "r3", "memory");
 #endif
 
-  /* Interrupt controller initialization.*/
-  intc_init();
+  /* INTC initialization, software vector mode, 4 bytes vectors, starting
+     at priority 0.*/
+  INTC_BCR = 0;
+  for (i = 0; i < PPC_CORE_NUMBER; i++) {
+    INTC_CPR(i)   = 0;
+    INTC_IACKR(i) = (uint32_t)_vectors;
+  }
 }
 
 /**
@@ -542,6 +565,22 @@ static inline rtcnt_t port_rt_get_counter_value(void) {
 
   return 0;
 }
+
+#endif /* !defined(_FROM_ASM_) */
+
+/*===========================================================================*/
+/* Module late inclusions.                                                   */
+/*===========================================================================*/
+
+#if !defined(_FROM_ASM_)
+
+#if CH_CFG_ST_TIMEDELTA > 0
+#if !PORT_USE_ALT_TIMER
+#include "chcore_timer.h"
+#else /* PORT_USE_ALT_TIMER */
+#include "chcore_timer_alt.h"
+#endif /* PORT_USE_ALT_TIMER */
+#endif /* CH_CFG_ST_TIMEDELTA > 0 */
 
 #endif /* !defined(_FROM_ASM_) */
 

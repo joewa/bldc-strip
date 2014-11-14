@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -69,7 +69,7 @@ typedef struct semaphore {
  * @param[in] n         the counter initial value, this value must be
  *                      non-negative
  */
-#define _SEMAPHORE_DATA(name, n) {_threads_queue_t_DATA(name.s_queue), n}
+#define _SEMAPHORE_DATA(name, n) {_THREADS_QUEUE_DATA(name.s_queue), n}
 
 /**
  * @brief   Static semaphore initializer.

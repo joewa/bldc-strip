@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -201,12 +201,9 @@ void adc_lld_start_conversion(ADCDriver *adcp) {
 
   /* ADC setup.*/
   adcp->adc->CR1   = grpp->cr1 | ADC_CR1_SCAN;
-  //cr2 = grpp->cr2 | ADC_CR2_DMA | ADC_CR2_ADON; //JOE Comment
-  cr2 = grpp->cr2 | ADC_CR2_DMA; // JOE
-  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG)) == 0) {
+  cr2 = grpp->cr2 | ADC_CR2_DMA | ADC_CR2_ADON;
+  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG)) == 0)
     cr2 |= ADC_CR2_CONT;
-    cr2 |= ADC_CR2_ADON;// JOE
-  }
   adcp->adc->CR2   = grpp->cr2 | cr2;
   adcp->adc->SMPR1 = grpp->smpr1;
   adcp->adc->SMPR2 = grpp->smpr2;
@@ -215,8 +212,7 @@ void adc_lld_start_conversion(ADCDriver *adcp) {
   adcp->adc->SQR3  = grpp->sqr3;
 
   /* ADC start by writing ADC_CR2_ADON a second time.*/
-  //adcp->adc->CR2   = cr2; //JOE COMMENT
-  adcp->adc->CR2   = cr2 | ADC_CR2_ADON;
+  adcp->adc->CR2   = cr2;
 }
 
 /**

@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -40,7 +40,7 @@
 #define CH_STATE_READY          0   /**< @brief Waiting on the ready list.  */
 #define CH_STATE_CURRENT        1   /**< @brief Currently running.          */
 #define CH_STATE_WTSTART        2   /**< @brief Created but not started.    */
-#define CH_STATE_SUSPENDED      3   /**< @brief Created in suspended state. */
+#define CH_STATE_SUSPENDED      3   /**< @brief Suspended state.            */
 #define CH_STATE_QUEUED         4   /**< @brief Waiting on an I/O queue.    */
 #define CH_STATE_WTSEM          5   /**< @brief Waiting on a semaphore.     */
 #define CH_STATE_WTMTX          6   /**< @brief Waiting on a mutex.         */
@@ -63,7 +63,7 @@
  *          indexed using the numeric thread state values.
  */
 #define CH_STATE_NAMES                                                     \
-  "READY", "WTSTART", "CURRENT", "SUSPENDED", "QUEUED", "WTSEM", "WTMTX",  \
+  "READY", "CURRENT", "WTSTART", "SUSPENDED", "QUEUED", "WTSEM", "WTMTX",  \
   "WTCOND", "SLEEPING", "WTEXIT", "WTOREVT", "WTANDEVT", "SNDMSGQ",        \
   "SNDMSG", "WTMSG", "FINAL"
 /** @} */
@@ -168,7 +168,7 @@ typedef msg_t (*tfunc_t)(void *);
  *
  * @param[in] name      the name of the threads queue variable
  */
-#define _threads_queue_t_DATA(name) {(thread_t *)&name, (thread_t *)&name}
+#define _THREADS_QUEUE_DATA(name) {(thread_t *)&name, (thread_t *)&name}
 
 /**
  * @brief   Static threads queue object initializer.
@@ -177,8 +177,8 @@ typedef msg_t (*tfunc_t)(void *);
  *
  * @param[in] name      the name of the threads queue variable
  */
-#define threads_queue_t_DECL(name)                                          \
-  threads_queue_t name = _threads_queue_t_DATA(name)
+#define _THREADS_QUEUE_DECL(name)                                           \
+  threads_queue_t name = _THREADS_QUEUE_DATA(name)
 /** @} */
 
 /**
@@ -252,6 +252,7 @@ extern "C" {
   void chThdTerminate(thread_t *tp);
   void chThdSleep(systime_t time);
   void chThdSleepUntil(systime_t time);
+  systime_t chThdSleepUntilWindowed(systime_t prev, systime_t next);
   void chThdYield(void);
   void chThdExit(msg_t msg);
   void chThdExitS(msg_t msg);
@@ -373,6 +374,48 @@ static inline void chThdSleepS(systime_t time) {
 static inline void chThdQueueObjectInit(threads_queue_t *tqp) {
 
   queue_init(tqp);
+}
+
+/**
+ * @brief   Evaluates to @p true if the specified queue is empty.
+ *
+ * @param[out] tqp      pointer to the threads queue object
+ * @return              The queue status.
+ * @retval false        if the queue is not empty.
+ * @retval true         if the queue is empty.
+ *
+ * @iclass
+ */
+static inline bool chThdQueueIsEmptyI(threads_queue_t *tqp) {
+
+  chDbgCheckClassI();
+
+  return queue_isempty(tqp);
+}
+
+
+/**
+ * @brief   Dequeues and wakes up one thread from the threads queue object.
+ * @details Dequeues one thread from the queue without checking if the queue
+ *          is empty.
+ * @pre     The queue must contain at least an object.
+ *
+ * @param[in] tqp       pointer to the threads queue object
+ * @param[in] msg       the message code
+ *
+ * @iclass
+ */
+static inline void chThdDoDequeueNextI(threads_queue_t *tqp, msg_t msg) {
+  thread_t *tp;
+
+  chDbgAssert(queue_notempty(tqp), "empty queue");
+
+  tp = queue_fifo_remove(tqp);
+
+  chDbgAssert(tp->p_state == CH_STATE_QUEUED, "invalid state");
+
+  tp->p_u.rdymsg = msg;
+  chSchReadyI(tp);
 }
 
 #endif /* _CHTHREADS_H_ */

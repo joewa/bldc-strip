@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -48,18 +48,22 @@
  */
 #if defined(STM32L1XX_MD) || defined(__DOXYGEN__)
 #define PLATFORM_NAME           "STM32L1xx Ultra Low Power Medium Density"
-#define STM32L1XX
 
 #elif defined(STM32L1XX_MDP)
 #define PLATFORM_NAME           "STM32L1xx Ultra Low Power Medium Density Plus"
-#define STM32L1XX
 
 #elif defined(STM32L1XX_HD)
 #define PLATFORM_NAME           "STM32L1xx Ultra Low Power High Density"
-#define STM32L1XX
 
 #else
 #error "STM32L1xx device not specified"
+#endif
+
+/**
+ * @brief   Sub-family identifier.
+ */
+#if !defined(STM32L1XX) || defined(__DOXYGEN__)
+#define STM32L1XX
 #endif
 /** @} */
 
@@ -765,11 +769,6 @@
 #else
 #error "invalid STM32_RTCSEL value specified"
 #endif
-
-/**
- * @brief   ADC frequency.
- */
-#define STM32_ADCCLK                STM32_HSICLK
 
 /**
  * @brief   USB frequency.

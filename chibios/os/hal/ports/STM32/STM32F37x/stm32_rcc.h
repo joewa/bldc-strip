@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -202,7 +202,7 @@
  *
  * @api
  */
-#define rccEnableCAN1(lp) rccEnableAPB1(RCC_APB1ENR_CAN1EN, lp)
+#define rccEnableCAN1(lp) rccEnableAPB1(RCC_APB1ENR_CANEN, lp)
 
 /**
  * @brief   Disables the CAN1 peripheral clock.
@@ -212,14 +212,14 @@
  *
  * @api
  */
-#define rccDisableCAN1(lp) rccDisableAPB1(RCC_APB1ENR_CAN1EN, lp)
+#define rccDisableCAN1(lp) rccDisableAPB1(RCC_APB1ENR_CANEN, lp)
 
 /**
  * @brief   Resets the CAN1 peripheral.
  *
  * @api
  */
-#define rccResetCAN1() rccResetAPB1(RCC_APB1RSTR_CAN1RST)
+#define rccResetCAN1() rccResetAPB1(RCC_APB1RSTR_CANRST)
 /** @} */
 
 /**

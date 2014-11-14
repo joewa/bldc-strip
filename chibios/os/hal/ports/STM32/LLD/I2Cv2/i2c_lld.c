@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -422,8 +422,7 @@ void i2c_lld_start(I2CDriver *i2cp) {
       rccEnableI2C1(FALSE);
 
 #if defined(STM32_I2C1_GLOBAL_NUMBER) || defined(__DOXYGEN__)
-      nvicEnableVector(STM32_I2C1_GLOBAL_NUMBER,
-                       CORTEX_PRIORITY_MASK(STM32_I2C_I2C1_IRQ_PRIORITY));
+      nvicEnableVector(STM32_I2C1_GLOBAL_NUMBER, STM32_I2C_I2C1_IRQ_PRIORITY);
 #elif defined(STM32_I2C1_EVENT_NUMBER) && defined(STM32_I2C1_ERROR_NUMBER)
       nvicEnableVector(STM32_I2C1_EVENT_NUMBER, STM32_I2C_I2C1_IRQ_PRIORITY);
       nvicEnableVector(STM32_I2C1_ERROR_NUMBER, STM32_I2C_I2C1_IRQ_PRIORITY);
@@ -456,8 +455,7 @@ void i2c_lld_start(I2CDriver *i2cp) {
       rccEnableI2C2(FALSE);
 
 #if defined(STM32_I2C2_GLOBAL_NUMBER) || defined(__DOXYGEN__)
-      nvicEnableVector(STM32_I2C2_GLOBAL_NUMBER,
-                       CORTEX_PRIORITY_MASK(STM32_I2C_I2C2_IRQ_PRIORITY));
+      nvicEnableVector(STM32_I2C2_GLOBAL_NUMBER, STM32_I2C_I2C2_IRQ_PRIORITY);
 #elif defined(STM32_I2C2_EVENT_NUMBER) && defined(STM32_I2C2_ERROR_NUMBER)
       nvicEnableVector(STM32_I2C2_EVENT_NUMBER, STM32_I2C_I2C2_IRQ_PRIORITY);
       nvicEnableVector(STM32_I2C2_ERROR_NUMBER, STM32_I2C_I2C2_IRQ_PRIORITY);

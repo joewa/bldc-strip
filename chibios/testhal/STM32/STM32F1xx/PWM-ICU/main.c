@@ -50,12 +50,12 @@ icucnt_t last_width, last_period;
 
 static void icuwidthcb(ICUDriver *icup) {
 
-  last_width = icuGetWidth(icup);
+  last_width = icuGetWidthX(icup);
 }
 
 static void icuperiodcb(ICUDriver *icup) {
 
-  last_period = icuGetPeriod(icup);
+  last_period = icuGetPeriodX(icup);
 }
 
 static ICUConfig icucfg = {
@@ -92,15 +92,18 @@ int main(void) {
    * Initializes the PWM driver 1 and ICU driver 4.
    */
   pwmStart(&PWMD1, &pwmcfg);
+  pwmEnablePeriodicNotification(&PWMD1);
   palSetPadMode(IOPORT1, 8, PAL_MODE_STM32_ALTERNATE_PUSHPULL);
   icuStart(&ICUD4, &icucfg);
-  icuEnable(&ICUD4);
+  icuStartCapture(&ICUD4);
+  icuEnableNotifications(&ICUD4);
   chThdSleepMilliseconds(2000);
 
   /*
    * Starts the PWM channel 0 using 75% duty cycle.
    */
   pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 7500));
+  pwmEnableChannelNotification(&PWMD1, 0);
   chThdSleepMilliseconds(5000);
 
   /*
@@ -127,7 +130,7 @@ int main(void) {
    */
   pwmDisableChannel(&PWMD1, 0);
   pwmStop(&PWMD1);
-  icuDisable(&ICUD4);
+  icuStopCapture(&ICUD4);
   icuStop(&ICUD4);
   palSetPad(IOPORT3, GPIOC_LED);
 

@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@
 #define TRDT_VALUE              5
 
 #define EP0_MAX_INSIZE          64
+#define EP0_MAX_OUTSIZE         64
 
 /*===========================================================================*/
 /* Driver exported variables.                                                */
@@ -592,7 +593,23 @@ static void otg_epout_handler(USBDriver *usbp, usbep_t ep) {
   }
   if ((epint & DOEPINT_XFRC) && (otgp->DOEPMSK & DOEPMSK_XFRCM)) {
     /* Receive transfer complete.*/
-    _usb_isr_invoke_out_cb(usbp, ep);
+    USBOutEndpointState *osp = usbp->epc[ep]->out_state;
+
+    if (osp->rxsize < osp->totsize) {
+      /* In case the transaction covered only part of the total transfer
+         then another transaction is immediately started in order to
+         cover the remaining.*/
+      osp->rxsize = osp->totsize - osp->rxsize;
+      osp->rxcnt  = 0;
+      usb_lld_prepare_receive(usbp, ep);
+      chSysLockFromISR();
+      usb_lld_start_out(usbp, ep);
+      chSysUnlockFromISR();
+    }
+    else {
+      /* End on OUT transfer.*/
+      _usb_isr_invoke_out_cb(usbp, ep);
+    }
   }
 }
 
@@ -817,17 +834,6 @@ void usb_lld_start(USBDriver *usbp) {
 
     usbp->txpending = 0;
 
-#if defined(_CHIBIOS_RT_)
-    /* Creates the data pump threads in a suspended state. Note, it is
-       created only once, the first time @p usbStart() is invoked.*/
-    if (usbp->tr == NULL)
-      usbp->tr = usbp->wait = chThdCreateI(usbp->wa_pump,
-                                           sizeof usbp->wa_pump,
-                                           STM32_USB_OTG_THREAD_PRIO,
-                                           usb_lld_pump,
-                                           usbp);
-#endif
-
     /* - Forced device mode.
        - USB turn-around time = TRDT_VALUE.
        - Full Speed 1.1 PHY.*/
@@ -868,6 +874,17 @@ void usb_lld_start(USBDriver *usbp) {
       otgp->GINTMSK  = GINTMSK_ENUMDNEM | GINTMSK_USBRSTM /*| GINTMSK_USBSUSPM |
                        GINTMSK_ESUSPM */ | GINTMSK_SOFM;
     otgp->GINTSTS  = 0xFFFFFFFF;         /* Clears all pending IRQs, if any. */
+
+#if defined(_CHIBIOS_RT_)
+    /* Creates the data pump thread. Note, it is created only once.*/
+    if (usbp->tr == NULL) {
+      usbp->tr = chThdCreateI(usbp->wa_pump, sizeof usbp->wa_pump,
+                              STM32_USB_OTG_THREAD_PRIO,
+                              usb_lld_pump, usbp);
+      chThdStartI(usbp->tr);
+      chSchRescheduleS();
+  }
+#endif
 
     /* Global interrupts enable.*/
     otgp->GAHBCFG |= GAHBCFG_GINTMSK;
@@ -1143,6 +1160,10 @@ void usb_lld_prepare_receive(USBDriver *usbp, usbep_t ep) {
   USBOutEndpointState *osp = usbp->epc[ep]->out_state;
 
   /* Transfer initialization.*/
+  osp->totsize = osp->rxsize;
+  if ((ep == 0) && (osp->rxsize  > EP0_MAX_OUTSIZE))
+      osp->rxsize = EP0_MAX_OUTSIZE;
+
   pcnt = (osp->rxsize + usbp->epc[ep]->out_maxsize - 1) /
          usbp->epc[ep]->out_maxsize;
   usbp->otg->oe[ep].DOEPTSIZ = DOEPTSIZ_STUPCNT(3) | DOEPTSIZ_PKTCNT(pcnt) |

@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -256,7 +256,7 @@ typedef enum {
 /**
  * @brief   ICU counter type.
  */
-typedef uint16_t icucnt_t;
+typedef uint32_t icucnt_t;
 
 /**
  * @brief   Driver configuration structure.
@@ -399,8 +399,11 @@ extern "C" {
   void icu_lld_init(void);
   void icu_lld_start(ICUDriver *icup);
   void icu_lld_stop(ICUDriver *icup);
-  void icu_lld_enable(ICUDriver *icup);
-  void icu_lld_disable(ICUDriver *icup);
+  void icu_lld_start_capture(ICUDriver *icup);
+  void icu_lld_wait_capture(ICUDriver *icup);
+  void icu_lld_stop_capture(ICUDriver *icup);
+  void icu_enable_notifications(ICUDriver *icup);
+  void icu_disable_notifications(ICUDriver *icup);
 #ifdef __cplusplus
 }
 #endif

@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -80,6 +80,13 @@
 
 #else
 #error "unsupported or unrecognized STM32F1xx member"
+#endif
+
+/**
+ * @brief   Sub-family identifier.
+ */
+#if !defined(STM32F1XX) || defined(__DOXYGEN__)
+#define STM32F1XX
 #endif
 /** @} */
 

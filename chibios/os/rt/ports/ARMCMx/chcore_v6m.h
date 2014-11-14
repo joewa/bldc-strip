@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -293,7 +293,7 @@ static inline void port_init(void) {
  */
 static inline syssts_t port_get_irq_status(void) {
 
-  return __get_PRIMASK();
+  return (syssts_t)__get_PRIMASK();
 }
 
 /**

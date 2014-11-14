@@ -1,10 +1,10 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
+                  2011,2012,2013,2014 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS/HAL 
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS/HAL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
@@ -222,7 +222,12 @@ bool sdcConnect(SDCDriver *sdcp) {
       sdcp->cardmode = SDC_MODE_CARDTYPE_MMC;
     else
 #endif /* SDC_MMC_SUPPORT */
+    {
       sdcp->cardmode = SDC_MODE_CARDTYPE_SDV11;
+    
+      /* Reset error flag illegal command.*/
+      sdc_lld_send_cmd_none(sdcp, MMCSD_CMD_GO_IDLE_STATE, 0);
+    }
   }
 
 #if SDC_MMC_SUPPORT

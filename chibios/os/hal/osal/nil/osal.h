@@ -1,10 +1,10 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
+                  2011,2012,2013,2014 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS/HAL 
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS/HAL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
@@ -238,8 +238,6 @@ typedef struct {
  *          message and halts.
  * @note    The condition is tested only if the @p OSAL_ENABLE_ASSERTIONS
  *          switch is enabled.
- * @note    The convention for the message is the following:<br>
- *          @<function_name@>(), #@<assert_number@>
  * @note    The remark string is not currently used except for putting a
  *          comment in the code about the assertion.
  *
@@ -733,6 +731,8 @@ static inline msg_t osalThreadEnqueueTimeoutS(threads_queue_t *tqp,
  */
 static inline void osalEventObjectInit(event_source_t *esp) {
 
+  osalDbgCheck(esp != NULL);
+
   esp->flags = 0;
   esp->cb    = NULL;
   esp->param = NULL;
@@ -748,6 +748,8 @@ static inline void osalEventObjectInit(event_source_t *esp) {
  */
 static inline void osalEventBroadcastFlagsI(event_source_t *esp,
                                             eventflags_t flags) {
+
+  osalDbgCheck(esp != NULL);
 
   esp->flags |= flags;
   if (esp->cb != NULL)
@@ -765,10 +767,35 @@ static inline void osalEventBroadcastFlagsI(event_source_t *esp,
 static inline void osalEventBroadcastFlags(event_source_t *esp,
                                            eventflags_t flags) {
 
+  osalDbgCheck(esp != NULL);
+
   chSysLock();
   osalEventBroadcastFlagsI(esp, flags);
   chSchRescheduleS();
   chSysUnlock();
+}
+
+/**
+ * @brief   Event callback setup.
+ * @note    The callback is invoked from ISR context and can
+ *          only invoke I-Class functions. The callback is meant
+ *          to wakeup the task that will handle the event by
+ *          calling @p osalEventGetAndClearFlagsI().
+ *
+ * @param[in] esp       pointer to the event flags object
+ * @param[in] cb        pointer to the callback function
+ * @param[in] param     parameter to be passed to the callback function
+ *
+ * @api
+ */
+static inline void osalEventSetCallback(event_source_t *esp,
+                                        eventcallback_t cb,
+                                        void *param) {
+
+  osalDbgCheck(esp != NULL);
+
+  esp->cb    = cb;
+  esp->param = param;
 }
 
 /**

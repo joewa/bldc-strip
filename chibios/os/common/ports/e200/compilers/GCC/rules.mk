@@ -14,7 +14,7 @@ ifeq ($(USE_LINK_GC),yes)
   OPT += -ffunction-sections -fdata-sections -fno-common
   LDOPT := --gc-sections
 else
-  LDOPT :=
+  LDOPT := --no-gc-sections
 endif
 
 # Linker extra options
@@ -98,6 +98,7 @@ CPPFLAGS  = $(MCFLAGS) $(OPT) $(CPPOPT) $(CPPWARN) -Wa,-alms=$(LSTDIR)/$(notdir 
 LDFLAGS   = $(MCFLAGS) $(OPT) -nostartfiles $(LLIBDIR) -Wl,-Map=$(BUILDDIR)/$(PROJECT).map,--cref,--no-warn-mismatch,--library-path=$(RULESPATH),$(LDOPT),--script=$(LDSCRIPT)
 
 # Generate dependency information
+ASFLAGS  += -MD -MP -MF .dep/$(@F).d
 CFLAGS   += -MD -MP -MF .dep/$(@F).d
 CPPFLAGS += -MD -MP -MF .dep/$(@F).d
 
@@ -203,6 +204,13 @@ else
 	@echo
 	@echo Done
 endif
+
+lib: $(OBJS) $(BUILDDIR)/lib$(PROJECT).a
+
+$(BUILDDIR)/lib$(PROJECT).a: $(OBJS)
+	@$(AR) -r $@ $^
+	@echo
+	@echo Done
 
 clean:
 	@echo Cleaning

@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -262,6 +262,10 @@ typedef struct {
       input_queue_t            *rxqueue;
     } queue;
   } mode;
+  /**
+   * @brief   Total transmit transfer size.
+   */
+  size_t                        totsize;
 } USBOutEndpointState;
 
 /**

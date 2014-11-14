@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -129,7 +129,7 @@ typedef io_queue_t output_queue_t;
  * @param[in] link      application defined pointer
  */
 #define _INPUTQUEUE_DATA(name, buffer, size, inotify, link) {               \
-  _threads_queue_t_DATA(name),                                              \
+  _THREADS_QUEUE_DATA(name),                                                \
   0,                                                                        \
   (uint8_t *)(buffer),                                                      \
   (uint8_t *)(buffer) + (size),                                             \
@@ -165,7 +165,7 @@ typedef io_queue_t output_queue_t;
  * @param[in] link      application defined pointer
  */
 #define _OUTPUTQUEUE_DATA(name, buffer, size, onotify, link) {              \
-  _threads_queue_t_DATA(name),                                              \
+  _THREADS_QUEUE_DATA(name),                                                \
   (size),                                                                   \
   (uint8_t *)(buffer),                                                      \
   (uint8_t *)(buffer) + (size),                                             \

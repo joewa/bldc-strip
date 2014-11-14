@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -29,6 +29,15 @@
 /*===========================================================================*/
 /* Driver local definitions.                                                 */
 /*===========================================================================*/
+
+/*
+ * Addressing differences in the headers, they seem unable to agree on names.
+ */
+#if STM32_CAN_USE_CAN1
+#if !defined(CAN1)
+#define CAN1 CAN
+#endif
+#endif
 
 /*===========================================================================*/
 /* Driver exported variables.                                                */
@@ -105,12 +114,19 @@ static void can_lld_set_filters(uint32_t can2sb,
        CANs.*/
     CAN1->sFilterRegister[0].FR1 = 0;
     CAN1->sFilterRegister[0].FR2 = 0;
+#if STM32_HAS_CAN2
     CAN1->sFilterRegister[can2sb].FR1 = 0;
     CAN1->sFilterRegister[can2sb].FR2 = 0;
+#endif
     CAN1->FM1R = 0;
     CAN1->FFA1R = 0;
+#if STM32_HAS_CAN2
     CAN1->FS1R = 1 | (1 << can2sb);
     CAN1->FA1R = 1 | (1 << can2sb);
+#else
+    CAN1->FS1R = 1;
+    CAN1->FA1R = 1;
+#endif
   }
   CAN1->FMR &= ~CAN_FMR_FINIT;
 
@@ -683,8 +699,8 @@ void can_lld_wakeup(CANDriver *canp) {
  */
 void canSTM32SetFilters(uint32_t can2sb, uint32_t num, const CANFilter *cfp) {
 
-  osalDbgCheck((can2sb > 1) && (can2sb < STM32_CAN_MAX_FILTERS) &&
-               (num < STM32_CAN_MAX_FILTERS));
+  osalDbgCheck((can2sb >= 1) && (can2sb < STM32_CAN_MAX_FILTERS) &&
+               (num <= STM32_CAN_MAX_FILTERS));
 
 #if STM32_CAN_USE_CAN1
   osalDbgAssert(CAND1.state == CAN_STOP, "invalid state");

@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -223,6 +223,7 @@ OSAL_IRQ_HANDLER(VectorE8) {
   OSAL_IRQ_EPILOGUE();
 }
 
+#if STM32_HAS_ETH
 /**
  * @brief   EXTI[19] interrupt handler (ETH_WKUP).
  *
@@ -237,8 +238,9 @@ OSAL_IRQ_HANDLER(Vector138) {
 
   OSAL_IRQ_EPILOGUE();
 }
+#endif /* STM32_HAS_ETH */
 
-#if !defined(STM32F401xx)
+#if STM32_HAS_OTG2
 /**
  * @brief   EXTI[20] interrupt handler (OTG_HS_WKUP).
  *
@@ -253,7 +255,9 @@ OSAL_IRQ_HANDLER(Vector170) {
 
   OSAL_IRQ_EPILOGUE();
 }
+#endif /* STM32_HAS_OTG2 */
 
+#if !defined(STM32F401xx)
 /**
  * @brief   EXTI[21] interrupt handler (TAMPER_STAMP).
  *
@@ -306,9 +310,13 @@ void ext_lld_exti_irq_enable(void) {
   nvicEnableVector(PVD_IRQn, STM32_EXT_EXTI16_IRQ_PRIORITY);
   nvicEnableVector(RTC_Alarm_IRQn, STM32_EXT_EXTI17_IRQ_PRIORITY);
   nvicEnableVector(OTG_FS_WKUP_IRQn, STM32_EXT_EXTI18_IRQ_PRIORITY);
+#if STM32_HAS_ETH
   nvicEnableVector(ETH_WKUP_IRQn, STM32_EXT_EXTI19_IRQ_PRIORITY);
-#if !defined(STM32F401xx)
+#endif
+#if STM32_HAS_OTG2
   nvicEnableVector(OTG_HS_WKUP_IRQn, STM32_EXT_EXTI20_IRQ_PRIORITY);
+#endif
+#if !defined(STM32F401xx)
   nvicEnableVector(TAMP_STAMP_IRQn, STM32_EXT_EXTI21_IRQ_PRIORITY);
 #endif /* !defined(STM32F401xx) */
   nvicEnableVector(RTC_WKUP_IRQn, STM32_EXT_EXTI22_IRQ_PRIORITY);
@@ -331,9 +339,13 @@ void ext_lld_exti_irq_disable(void) {
   nvicDisableVector(PVD_IRQn);
   nvicDisableVector(RTC_Alarm_IRQn);
   nvicDisableVector(OTG_FS_WKUP_IRQn);
+#if STM32_HAS_ETH
   nvicDisableVector(ETH_WKUP_IRQn);
-#if !defined(STM32F401xx)
+#endif
+#if STM32_HAS_OTG2
   nvicDisableVector(OTG_HS_WKUP_IRQn);
+#endif
+#if !defined(STM32F401xx)
   nvicDisableVector(TAMP_STAMP_IRQn);
 #endif /* !defined(STM32F401xx) */
   nvicDisableVector(RTC_WKUP_IRQn);

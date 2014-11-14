@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,11 +26,12 @@
  *          - STM32_VDD (as hundredths of Volt).
  *          .
  *          One of the following macros must also be defined:
- *          - STM32F2XX for High-performance STM32 F-2 devices.
- *          - STM32F401xx for High-performance STM32 F-4 devices.
- *          - STM32F40_41xxx for High-performance STM32 F-4 devices.
- *          - STM32F427_437xx for High-performance STM32 F-4 devices.
- *          - STM32F429_439xx for High-performance STM32 F-4 devices.
+ *          - STM32F405xx, STM32F415xx, STM32F407xx, STM32F417xx for
+ *            High-performance STM32 F-2 devices.
+ *          - STM32F427xx, STM32F437xx, STM32F429xx, STM32F439xx for
+ *            High-performance STM32 F-4 devices.
+ *          - STM32F401xC, STM32F401xE for High-performance STM32 F-4 devices.
+ *          - STM32F411xE for High-performance STM32 F-4 devices.
  *          .
  *
  * @addtogroup HAL
@@ -55,21 +56,38 @@
  * @name    Platform identification macros
  * @{
  */
-#if defined(STM32F429_439xx) || defined(__DOXYGEN__)
-#define PLATFORM_NAME           "STM32F429/F439 High Performance with DSP and FPU"
-#define STM32F4XX
+#if defined(STM32F439xx) || defined(__DOXYGEN__)
+#define PLATFORM_NAME           "STM32F439 High Performance with DSP and FPU"
 
-#elif defined(STM32F427_437xx)
-#define PLATFORM_NAME           "STM32F427/F437 High Performance with DSP and FPU"
-#define STM32F4XX
+#elif defined(STM32F429xx)
+#define PLATFORM_NAME           "STM32F429 High Performance with DSP and FPU"
 
-#elif defined(STM32F40_41xxx)
-#define PLATFORM_NAME           "STM32F407/F417 High Performance with DSP and FPU"
-#define STM32F4XX
+#elif defined(STM32F437xx)
+#define PLATFORM_NAME           "STM32F437 High Performance with DSP and FPU"
 
-#elif defined(STM32F401xx)
-#define PLATFORM_NAME           "STM32F401 High Performance with DSP and FPU"
-#define STM32F4XX
+#elif defined(STM32F427xx)
+#define PLATFORM_NAME           "STM32F427 High Performance with DSP and FPU"
+
+#elif defined(STM32F405xx)
+#define PLATFORM_NAME           "STM32F405 High Performance with DSP and FPU"
+
+#elif defined(STM32F415xx)
+#define PLATFORM_NAME           "STM32F415 High Performance with DSP and FPU"
+
+#elif defined(STM32F407xx)
+#define PLATFORM_NAME           "STM32F407 High Performance with DSP and FPU"
+
+#elif defined(STM32F417xx)
+#define PLATFORM_NAME           "STM32F417 High Performance with DSP and FPU"
+
+#elif defined(STM32F401xC)
+#define PLATFORM_NAME           "STM32F401xC High Performance with DSP and FPU"
+
+#elif defined(STM32F401xE)
+#define PLATFORM_NAME           "STM32F401xE High Performance with DSP and FPU"
+
+#elif defined(STM32F411xE)
+#define PLATFORM_NAME           "STM32F411xE High Performance with DSP and FPU"
 
 #elif defined(STM32F2XX)
 #define PLATFORM_NAME           "STM32F2xx High Performance"
@@ -87,7 +105,8 @@
  * @name    Absolute Maximum Ratings
  * @{
  */
-#if defined(STM32F427_437xx) || defined(STM32F429_439xx) ||                 \
+#if defined(STM32F427xx) || defined(STM32F437xx) ||                         \
+    defined(STM32F429xx) || defined(STM32F439xx) ||                         \
     defined(__DOXYGEN__)
 /**
  * @brief   Absolute maximum system clock.
@@ -173,7 +192,7 @@
  * @brief   Maximum SPI/I2S clock frequency.
  */
 #define STM32_SPII2S_MAX        45000000
-#endif /* STM32F40_41xxx */
+#endif
 
 #if defined(STM32F40_41xxx) || defined(__DOXYGEN__)
 #define STM32_SYSCLK_MAX        168000000
@@ -193,7 +212,7 @@
 #define STM32_PCLK1_MAX         42000000
 #define STM32_PCLK2_MAX         84000000
 #define STM32_SPII2S_MAX        42000000
-#endif /* STM32F40_41xxx */
+#endif
 
 #if defined(STM32F401xx) || defined(__DOXYGEN__)
 #define STM32_SYSCLK_MAX        84000000
@@ -213,7 +232,27 @@
 #define STM32_PCLK1_MAX         42000000
 #define STM32_PCLK2_MAX         84000000
 #define STM32_SPII2S_MAX        42000000
-#endif /* STM32F40_41xxx */
+#endif
+
+#if defined(STM32F411xx)
+#define STM32_SYSCLK_MAX        100000000
+#define STM32_HSECLK_MAX        26000000
+#define STM32_HSECLK_BYP_MAX    50000000
+#define STM32_HSECLK_MIN        4000000
+#define STM32_HSECLK_BYP_MIN    1000000
+#define STM32_LSECLK_MAX        32768
+#define STM32_LSECLK_BYP_MAX    1000000
+#define STM32_LSECLK_MIN        32768
+#define STM32_PLLIN_MAX         2100000
+#define STM32_PLLIN_MIN         950000
+#define STM32_PLLVCO_MAX        432000000
+#define STM32_PLLVCO_MIN        100000000
+#define STM32_PLLOUT_MAX        100000000
+#define STM32_PLLOUT_MIN        24000000
+#define STM32_PCLK1_MAX         50000000
+#define STM32_PCLK2_MAX         100000000
+#define STM32_SPII2S_MAX        50000000
+#endif
 
 #if defined(STM32F2XX)
 #define STM32_SYSCLK_MAX        120000000
@@ -233,7 +272,7 @@
 #define STM32_PCLK1_MAX         30000000
 #define STM32_PCLK2_MAX         60000000
 #define STM32_SPII2S_MAX        30000000
-#endif /* defined(STM32F2XX) */
+#endif
 /** @} */
 
 /**
@@ -742,7 +781,7 @@
 #define STM32_1WS_THRESHOLD         36000000
 #define STM32_2WS_THRESHOLD         54000000
 #define STM32_3WS_THRESHOLD         72000000
-#define STM32_4WS_THRESHOLD         840000000
+#define STM32_4WS_THRESHOLD         84000000
 #define STM32_5WS_THRESHOLD         0
 #define STM32_6WS_THRESHOLD         0
 #define STM32_7WS_THRESHOLD         0
@@ -752,9 +791,54 @@
 #define STM32_1WS_THRESHOLD         32000000
 #define STM32_2WS_THRESHOLD         48000000
 #define STM32_3WS_THRESHOLD         64000000
-#define STM32_4WS_THRESHOLD         800000000
-#define STM32_5WS_THRESHOLD         840000000
+#define STM32_4WS_THRESHOLD         80000000
+#define STM32_5WS_THRESHOLD         84000000
 #define STM32_6WS_THRESHOLD         0
+#define STM32_7WS_THRESHOLD         0
+#define STM32_8WS_THRESHOLD         0
+#else
+#error "invalid VDD voltage specified"
+#endif
+
+#elif defined(STM32F411xx)
+#if (STM32_VDD >= 270) && (STM32_VDD <= 360)
+#define STM32_0WS_THRESHOLD         30000000
+#define STM32_1WS_THRESHOLD         64000000
+#define STM32_2WS_THRESHOLD         90000000
+#define STM32_3WS_THRESHOLD         100000000
+#define STM32_4WS_THRESHOLD         0
+#define STM32_5WS_THRESHOLD         0
+#define STM32_6WS_THRESHOLD         0
+#define STM32_7WS_THRESHOLD         0
+#define STM32_8WS_THRESHOLD         0
+#elif (STM32_VDD >= 240) && (STM32_VDD < 270)
+#define STM32_0WS_THRESHOLD         24000000
+#define STM32_1WS_THRESHOLD         48000000
+#define STM32_2WS_THRESHOLD         72000000
+#define STM32_3WS_THRESHOLD         96000000
+#define STM32_4WS_THRESHOLD         100000000
+#define STM32_5WS_THRESHOLD         0
+#define STM32_6WS_THRESHOLD         0
+#define STM32_7WS_THRESHOLD         0
+#define STM32_8WS_THRESHOLD         0
+#elif (STM32_VDD >= 210) && (STM32_VDD < 240)
+#define STM32_0WS_THRESHOLD         18000000
+#define STM32_1WS_THRESHOLD         36000000
+#define STM32_2WS_THRESHOLD         54000000
+#define STM32_3WS_THRESHOLD         72000000
+#define STM32_4WS_THRESHOLD         90000000
+#define STM32_5WS_THRESHOLD         100000000
+#define STM32_6WS_THRESHOLD         0
+#define STM32_7WS_THRESHOLD         0
+#define STM32_8WS_THRESHOLD         0
+#elif (STM32_VDD >= 171) && (STM32_VDD < 210)
+#define STM32_0WS_THRESHOLD         16000000
+#define STM32_1WS_THRESHOLD         32000000
+#define STM32_2WS_THRESHOLD         48000000
+#define STM32_3WS_THRESHOLD         64000000
+#define STM32_4WS_THRESHOLD         80000000
+#define STM32_5WS_THRESHOLD         96000000
+#define STM32_6WS_THRESHOLD         100000000
 #define STM32_7WS_THRESHOLD         0
 #define STM32_8WS_THRESHOLD         0
 #else
@@ -1064,6 +1148,16 @@
 #define STM32_VOS                   STM32_VOS_SCALE3
 #else
 #define STM32_VOS                   STM32_VOS_SCALE2
+#endif
+#define STM32_OVERDRIVE_REQUIRED    FALSE
+
+#elif defined(STM32F411xx)
+#if STM32_SYSCLK <= 64000000
+#define STM32_VOS                   STM32_VOS_SCALE3
+#elif STM32_SYSCLK <= 84000000
+#define STM32_VOS                   STM32_VOS_SCALE2
+#else
+#define STM32_VOS                   STM32_VOS_SCALE1
 #endif
 #define STM32_OVERDRIVE_REQUIRED    FALSE
 

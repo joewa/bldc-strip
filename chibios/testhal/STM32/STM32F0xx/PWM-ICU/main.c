@@ -48,13 +48,13 @@ icucnt_t last_width, last_period;
 static void icuwidthcb(ICUDriver *icup) {
 
   palSetPad(GPIOC, GPIOC_LED3);
-  last_width = icuGetWidth(icup);
+  last_width = icuGetWidthX(icup);
 }
 
 static void icuperiodcb(ICUDriver *icup) {
 
   palClearPad(GPIOC, GPIOC_LED3);
-  last_period = icuGetPeriod(icup);
+  last_period = icuGetPeriodX(icup);
 }
 
 static void icuoverflowcb(ICUDriver *icup) {
@@ -94,16 +94,19 @@ int main(void) {
    * The two pins have to be externally connected together.
    */
   pwmStart(&PWMD1, &pwmcfg);
+  pwmEnablePeriodicNotification(&PWMD1);
   palSetPadMode(GPIOA, 8, PAL_MODE_ALTERNATE(2));
   icuStart(&ICUD3, &icucfg);
   palSetPadMode(GPIOA, 6, PAL_MODE_ALTERNATE(1));
-  icuEnable(&ICUD3);
+  icuStartCapture(&ICUD3);
+  icuEnableNotifications(&ICUD3);
   chThdSleepMilliseconds(2000);
 
   /*
    * Starts the PWM channel 0 using 75% duty cycle.
    */
   pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 7500));
+  pwmEnableChannelNotification(&PWMD1, 0);
   chThdSleepMilliseconds(5000);
 
   /*
@@ -130,7 +133,7 @@ int main(void) {
    */
   pwmDisableChannel(&PWMD1, 0);
   pwmStop(&PWMD1);
-  icuDisable(&ICUD3);
+  icuStopCapture(&ICUD3);
   icuStop(&ICUD3);
   palClearPad(GPIOC, GPIOC_LED3);
   palClearPad(GPIOC, GPIOC_LED4);

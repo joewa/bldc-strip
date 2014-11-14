@@ -1,14 +1,14 @@
 /*
-    Nil RTOS - Copyright (C) 2012 Giovanni Di Sirio.
+    ChibiOS/NIL - Copyright (C) 2013,2014 Giovanni Di Sirio.
 
-    This file is part of Nil RTOS.
+    This file is part of ChibiOS/NIL.
 
-    Nil RTOS is free software; you can redistribute it and/or modify
+    ChibiOS/NIL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    Nil RTOS is distributed in the hope that it will be useful,
+    ChibiOS/NIL is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -182,11 +182,52 @@ typedef struct nil_thread thread_t;
 #endif
 
 /**
+ * @brief   System initialization hook.
+ */
+#if !defined(NIL_CFG_SYSTEM_INIT_HOOK) || defined(__DOXYGEN__)
+#define NIL_CFG_SYSTEM_INIT_HOOK() {}
+#endif
+
+/**
  * @brief   Threads descriptor structure extension.
  * @details User fields added to the end of the @p thread_t structure.
  */
 #if !defined(NIL_CFG_THREAD_EXT_FIELDS) || defined(__DOXYGEN__)
 #define NIL_CFG_THREAD_EXT_FIELDS
+#endif
+
+/**
+ * @brief   Threads initialization hook.
+ */
+#if !defined(NIL_CFG_THREAD_EXT_INIT_HOOK) || defined(__DOXYGEN__)
+#define NIL_CFG_THREAD_EXT_INIT_HOOK(tr) {}
+#endif
+
+/**
+ * @brief   Idle thread enter hook.
+ * @note    This hook is invoked within a critical zone, no OS functions
+ *          should be invoked from here.
+ * @note    This macro can be used to activate a power saving mode.
+ */
+#if !defined(NIL_CFG_IDLE_ENTER_HOOK) || defined(__DOXYGEN__)
+#define NIL_CFG_IDLE_ENTER_HOOK() {}
+#endif
+
+/**
+ * @brief   Idle thread leave hook.
+ * @note    This hook is invoked within a critical zone, no OS functions
+ *          should be invoked from here.
+ * @note    This macro can be used to deactivate a power saving mode.
+ */
+#if !defined(NIL_CFG_IDLE_LEAVE_HOOK) || defined(__DOXYGEN__)
+#define NIL_CFG_IDLE_LEAVE_HOOK() {}
+#endif
+
+/**
+ * @brief   System halt hook.
+ */
+#if !defined(NIL_CFG_SYSTEM_HALT_HOOK) || defined(__DOXYGEN__)
+#define NIL_CFG_SYSTEM_HALT_HOOK(reason) {}
 #endif
 
 /*===========================================================================*/
@@ -215,7 +256,7 @@ typedef struct nil_thread thread_t;
        "be zero or greater than one"
 #endif
 
-#if NIL_CFG_ENABLE_ASSERTS
+#if NIL_CFG_ENABLE_ASSERTS || NIL_CFG_ENABLE_STACK_CHECK
 #define NIL_DBG_ENABLED                 TRUE
 #else
 #define NIL_DBG_ENABLED                 FALSE
@@ -223,7 +264,7 @@ typedef struct nil_thread thread_t;
 
 /** Boundaries of the idle thread boundaries, only required if stack checking
     is enabled.*/
-#if NIL_CFG_ENABLE_STACK_CHECK
+#if NIL_CFG_ENABLE_STACK_CHECK || defined(__DOXYGEN__)
 extern stkalign_t __main_thread_stack_base__, __main_thread_stack_end__;
 
 #define THD_IDLE_BASE                   (&__main_thread_stack_base__)
@@ -293,13 +334,13 @@ struct nil_thread {
     void                *p;     /**< @brief Generic pointer.                */
     thread_reference_t  *trp;   /**< @brief Pointer to thread reference.    */
     semaphore_t         *semp;  /**< @brief Pointer to semaphore.           */
-#if NIL_CFG_USE_EVENTS
+#if NIL_CFG_USE_EVENTS || defined(__DOXYGEN__)
     eventmask_t         ewmask; /**< @brief Enabled events mask.            */
 #endif
   } u1;
   volatile systime_t    timeout;/**< @brief Timeout counter, zero
                                             if disabled.                    */
-#if NIL_CFG_USE_EVENTS
+#if NIL_CFG_USE_EVENTS || defined(__DOXYGEN__)
   eventmask_t           epmask; /**< @brief Pending events mask.            */
 #endif
 #if NIL_CFG_ENABLE_STACK_CHECK || defined(__DOXYGEN__)
@@ -321,7 +362,7 @@ typedef struct {
   thread_t              *current;
   /**
    * @brief   Pointer to the next thread to be executed.
-   * @note    This pointer must point at the same thread pointed by @p currp
+   * @note    This pointer must point at the same thread pointed by @p current
    *          or to an higher priority thread if a switch is required.
    */
   thread_t              *next;
@@ -350,8 +391,10 @@ typedef struct {
    * @brief   Panic message.
    * @note    This field is only present if some debug options have been
    *          activated.
+   * @note    Accesses to this pointer must never be optimized out so the
+   *          field itself is declared volatile.
    */
-  const char            *dbg_panic_msg;
+  const char            * volatile dbg_panic_msg;
 #endif
 } nil_system_t;
 
@@ -373,7 +416,8 @@ typedef struct {
  * @brief   Entry of user threads table
  */
 #define THD_TABLE_ENTRY(wap, name, funcp, arg)                              \
-  {wap, (wap) + sizeof (wap), name, funcp, arg},
+  {wap, ((stkalign_t *)(wap)) + (sizeof (wap) / sizeof(stkalign_t)),        \
+   name, funcp, arg},
 
 /**
  * @brief   End of user threads table.
@@ -407,7 +451,7 @@ typedef struct {
  * @api
  */
 #define THD_WORKING_AREA_SIZE(n)                                            \
-  THD_ALIGN_STACK_SIZE(sizeof(thread_t) + PORT_WA_SIZE(n))
+  THD_ALIGN_STACK_SIZE(PORT_WA_SIZE(n))
 
 /**
  * @brief   Static working area allocation.
@@ -543,21 +587,21 @@ typedef struct {
 #define chSysEnable() port_enable()
 
 /**
- * @brief   Enters the kernel lock mode.
+ * @brief   Enters the kernel lock state.
  *
  * @special
  */
 #define chSysLock() port_lock()
 
 /**
- * @brief   Leaves the kernel lock mode.
+ * @brief   Leaves the kernel lock state.
  *
  * @special
  */
 #define chSysUnlock() port_unlock()
 
 /**
- * @brief   Enters the kernel lock mode from within an interrupt handler.
+ * @brief   Enters the kernel lock state from within an interrupt handler.
  * @note    This API may do nothing on some architectures, it is required
  *          because on ports that support preemptable interrupt handlers
  *          it is required to raise the interrupt mask to the same level of
@@ -571,7 +615,7 @@ typedef struct {
 #define chSysLockFromISR() port_lock_from_isr()
 
 /**
- * @brief   Leaves the kernel lock mode from within an interrupt handler.
+ * @brief   Leaves the kernel lock state from within an interrupt handler.
  *
  * @note    This API may do nothing on some architectures, it is required
  *          because on ports that support preemptable interrupt handlers
@@ -735,7 +779,7 @@ typedef struct {
  * @xclass
  */
 #define chVTTimeElapsedSinceX(start)                                        \
-  ((systime_t)(chVTGetSystemTimeX() - start))
+  ((systime_t)(chVTGetSystemTimeX() - (start)))
 
 /**
  * @brief   Checks if the specified time is within the specified time window.
@@ -752,7 +796,7 @@ typedef struct {
  * @xclass
  */
 #define chVTIsTimeWithinX(time, start, end)                                 \
-  ((bool)((time) - (start) < (end) - (start)))
+  ((bool)((systime_t)((time) - (start)) < (systime_t)((end) - (start))))
 
 /**
  * @brief   Condition assertion.
@@ -791,6 +835,8 @@ extern "C" {
   void chSysInit(void);
   void chSysHalt(const char *reason);
   void chSysTimerHandlerI(void);
+  void chSysConditionalLock(void);
+  void chSysConditionalUnlock(void);
   syssts_t chSysGetStatusAndLockX(void);
   void chSysRestoreStatusX(syssts_t sts);
   thread_t *chSchReadyI(thread_t *tp, msg_t msg);

@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -238,7 +238,7 @@ struct port_extctx {
   regarm_t      s14;
   regarm_t      s15;
   regarm_t      fpscr;
-  regarm_t      fpccr;
+  regarm_t      reserved;
 #endif /* CORTEX_USE_FPU */
 };
 

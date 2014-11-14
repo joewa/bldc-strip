@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+    ChibiOS/NIL - Copyright (C) 2013,2014 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS/NIL.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS/NIL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS/NIL is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -67,7 +66,7 @@
 #if !defined(__DOXYGEN__)
 __attribute__((naked, weak))
 #endif
-void port_switch(Thread *ntp, Thread *otp) {
+void _port_switch(thread_t *ntp, thread_t *otp) {
 
   asm volatile ("push    r2");
   asm volatile ("push    r3");
@@ -90,14 +89,14 @@ void port_switch(Thread *ntp, Thread *otp) {
 
   asm volatile ("movw    r30, r22");
   asm volatile ("in      r0, 0x3d");
-  asm volatile ("std     Z+5, r0");
+  asm volatile ("std     Z+0, r0");
   asm volatile ("in      r0, 0x3e");
-  asm volatile ("std     Z+6, r0");
+  asm volatile ("std     Z+1, r0");
 
   asm volatile ("movw    r30, r24");
-  asm volatile ("ldd     r0, Z+5");
+  asm volatile ("ldd     r0, Z+0");
   asm volatile ("out     0x3d, r0");
-  asm volatile ("ldd     r0, Z+6");
+  asm volatile ("ldd     r0, Z+1");
   asm volatile ("out     0x3e, r0");
 
   asm volatile ("pop     r29");

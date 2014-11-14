@@ -1,10 +1,10 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
+                  2011,2012,2013,2014 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS/HAL 
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS/HAL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
@@ -131,13 +131,6 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
-/* Temporary types provided for ChibiOS 2.x compatibility.*/
-typedef io_queue_t GenericQueue;
-typedef input_queue_t InputQueue;
-typedef output_queue_t OutputQueue;
-typedef bool bool_t;
-#define OSAL_FREQUENCY OSAL_ST_FREQUENCY
-
 #if 0
 /**
  * @brief   Type of a system status word.
@@ -224,6 +217,13 @@ typedef struct {
 /* Module macros.                                                            */
 /*===========================================================================*/
 
+/* Temporary names provided for ChibiOS 2.x compatibility.*/
+#define osalQueueInit osalThreadQueueObjectInit
+#define osalQueueWakeupAllI osalThreadDequeueAllI
+#define osalQueueWakeupOneI osalThreadDequeueNextI
+#define osalQueueGoSleepTimeoutS osalThreadEnqueueTimeoutS
+#define osalEventInit osalEventObjectInit
+
 /**
  * @name    Debug related macros
  * @{
@@ -234,8 +234,6 @@ typedef struct {
  *          message and halts.
  * @note    The condition is tested only if the @p OSAL_ENABLE_ASSERTIONS
  *          switch is enabled.
- * @note    The convention for the message is the following:<br>
- *          @<function_name@>(), #@<assert_number@>
  * @note    The remark string is not currently used except for putting a
  *          comment in the code about the assertion.
  *

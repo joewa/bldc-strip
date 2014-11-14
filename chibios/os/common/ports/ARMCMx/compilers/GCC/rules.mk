@@ -61,8 +61,14 @@ endif
 ifeq ($(BUILDDIR),.)
   BUILDDIR = build
 endif
-OUTFILES = $(BUILDDIR)/$(PROJECT).elf $(BUILDDIR)/$(PROJECT).hex \
-           $(BUILDDIR)/$(PROJECT).bin $(BUILDDIR)/$(PROJECT).dmp
+OUTFILES = $(BUILDDIR)/$(PROJECT).elf \
+           $(BUILDDIR)/$(PROJECT).hex \
+           $(BUILDDIR)/$(PROJECT).bin \
+           $(BUILDDIR)/$(PROJECT).dmp
+
+ifdef SREC
+OUTFILES += $(BUILDDIR)/$(PROJECT).srec
+endif
 
 # Source files groups and paths
 ifeq ($(USE_THUMB),yes)
@@ -136,6 +142,7 @@ else
 endif
 
 # Generate dependency information
+ASFLAGS  += -MD -MP -MF .dep/$(@F).d
 CFLAGS   += -MD -MP -MF .dep/$(@F).d
 CPPFLAGS += -MD -MP -MF .dep/$(@F).d
 
@@ -240,6 +247,14 @@ else
 	@$(BIN) $< $@
 endif
 
+%.srec: %.elf $(LDSCRIPT)
+ifeq ($(USE_VERBOSE_COMPILE),yes)
+	$(SREC) $< $@
+else
+	@echo Creating $@
+	@$(SREC) $< $@
+endif
+
 %.dmp: %.elf $(LDSCRIPT)
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	$(OD) $(ODFLAGS) $< > $@
@@ -251,6 +266,13 @@ else
 	@echo
 	@echo Done
 endif
+
+lib: $(OBJS) $(BUILDDIR)/lib$(PROJECT).a
+
+$(BUILDDIR)/lib$(PROJECT).a: $(OBJS)
+	@$(AR) -r $@ $^
+	@echo
+	@echo Done
 
 clean:
 	@echo Cleaning

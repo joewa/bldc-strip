@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+    ChibiOS/NIL - Copyright (C) 2013,2014 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS/NIL.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS/NIL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS/NIL is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -138,31 +137,6 @@ typedef uint16_t systime_t;
 typedef uint8_t stkalign_t;
 
 /**
- * @brief   Interrupt saved context.
- * @details This structure represents the stack frame saved during a
- *          preemption-capable interrupt handler.
- */
-struct port_extctx {
-  uint8_t       _next;
-  uint8_t       r31;
-  uint8_t       r30;
-  uint8_t       r27;
-  uint8_t       r26;
-  uint8_t       r25;
-  uint8_t       r24;
-  uint8_t       r23;
-  uint8_t       r22;
-  uint8_t       r21;
-  uint8_t       r20;
-  uint8_t       r19;
-  uint8_t       r18;
-  uint8_t       sr;
-  uint8_t       r1;
-  uint8_t       r0;
-  uint16_t      pc;
-};
-
-/**
  * @brief   System saved context.
  * @details This structure represents the inner stack frame during a context
  *          switching.
@@ -203,14 +177,14 @@ struct port_intctx {
  *          by an @p port_intctx structure.
  */
 #define PORT_SETUP_CONTEXT(tp, wend, pf, arg) {                             \
-    (tp)->ctxp.sp = (struct port_intctx*)(((uint8_t *)(wend)) -             \
-                                           sizeof(struct port_intctx));     \
-    (tp)->ctxp.sp->r2  = (uint8_t)(pf);                                     \
-    (tp)->ctxp.sp->r3  = (uint8_t)((pf) >> 8);                              \
-    (tp)->ctxp.sp->r4  = (uint8_t)(arg);                                    \
-    (tp)->ctxp.sp->r5  = (uint8_t)((arg) >> 8);                             \
-    (tp)->ctxp.sp->pcl = (uint8_t)(_port_thread_start >> 8);                \
-    (tp)->ctxp.sp->pch = (uint8_t)_port_thread_start;                       \
+    (tp)->ctxp = (struct port_intctx*)(((uint8_t *)(wend)) -                \
+                                         sizeof(struct port_intctx));       \
+    (tp)->ctxp->r2  = (int)pf;                                              \
+    (tp)->ctxp->r3  = (int)pf >> 8;                                         \
+    (tp)->ctxp->r4  = (int)arg;                                             \
+    (tp)->ctxp->r5  = (int)arg >> 8;                                        \
+    (tp)->ctxp->pcl = (int)_port_thread_start >> 8;                         \
+    (tp)->ctxp->pch = (int)_port_thread_start;                              \
 }
 
 /**
@@ -218,7 +192,6 @@ struct port_intctx {
  * @note    There is no need to perform alignments in this macro.
  */
 #define PORT_WA_SIZE(n) ((sizeof(struct port_intctx) - 1) +                 \
-                         (sizeof(struct port_extctx) - 1) +                 \
                          (n) + (PORT_INT_REQUIRED_STACK))
 
 /**

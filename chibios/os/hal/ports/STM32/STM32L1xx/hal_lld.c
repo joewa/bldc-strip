@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -120,7 +120,6 @@ void hal_lld_init(void) {
  *
  * @special
  */
-#if defined(STM32L1XX_MD) || defined(__DOXYGEN__)
 /**
  * @brief   Clocks and internal voltage initialization.
  */
@@ -216,8 +215,5 @@ void stm32_clock_init(void) {
      among multiple drivers.*/
   rccEnableAPB2(RCC_APB2ENR_SYSCFGEN, TRUE);
 }
-#else
-void stm32_clock_init(void) {}
-#endif
 
 /** @} */

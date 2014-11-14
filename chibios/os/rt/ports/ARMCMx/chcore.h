@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -165,7 +165,7 @@ struct port_extctx {};
 /**
  * @brief   System saved context.
  * @details This structure represents the inner stack frame during a context
- *          switching.
+ *          switch.
  */
 struct port_intctx {};
 #endif /* defined(__DOXYGEN__) */

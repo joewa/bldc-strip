@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -291,7 +291,7 @@ static inline void chSysEnable(void) {
 }
 
 /**
- * @brief   Enters the kernel lock mode.
+ * @brief   Enters the kernel lock state.
  *
  * @special
  */
@@ -303,7 +303,7 @@ static inline void chSysLock(void)  {
 }
 
 /**
- * @brief   Leaves the kernel lock mode.
+ * @brief   Leaves the kernel lock state.
  *
  * @special
  */
@@ -323,7 +323,7 @@ static inline void chSysUnlock(void) {
 }
 
 /**
- * @brief   Enters the kernel lock mode from within an interrupt handler.
+ * @brief   Enters the kernel lock state from within an interrupt handler.
  * @note    This API may do nothing on some architectures, it is required
  *          because on ports that support preemptable interrupt handlers
  *          it is required to raise the interrupt mask to the same level of
@@ -342,7 +342,7 @@ static inline void chSysLockFromISR(void) {
 }
 
 /**
- * @brief   Leaves the kernel lock mode from within an interrupt handler.
+ * @brief   Leaves the kernel lock state from within an interrupt handler.
  *
  * @note    This API may do nothing on some architectures, it is required
  *          because on ports that support preemptable interrupt handlers
@@ -359,6 +359,32 @@ static inline void chSysUnlockFromISR(void) {
   _dbg_check_unlock_from_isr();
   _stats_stop_measure_crit_isr();
   port_unlock_from_isr();
+}
+
+/**
+ * @brief   Unconditionally enters the kernel lock state.
+ * @note    Can be called without previous knowledge of the current lock state.
+ *          The final state is "s-locked".
+ *
+ * @special
+ */
+static inline void chSysUnconditionalLock(void) {
+
+  if (port_irq_enabled(port_get_irq_status()))
+    chSysLock();
+}
+
+/**
+ * @brief   Unconditionally leaves the kernel lock state.
+ * @note    Can be called without previous knowledge of the current lock state.
+ *          The final state is "normal".
+ *
+ * @special
+ */
+static inline void chSysUnconditionalUnlock(void) {
+
+  if (!port_irq_enabled(port_get_irq_status()))
+    chSysUnlock();
 }
 
 #endif /* _CHSYS_H_ */

@@ -1,14 +1,14 @@
 /*
-    Nil RTOS - Copyright (C) 2012 Giovanni Di Sirio.
+    ChibiOS/NIL - Copyright (C) 2013,2014 Giovanni Di Sirio.
 
-    This file is part of Nil RTOS.
+    This file is part of ChibiOS/NIL.
 
-    Nil RTOS is free software; you can redistribute it and/or modify
+    ChibiOS/NIL is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    Nil RTOS is distributed in the hope that it will be useful,
+    ChibiOS/NIL is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -75,6 +75,9 @@ void chSysInit(void) {
   /* Port layer initialization.*/
   port_init();
 
+  /* System initialization hook.*/
+  NIL_CFG_SYSTEM_INIT_HOOK();
+
   /* Iterates through the list of defined threads.*/
   tp = &nil.threads[0];
   tcp = nil_thd_configs;
@@ -87,9 +90,7 @@ void chSysInit(void) {
     PORT_SETUP_CONTEXT(tp, tcp->wend, tcp->funcp, tcp->arg);
 
     /* Initialization hook.*/
-#if defined(NIL_CFG_THREAD_EXT_INIT_HOOK)
     NIL_CFG_THREAD_EXT_INIT_HOOK(tp);
-#endif
 
     tp++, tcp++;
   }
@@ -129,9 +130,7 @@ void chSysHalt(const char *reason) {
   (void)reason;
 #endif
 
-#if defined(NIL_CFG_SYSTEM_HALT_HOOK) || defined(__DOXYGEN__)
   NIL_CFG_SYSTEM_HALT_HOOK(reason);
-#endif
 
   /* Harmless infinite loop.*/
   while (true)
@@ -197,7 +196,7 @@ void chSysTimerHandlerI(void) {
         chSchReadyI(tp, MSG_TIMEOUT);
       }
       else {
-        if (tp->timeout <= next - 1)
+        if (tp->timeout <= (systime_t)(next - 1))
           next = tp->timeout;
       }
     }
@@ -217,6 +216,32 @@ void chSysTimerHandlerI(void) {
     port_timer_stop_alarm();
   }
 #endif
+}
+
+/**
+ * @brief   Conditionally enters the kernel lock state.
+ * @note    Can be called without previous knowledge of the current lock state.
+ *          The final state is "s-locked".
+ *
+ * @special
+ */
+void chSysConditionalLock(void) {
+
+  if (port_irq_enabled(port_get_irq_status()))
+    chSysLock();
+}
+
+/**
+ * @brief   Conditionally leaves the kernel lock state.
+ * @note    Can be called without previous knowledge of the current lock state.
+ *          The final state is "normal".
+ *
+ * @special
+ */
+void chSysConditionalUnlock(void) {
+
+  if (!port_irq_enabled(port_get_irq_status()))
+    chSysUnlock();
 }
 
 /**
@@ -300,11 +325,9 @@ void chSchRescheduleS(void) {
     thread_t *otp = nil.current;
 
     nil.current = nil.next;
-#if defined(NIL_CFG_IDLE_LEAVE_HOOK)
     if (otp == &nil.threads[NIL_CFG_NUM_THREADS]) {
       NIL_CFG_IDLE_LEAVE_HOOK();
     }
-#endif
     port_switch(nil.next, otp);
   }
 }
@@ -376,11 +399,9 @@ msg_t chSchGoSleepTimeoutS(tstate_t newstate, systime_t timeout) {
     /* Is this thread ready to execute?*/
     if (NIL_THD_IS_READY(ntp)) {
       nil.current = nil.next = ntp;
-#if defined(NIL_CFG_IDLE_ENTER_HOOK)
       if (ntp == &nil.threads[NIL_CFG_NUM_THREADS]) {
         NIL_CFG_IDLE_ENTER_HOOK();
       }
-#endif
       port_switch(ntp, otp);
       return nil.current->u1.msg;
     }

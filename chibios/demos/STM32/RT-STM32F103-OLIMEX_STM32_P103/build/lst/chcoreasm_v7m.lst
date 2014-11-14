@@ -1,0 +1,415 @@
+ARM GAS  /tmp/cctRHN62.s 			page 1
+
+
+   1              	# 1 "../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s"
+   1              	/*
+   0              	
+   2              	    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
+   3              	                 2011,2012,2013 Giovanni Di Sirio.
+   4              	
+   5              	    This file is part of ChibiOS/RT.
+   6              	
+   7              	    ChibiOS/RT is free software; you can redistribute it and/or modify
+   8              	    it under the terms of the GNU General Public License as published by
+   9              	    the Free Software Foundation; either version 3 of the License, or
+  10              	    (at your option) any later version.
+  11              	
+  12              	    ChibiOS/RT is distributed in the hope that it will be useful,
+  13              	    but WITHOUT ANY WARRANTY; without even the implied warranty of
+  14              	    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  15              	    GNU General Public License for more details.
+  16              	
+  17              	    You should have received a copy of the GNU General Public License
+  18              	    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  19              	*/
+  20              	
+  21              	/**
+  22              	 * @file    compilers/GCC/chcoreasm_v7m.s
+  23              	 * @brief   ARMv7-M architecture port low level code.
+  24              	 *
+  25              	 * @addtogroup ARMCMx_GCC_CORE
+  26              	 * @{
+  27              	 */
+  28              	
+  29              	#if !defined(FALSE) || defined(__DOXYGEN__)
+  30              	#define FALSE   0
+  31              	#endif
+  32              	
+  33              	#if !defined(TRUE) || defined(__DOXYGEN__)
+  34              	#define TRUE    1
+  35              	#endif
+  36              	
+  37              	#define _FROM_ASM_
+  38              	#include "chconf.h"
+   1              	/*
+  39              	#include "chcore.h"
+   1              	/*
+   2              	    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
+   3              	                 2011,2012,2013 Giovanni Di Sirio.
+   4              	
+   5              	    This file is part of ChibiOS/RT.
+   6              	
+   7              	    ChibiOS/RT is free software; you can redistribute it and/or modify
+   8              	    it under the terms of the GNU General Public License as published by
+   9              	    the Free Software Foundation; either version 3 of the License, or
+  10              	    (at your option) any later version.
+  11              	
+  12              	    ChibiOS/RT is distributed in the hope that it will be useful,
+  13              	    but WITHOUT ANY WARRANTY; without even the implied warranty of
+  14              	    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  15              	    GNU General Public License for more details.
+ARM GAS  /tmp/cctRHN62.s 			page 2
+
+
+  16              	
+  17              	    You should have received a copy of the GNU General Public License
+  18              	    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  19              	*/
+  20              	
+  21              	/**
+  22              	 * @file    ARMCMx/chcore.h
+  23              	 * @brief   ARM Cortex-Mx port macros and structures.
+  24              	 *
+  25              	 * @addtogroup ARMCMx_CORE
+  26              	 * @{
+  27              	 */
+  28              	
+  29              	#ifndef _CHCORE_H_
+  30              	#define _CHCORE_H_
+  31              	
+  32              	/*===========================================================================*/
+  33              	/* Module constants.                                                         */
+  34              	/*===========================================================================*/
+  35              	
+  36              	/**
+  37              	 * @name    Architecture and Compiler
+  38              	 * @{
+  39              	 */
+  40              	/**
+  41              	 * @brief   Macro defining a generic ARM architecture.
+  42              	 */
+  43              	#define PORT_ARCHITECTURE_ARM
+  44              	
+  45              	/* The following code is not processed when the file is included from an
+  46              	   asm module because those intrinsic macros are not necessarily defined
+  47              	   by the assembler too.*/
+  48              	#if !defined(_FROM_ASM_)
+  49              	
+  50              	/**
+  51              	 * @brief   Compiler name and version.
+  52              	 */
+  53              	#if defined(__GNUC__) || defined(__DOXYGEN__)
+  54              	#define PORT_COMPILER_NAME              "GCC " __VERSION__
+  55              	
+  56              	#elif defined(__ICCARM__)
+  57              	#define PORT_COMPILER_NAME              "IAR"
+  58              	
+  59              	#elif defined(__CC_ARM)
+  60              	#define PORT_COMPILER_NAME              "RVCT"
+  61              	
+  62              	#else
+  63              	#error "unsupported compiler"
+  64              	#endif
+  65              	
+  66              	#endif /* !defined(_FROM_ASM_) */
+  67              	
+  68              	/** @} */
+  69              	
+  70              	/**
+  71              	 * @name    Cortex-M variants
+  72              	 * @{
+ARM GAS  /tmp/cctRHN62.s 			page 3
+
+
+  73              	 */
+  74              	#define CORTEX_M0                       0   /**< @brief Cortex-M0 variant.  */
+  75              	#define CORTEX_M0PLUS                   1   /**< @brief Cortex-M0+ variant. */
+  76              	#define CORTEX_M1                       2   /**< @brief Cortex-M1 variant.  */
+  77              	#define CORTEX_M3                       3   /**< @brief Cortex-M3 variant.  */
+  78              	#define CORTEX_M4                       4   /**< @brief Cortex-M4 variant.  */
+  79              	/** @} */
+  80              	
+  81              	/* Inclusion of the Cortex-Mx implementation specific parameters.*/
+  82              	#include "cmparams.h"
+   1              	/*
+  83              	
+  84              	/*===========================================================================*/
+  85              	/* Module pre-compile time settings.                                         */
+  86              	/*===========================================================================*/
+  87              	
+  88              	/**
+  89              	 * @brief   Enables an alternative timer implementation.
+  90              	 * @details Usually the port uses a timer interface defined in the file
+  91              	 *          @p chcore_timer.h, if this option is enabled then the file
+  92              	 *          @p chcore_timer_alt.h is included instead.
+  93              	 */
+  94              	#if !defined(PORT_USE_ALT_TIMER)
+  95              	#define PORT_USE_ALT_TIMER              FALSE
+  96              	#endif
+  97              	
+  98              	/*===========================================================================*/
+  99              	/* Derived constants and error checks.                                       */
+ 100              	/*===========================================================================*/
+ 101              	
+ 102              	/* The following code is not processed when the file is included from an
+ 103              	   asm module.*/
+ 104              	#if !defined(_FROM_ASM_)
+ 105              	
+ 106              	/*
+ 107              	 * Inclusion of the appropriate CMSIS header for the selected device.
+ 108              	 */
+ 109              	#if CORTEX_MODEL == CORTEX_M0
+ 110              	#include "core_cm0.h"
+ 111              	#elif CORTEX_MODEL == CORTEX_M0PLUS
+ 112              	#include "core_cm0plus.h"
+ 113              	#elif CORTEX_MODEL == CORTEX_M3
+ 114              	#include "core_cm3.h"
+ 115              	#elif CORTEX_MODEL == CORTEX_M4
+ 116              	#include "core_cm4.h"
+ 117              	#else
+ 118              	#error "unknown or unsupported Cortex-M model"
+ 119              	#endif
+ 120              	
+ 121              	#endif /* !defined(_FROM_ASM_) */
+ 122              	
+ 123              	/*===========================================================================*/
+ 124              	/* Module data structures and types.                                         */
+ 125              	/*===========================================================================*/
+ 126              	
+ 127              	/* The following code is not processed when the file is included from an
+ 128              	   asm module.*/
+ARM GAS  /tmp/cctRHN62.s 			page 4
+
+
+ 129              	#if !defined(_FROM_ASM_)
+ 130              	
+ 131              	/**
+ 132              	 * @brief   Type of system time.
+ 133              	 */
+ 134              	#if (CH_CFG_ST_RESOLUTION == 32) || defined(__DOXYGEN__)
+ 135              	typedef uint32_t systime_t;
+ 136              	#else
+ 137              	typedef uint16_t systime_t;
+ 138              	#endif
+ 139              	
+ 140              	/**
+ 141              	 * @brief   Type of a generic ARM register.
+ 142              	 */
+ 143              	typedef void *regarm_t;
+ 144              	
+ 145              	/**
+ 146              	 * @brief   Type of stack and memory alignment enforcement.
+ 147              	 * @note    In this architecture the stack alignment is enforced to 64 bits,
+ 148              	 *          32 bits alignment is supported by hardware but deprecated by ARM,
+ 149              	 *          the implementation choice is to not offer the option.
+ 150              	 */
+ 151              	typedef uint64_t stkalign_t;
+ 152              	
+ 153              	/* The following declarations are there just for Doxygen documentation, the
+ 154              	   real declarations are inside the sub-headers being specific for the
+ 155              	   sub-architectures.*/
+ 156              	#if defined(__DOXYGEN__)
+ 157              	/**
+ 158              	 * @brief   Interrupt saved context.
+ 159              	 * @details This structure represents the stack frame saved during a
+ 160              	 *          preemption-capable interrupt handler.
+ 161              	 * @note    It is implemented to match the Cortex-Mx exception context.
+ 162              	 */
+ 163              	struct port_extctx {};
+ 164              	
+ 165              	/**
+ 166              	 * @brief   System saved context.
+ 167              	 * @details This structure represents the inner stack frame during a context
+ 168              	 *          switching.
+ 169              	 */
+ 170              	struct port_intctx {};
+ 171              	#endif /* defined(__DOXYGEN__) */
+ 172              	
+ 173              	/**
+ 174              	 * @brief   Platform dependent part of the @p thread_t structure.
+ 175              	 * @details In this port the structure just holds a pointer to the
+ 176              	 *          @p port_intctx structure representing the stack pointer
+ 177              	 *          at context switch time.
+ 178              	 */
+ 179              	struct context {
+ 180              	  struct port_intctx *r13;
+ 181              	};
+ 182              	
+ 183              	#endif /* !defined(_FROM_ASM_) */
+ 184              	
+ 185              	/*===========================================================================*/
+ARM GAS  /tmp/cctRHN62.s 			page 5
+
+
+ 186              	/* Module macros.                                                            */
+ 187              	/*===========================================================================*/
+ 188              	
+ 189              	/**
+ 190              	 * @brief   Total priority levels.
+ 191              	 */
+ 192              	#define CORTEX_PRIORITY_LEVELS          (1 << CORTEX_PRIORITY_BITS)
+ 193              	
+ 194              	/**
+ 195              	 * @brief   Minimum priority level.
+ 196              	 * @details This minimum priority level is calculated from the number of
+ 197              	 *          priority bits supported by the specific Cortex-Mx implementation.
+ 198              	 */
+ 199              	#define CORTEX_MINIMUM_PRIORITY         (CORTEX_PRIORITY_LEVELS - 1)
+ 200              	
+ 201              	/**
+ 202              	 * @brief   Maximum priority level.
+ 203              	 * @details The maximum allowed priority level is always zero.
+ 204              	 */
+ 205              	#define CORTEX_MAXIMUM_PRIORITY         0
+ 206              	
+ 207              	/**
+ 208              	 * @brief   Priority level verification macro.
+ 209              	 */
+ 210              	#define CORTEX_IS_VALID_PRIORITY(n)                                         \
+ 211              	  (((n) >= 0) && ((n) < CORTEX_PRIORITY_LEVELS))
+ 212              	
+ 213              	/**
+ 214              	 * @brief   Priority level verification macro.
+ 215              	 */
+ 216              	#define CORTEX_IS_VALID_KERNEL_PRIORITY(n)                                  \
+ 217              	  (((n) >= CORTEX_MAX_KERNEL_PRIORITY) && ((n) < CORTEX_PRIORITY_LEVELS))
+ 218              	
+ 219              	/**
+ 220              	 * @brief   Priority level to priority mask conversion macro.
+ 221              	 */
+ 222              	#define CORTEX_PRIO_MASK(n)                                                 \
+ 223              	  ((n) << (8 - CORTEX_PRIORITY_BITS))
+ 224              	
+ 225              	/*===========================================================================*/
+ 226              	/* External declarations.                                                    */
+ 227              	/*===========================================================================*/
+ 228              	
+ 229              	/*===========================================================================*/
+ 230              	/* Module inline functions.                                                  */
+ 231              	/*===========================================================================*/
+ 232              	
+ 233              	/* Includes the sub-architecture-specific part.*/
+ 234              	#if (CORTEX_MODEL == CORTEX_M0) || (CORTEX_MODEL == CORTEX_M0PLUS) ||       \
+ 235              	    (CORTEX_MODEL == CORTEX_M1)
+ 236              	#include "chcore_v6m.h"
+ 237              	#elif (CORTEX_MODEL == CORTEX_M3) || (CORTEX_MODEL == CORTEX_M4)
+ 238              	#include "chcore_v7m.h"
+   1              	/*
+ 239              	#endif
+  40              	
+  41              	#if !defined(__DOXYGEN__)
+ARM GAS  /tmp/cctRHN62.s 			page 6
+
+
+  42              	
+  43              	                .set    CONTEXT_OFFSET, 12
+  44              	                .set    SCB_ICSR, 0xE000ED04
+  45              	                .set    ICSR_PENDSVSET, 0x10000000
+  46              	
+  47              	                .syntax unified
+  48              	                .cpu    cortex-m4
+  49              	#if CORTEX_USE_FPU
+  50              	                .fpu    fpv4-sp-d16
+  51              	#else
+  52              	                .fpu    softvfp
+  53              	#endif
+  54              	
+  55              	                .thumb
+  56              	                .text
+  57              	
+  58              	/*--------------------------------------------------------------------------*
+  59              	 * Performs a context switch between two threads.
+  60              	 *--------------------------------------------------------------------------*/
+  61              	                .thumb_func
+  62              	                .globl  _port_switch
+  63              	_port_switch:
+  64 0000 2DE9F04F 	                push    {r4, r5, r6, r7, r8, r9, r10, r11, lr}
+  65              	#if CORTEX_USE_FPU
+  66              	                vpush   {s16-s31}
+  67              	#endif
+  68 0004 C1F80CD0 	                str     sp, [r1, #CONTEXT_OFFSET]
+  69 0008 D0F80CD0 	                ldr     sp, [r0, #CONTEXT_OFFSET]
+  70              	#if CORTEX_USE_FPU
+  71              	                vpop    {s16-s31}
+  72              	#endif
+  73 000c BDE8F08F 	                pop     {r4, r5, r6, r7, r8, r9, r10, r11, pc}
+  74              	
+  75              	/*--------------------------------------------------------------------------*
+  76              	 * Start a thread by invoking its work function.
+  77              	 *
+  78              	 * Threads execution starts here, the code leaves the system critical zone
+  79              	 * and then jumps into the thread function passed in register R4. The
+  80              	 * register R5 contains the thread parameter. The function chThdExit() is
+  81              	 * called on thread function return.
+  82              	 *--------------------------------------------------------------------------*/
+  83              	                .thumb_func
+  84              	                .globl  _port_thread_start
+  85              	_port_thread_start:
+  86              	#if CH_DBG_SYSTEM_STATE_CHECK
+  87              	                bl      _dbg_check_unlock
+  88              	#endif
+  89              	#if CH_DBG_STATISTICS
+  90              	                bl      _stats_stop_measure_crit_thd
+  91              	#endif
+  92              	#if !CORTEX_SIMPLIFIED_PRIORITY
+  93 0010 0023     	                movs    r3, #0
+  94 0012 83F31188 	                msr     BASEPRI, r3
+  95              	#else /* CORTEX_SIMPLIFIED_PRIORITY */
+  96              	                cpsie   i
+  97              	#endif /* CORTEX_SIMPLIFIED_PRIORITY */
+  98 0016 2846     	                mov     r0, r5
+ARM GAS  /tmp/cctRHN62.s 			page 7
+
+
+  99 0018 A047     	                blx     r4
+ 100 001a FFF7FEFF 	                bl      chThdExit
+ 101              	
+ 102              	/*--------------------------------------------------------------------------*
+ 103              	 * Post-IRQ switch code.
+ 104              	 *
+ 105              	 * Exception handlers return here for context switching.
+ 106              	 *--------------------------------------------------------------------------*/
+ 107              	                .thumb_func
+ 108              	                .globl  _port_switch_from_isr
+ 109              	_port_switch_from_isr:
+ 110              	#if CH_DBG_STATISTICS
+ 111              	                bl      _stats_start_measure_crit_thd
+ 112              	#endif
+ 113              	#if CH_DBG_SYSTEM_STATE_CHECK
+ 114              	                bl      _dbg_check_lock
+ 115              	#endif
+ 116 001e FFF7FEFF 	                bl      chSchDoReschedule
+ 117              	#if CH_DBG_SYSTEM_STATE_CHECK
+ 118              	                bl      _dbg_check_unlock
+ 119              	#endif
+ 120              	#if CH_DBG_STATISTICS
+ 121              	                bl      _stats_stop_measure_crit_thd
+ 122              	#endif
+ 123              	                .globl  _port_exit_from_isr
+ 124              	_port_exit_from_isr:
+ 125              	#if CORTEX_SIMPLIFIED_PRIORITY
+ 126              	                movw    r3, #:lower16:SCB_ICSR
+ 127              	                movt    r3, #:upper16:SCB_ICSR
+ 128              	                mov     r2, ICSR_PENDSVSET
+ 129              	                str     r2, [r3, #0]
+ 130              	                cpsie   i
+ 131              	#else /* !CORTEX_SIMPLIFIED_PRIORITY */
+ 132 0022 00DF     	                svc     #0
+ 133              	#endif /* !CORTEX_SIMPLIFIED_PRIORITY */
+ 134 0024 FEE7     	.L1:            b       .L1
+ARM GAS  /tmp/cctRHN62.s 			page 8
+
+
+DEFINED SYMBOLS
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:43     *ABS*:0000000c CONTEXT_OFFSET
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:44     *ABS*:e000ed04 SCB_ICSR
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:45     *ABS*:10000000 ICSR_PENDSVSET
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:63     .text:00000000 _port_switch
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:64     .text:00000000 $t
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:85     .text:00000010 _port_thread_start
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:109    .text:0000001e _port_switch_from_isr
+../../../os/rt/ports/ARMCMx/compilers/GCC/chcoreasm_v7m.s:124    .text:00000022 _port_exit_from_isr
+
+UNDEFINED SYMBOLS
+chThdExit
+chSchDoReschedule

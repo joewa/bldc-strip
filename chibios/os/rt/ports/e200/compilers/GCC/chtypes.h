@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012,2013,2014 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -19,10 +19,10 @@
 */
 
 /**
- * @file    PPC/chtypes.h
- * @brief   PowerPC architecture port system types.
+ * @file    e200/compilers/GCC/chtypes.h
+ * @brief   Power e200 port system types.
  *
- * @addtogroup PPC_CORE
+ * @addtogroup PPC_GCC_CORE
  * @{
  */
 
