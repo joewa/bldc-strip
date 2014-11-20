@@ -136,7 +136,7 @@ static const ADCConversionGroup adc_commutate_group = {
 		0, // ADC_CR1
 		//0, // ADC_CR2
 		//ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_2, // ADC_CR2: use ext event | select Timer3 TRGO event
-		ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_2 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTSEL_0, // ADC_CR2: use ext event | select SWSTART event
+		ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_0, // | ADC_CR2_EXTSEL_2 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTSEL_0, // ADC_CR2: use ext event | select SWSTART event
 		0, // ADC_SMPR1
 		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN4(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN5(ADC_SAMPLE_1P5), // ADC_SMPR2
 		ADC_SQR1_NUM_CH(ADC_COMMUTATE_NUM_CHANNELS), // ADC_SQR1
@@ -257,6 +257,8 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_count = 0;
     		//pwmEnableChannel(&PWMD1, table_angle2leg[angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
     		adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
+    		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    		pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 100));
     		for (i=0; i<100000; i++) { // waste some time
     			x=2*i;
     		}
