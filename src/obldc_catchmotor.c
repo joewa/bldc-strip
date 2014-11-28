@@ -232,10 +232,10 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
 		  catchstate = catchcycle(voltage_u, voltage_v, voltage_w, FALSE);
 		  // Write result TODO
-		  if (catchstate != 0) {
+		  if (1) {//(catchstate != 0) { // TODO Wenn motor nich angeschlossen
 			  catchresult = catchstate;
 			  palClearPad(GPIOB, GPIOB_LEDR);
-			  adcStopConversion(&ADCD1);
+			  //adcStopConversion(&ADCD1);
 			  motor.angle = 1;
 			  motor.state = OBLDC_STATE_RUNNING;
 			  motor.pwm_duty_cycle = 300;  // ACHTUNG!!!

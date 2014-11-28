@@ -16,9 +16,21 @@
 
 motor_s motor;	// Stores all motor data
 
+//#define ADC_COMMUTATE_NUM_CHANNELS  5
+//#define ADC_COMMUTATE_BUF_DEPTH     8
+//f_single =    2.0000e+05
+//T_cb_ADC1 =    2.0000e-05
+//f_cb_ADC1 =    5.0000e+04
 
-#define ADC_COMMUTATE_NUM_CHANNELS  5
-#define ADC_COMMUTATE_BUF_DEPTH     8
+#define ADC_COMMUTATE_NUM_CHANNELS 1
+#define ADC_COMMUTATE_BUF_DEPTH     100
+//f_single =  1000000
+//T_cb_ADC1 =    2.0000e-05
+//f_cb_ADC1 =    5.0000e+04
+
+
+
+
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
 
 #define PWM_CLOCK_FREQUENCY			2e6 	// [Hz]
@@ -87,16 +99,29 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 
   //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
   //float voltage = avg_ch1/4095.0*3;
-  uint16_t csamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
+  uint16_t csamples[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1];
   int i,a,b;
   chSysLockFromISR();
+  //ADCD1.adc->CR2 &= ~ADC_CR2_EXTTRIG;	// Externen Trigger wieder ausschalten
+  //ADCD1.adc->CR2 |= ADC_CR2_CONT;		// ADC soll selber weiter laufen
   /*if (!adc_commutate_count) { // Start PWM so that ADC is in Sync with Timer 1
 	  pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
 	  chSysLockFromISR();
 	  pwmEnableChannelI(&PWMD1, table_angle2leg[motor.angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, motor.pwm_duty_cycle));
   } else chSysLockFromISR();*/
 
-  for (i=0; i<ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH; i++ ) csamples[i] = commutatesamples[i];
+  for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
+	  csamples[i] = buffer[i];
+  }
+  // Beim Triggern mit CC-event wird es nie mit gemessen. Bei freilaufenendem ADC dagegen schon
+  // Lies nach ob sich ADC_CR2_EXTTRIG und ADC_CR2_CONT widersprechen/ausschließen
+
+  for (i=10; i<24; i++ ) {
+	  if (csamples[i] > 200) {
+		  //adc_commutate_count--;
+		  break;
+	  }
+  }
 
 
   /*for (i=0; i<39; i++){
@@ -106,7 +131,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  }
   }*/
 
-  if (adc_commutate_count >= 1) {
+  if (adc_commutate_count >= 4) {
 	  /*pwmEnableChannelI(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
 	  pwmEnableChannelI(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
 	  pwmEnableChannelI(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
@@ -128,7 +153,7 @@ static void adc_commutate_err_cb(ADCDriver *adcp, adcerror_t err) {
 /**
  * adc_commutate_group is used for back-emf sensing to determine when the motor shall commutate.
  */
-static const ADCConversionGroup adc_commutate_group = {
+/*static const ADCConversionGroup adc_commutate_group = {
 		TRUE, // linear mode
 		ADC_COMMUTATE_NUM_CHANNELS,
 		adc_commutate_cb,
@@ -136,58 +161,41 @@ static const ADCConversionGroup adc_commutate_group = {
 		0, // ADC_CR1
 		//0, // ADC_CR2
 		//ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_2, // ADC_CR2: use ext event | select Timer3 TRGO event
-		ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_0, // | ADC_CR2_EXTSEL_2 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTSEL_0, // ADC_CR2: use ext event | select SWSTART event
+		ADC_CR2_EXTTRIG, // | ADC_CR2_EXTSEL_2 | ADC_CR2_EXTSEL_1 | ADC_CR2_EXTSEL_0, // ADC_CR2: use ext event | select SWSTART event
 		0, // ADC_SMPR1
 		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN4(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN5(ADC_SAMPLE_1P5), // ADC_SMPR2
 		ADC_SQR1_NUM_CH(ADC_COMMUTATE_NUM_CHANNELS), // ADC_SQR1
 		0, // ADC_SQR2
 		// ADC regular sequence register 3 (ADC_SQR3): U_VOLTAGE, V_VOLTAGE, W_VOLTAGE, CURRENT, CURRENTREF (see schematic)
-		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ3_N(ADC_CHANNEL_IN2) | ADC_SQR3_SQ5_N(ADC_CHANNEL_IN4) | ADC_SQR3_SQ6_N(ADC_CHANNEL_IN5)// ADC_SQR3
+		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ3_N(ADC_CHANNEL_IN2) | ADC_SQR3_SQ4_N(ADC_CHANNEL_IN4) | ADC_SQR3_SQ5_N(ADC_CHANNEL_IN5)// ADC_SQR3
+};*/
+
+static const ADCConversionGroup adc_commutate_group = {
+		TRUE, // circular mode
+		ADC_COMMUTATE_NUM_CHANNELS,
+		adc_commutate_cb,
+		adc_commutate_err_cb,
+		0, // ADC_CR1
+		ADC_CR2_EXTTRIG | ADC_CR2_CONT, // ADC_CR2: use ext event | select TIM1_CC1 event | Cont-mode (start once, always run)
+		0, // ADC_SMPR1
+		ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5), // ADC_SMPR2
+		ADC_SQR1_NUM_CH(ADC_COMMUTATE_NUM_CHANNELS), // ADC_SQR1
+		0, // ADC_SQR2
+		// ADC regular sequence register 3 (ADC_SQR3): U_VOLTAGE, V_VOLTAGE, W_VOLTAGE, CURRENT, CURRENTREF (see schematic)
+		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0)// ADC_SQR3
 };
 
 static uint8_t halldecode[8];
 
 
 
-void set_bldc_pwm_adc(int angle, int duty_cycle, int period) {
-	// I wanted to use TIM3 timer to get values from ADC on a fixed time rate (100 ms). To do this I setup TIM3 peripheral generate TRGO event:
-	// WARNING this is non-portable code!
-	adcStopConversion(&ADCD1);
-	//Bit definition for RCC_APB1ENR register
-	//RCC_APB1ENR_TIM3EN    //< Timer 3 clock enable
-	//RCC->APB1ENR = RCC->APB1ENR | RCC_APB1ENR_TIM3EN;
-    rccEnableTIM3(FALSE); // taken from gpt_lld_start in gpt_lld.c
-    rccResetTIM3();
-    TIM3->PSC   = (STM32_TIMCLK1/1000)-1; // prescaler to get Timer 1 period as clock cycle for one tick
-    TIM3->ARR   =  100;  // Time constant;  Here: 100 periods
-    //TIM3->EGR   = STM32_TIM_EGR_TG | STM32_TIM_EGR_UG;          // Trigger generation | Update event. // Ist Quatsch: Erzeugt Events "von Hand"
-    TIM3->CNT   = 0;                         // Reset counter.
-    TIM3->CR1 = TIM_CR1_OPM; // one pulse mode
-    //TIM3->CR1 = TIM3->CR1 | STM32_TIM_CR1_URS; // Only counter overflow/underflow generates an update interrupt or DMA request if enabled
-    TIM3->CR2 = TIM_CR2_MMS_1; // TRGO event is timer update event, e.g. overflow
-    TIM3->CR1 = TIM3->CR1 | TIM_CR1_CEN ; //  enable the timer
-
-    adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
-	//gptStart(&GPTD3, &gpt_adc_commutate_config);
-	//gptStartOneShot(&GPTD3, 100);
-	int i,x;
-	for (i=0; i<100000; i++) { // waste some time
-		x=2*i;
-	}
-	ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;
-
-	for (i=0; i<100000; i++) { // waste some time
-		x=2*i;
-	}
-	//set_bldc_pwm(angle, duty_cycle, period); // set breakpoint here and check TIM3->CNT
-}
 /*
  * Generic PWM for BLDC motor operation.
  * duty_cycle in percent * 100
  * Period in microseconds
  */
 void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
-	int angle, duty_cycle, frequency;
+	int angle, duty_cycle, frequency, inv_duty_cycle;
 	angle 		= m->angle;
 	duty_cycle 	= m->pwm_duty_cycle;
 	frequency	= m->pwm_frequency;
@@ -198,13 +206,14 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 	adcStopConversion(&ADCD1);
 	pwmStop(&PWMD1);
 	//genpwmcfg.period = PWM_CLOCK_FREQUENCY / frequency
+	//genpwmcfg.CR1 |= TIM_CR1_CMS_0;
     if (angle < 1 || angle > 6) { // no angle --> all legs to gnd
-    	pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-    	pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	//pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    	//pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 10000));
     	palClearPad(GPIOB, GPIOB_U_NDTS);
-    	pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	//pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 10000));
     	palClearPad(GPIOB, GPIOB_V_NDTS);
-    	pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    	//pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 10000));
     	palClearPad(GPIOB, GPIOB_W_NDTS);
     } else {
     	if (angle == 1) {
@@ -256,16 +265,25 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	if (m->state == OBLDC_STATE_RUNNING) {
     		adc_commutate_count = 0;
     		//pwmEnableChannel(&PWMD1, table_angle2leg[angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    		//pwmStart(&PWMD1, &genpwmcfg);
+    		//pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
+    		//pwmStop(&PWMD1);
     		adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
     		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-    		pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 100));
+    		pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 6000));
+    		//inv_duty_cycle = 10000-450;
+    		//pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 450));  // Tut dem Motor noch nicht weh
     		for (i=0; i<100000; i++) { // waste some time
     			x=2*i;
     		}
-    		ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
+    		for (i=0; i<100000; i++) { // waste some time
+    			x=2*i;
+    		}
+    		//ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
     		//Hier einfach PWM und ADC direkt nacheinander starten
     	} else if (m->state == OBLDC_STATE_STARTING){
     		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    		//inv_duty_cycle = 10000-duty_cycle;
     		pwmEnableChannel(&PWMD1, table_angle2leg[angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
     	} else {
     		//pwmEnableChannel(&PWMD1, table_angle2leg[angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
@@ -308,7 +326,7 @@ void mystartPWM(void) {
     //pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 5000));
     //palSetPad(GPIOB, GPIOB_U_NDTS); // activate driver
     palClearPad(GPIOB, GPIOB_U_NDTS); // deactivate driver
-    pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
+    //pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
     palSetPad(GPIOB, GPIOB_V_NDTS); // activate driver
     //pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
     //palSetPad(GPIOB, GPIOB_W_NDTS); // activate driver

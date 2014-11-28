@@ -202,7 +202,7 @@ void adc_lld_start_conversion(ADCDriver *adcp) {
   /* ADC setup.*/
   adcp->adc->CR1   = grpp->cr1 | ADC_CR1_SCAN;
   cr2 = grpp->cr2 | ADC_CR2_DMA | ADC_CR2_ADON;
-  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG)) == 0)
+  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG)) == 0) // activate continuous mode if EXTRIG is NOT selected
     cr2 |= ADC_CR2_CONT;
   adcp->adc->CR2   = grpp->cr2 | cr2;
   adcp->adc->SMPR1 = grpp->smpr1;
@@ -211,8 +211,8 @@ void adc_lld_start_conversion(ADCDriver *adcp) {
   adcp->adc->SQR2  = grpp->sqr2;
   adcp->adc->SQR3  = grpp->sqr3;
 
-  /* ADC start by writing ADC_CR2_ADON a second time.*/
-  adcp->adc->CR2   = cr2;
+  /* ADC start by writing ADC_CR2_ADON a second time - if EXTTRIG and CONT is NOT selected */
+  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG | ADC_CR2_CONT)) == 0) adcp->adc->CR2   = cr2;
 }
 
 /**
