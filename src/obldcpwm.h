@@ -28,6 +28,7 @@ typedef enum {
 	FAULT_OVER_CURRENT
 } obldc_fault_code;
 
+
 typedef struct {
 	obldc_state state;
 	obldc_pwm_mode pwm_mode;
@@ -36,6 +37,7 @@ typedef struct {
 	int angle;
 	int direction;
 } motor_s;
+
 
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 8000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 36000 // highest switching frequency [Hz]

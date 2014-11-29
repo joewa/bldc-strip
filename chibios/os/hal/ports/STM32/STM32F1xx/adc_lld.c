@@ -211,8 +211,8 @@ void adc_lld_start_conversion(ADCDriver *adcp) {
   adcp->adc->SQR2  = grpp->sqr2;
   adcp->adc->SQR3  = grpp->sqr3;
 
-  /* ADC start by writing ADC_CR2_ADON a second time - if EXTTRIG and CONT is NOT selected */
-  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG | ADC_CR2_CONT)) == 0) adcp->adc->CR2   = cr2;
+  /* ADC start by writing ADC_CR2_ADON a second time - if EXTTRIG is NOT selected */
+  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG)) == 0) adcp->adc->CR2   = cr2;
 }
 
 /**
