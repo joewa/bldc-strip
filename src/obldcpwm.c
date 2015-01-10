@@ -34,23 +34,32 @@ motor_s motor;	// Stores all motor data
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
 
 #define PWM_CLOCK_FREQUENCY			2e6 	// [Hz]
-#define PWM_DEFAULT_FREQUENCY		20e3	// [Hz]
+#define PWM_DEFAULT_FREQUENCY		40e3	// [Hz]
 
-uint16_t table_angle2leg[7];
+
+int get_hw_duty_cycle(motor_s* m) {
+	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
+		return m->pwm_duty_cycle;
+	else
+		return (5000 + m->pwm_duty_cycle / 2);
+}
+
+//uint8_t table_angle2leg[7];
+//uint8_t table_angle2leg2[7];
 void init_motor_struct(motor_s* motor) {
 	motor->state			= OBLDC_STATE_OFF;
-	motor->pwm_mode			= PWM_MODE_SINGLEPHASE;
+	motor->pwm_mode			= PWM_MODE_ANTIPHASE; //PWM_MODE_SINGLEPHASE;
 	motor->pwm_duty_cycle	= 0;
 	motor->pwm_frequency	= PWM_DEFAULT_FREQUENCY;
 	motor->angle			= 0;
 	motor->direction		= 0;
-	table_angle2leg[0]=0;
-	table_angle2leg[1]=0;
-	table_angle2leg[2]=2;
-	table_angle2leg[3]=2;
-	table_angle2leg[4]=1;
-	table_angle2leg[5]=1;
-	table_angle2leg[6]=0;
+	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0
+	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0
+	table_angle2leg[2]=2; table_angle2leg2[0]=1; // 2,  0, -1,  1
+	table_angle2leg[3]=2; table_angle2leg2[0]=0; // 3, -1,  0,  1
+	table_angle2leg[4]=1; table_angle2leg2[0]=0; // 4, -1,  1,  0
+	table_angle2leg[5]=1; table_angle2leg2[0]=2; // 5,  0,  1, -1
+	table_angle2leg[6]=0; table_angle2leg2[0]=2; // 6,  1,  0, -1*/
 }
 
 
@@ -196,20 +205,24 @@ static uint8_t halldecode[8];
  */
 void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 	int angle, duty_cycle, frequency, inv_duty_cycle;
+	uint8_t legp, legn; // Positive and negative PWM leg
 	angle 		= m->angle;
-	duty_cycle 	= m->pwm_duty_cycle;
+	duty_cycle 	= get_hw_duty_cycle(m);
 	frequency	= m->pwm_frequency;
 	//pwmStop(&PWMD1);
 	if (m->state == OBLDC_STATE_OFF || m->state == OBLDC_STATE_CATCHING) { // PWM OFF!
 		angle = 0;
 	}
 	adcStopConversion(&ADCD1);
+	palClearPad(GPIOB, GPIOB_U_NDTS); palClearPad(GPIOB, GPIOB_V_NDTS); palClearPad(GPIOB, GPIOB_W_NDTS);
 	pwmStop(&PWMD1);
 	//genpwmcfg.period = PWM_CLOCK_FREQUENCY / frequency
 	//genpwmcfg.CR1 |= TIM_CR1_CMS_0;
     if (angle < 1 || angle > 6) { // no angle --> all legs to gnd
     	//pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
     	//pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 10000));
+    	legp = 3;
+    	legn = 3;
     	palClearPad(GPIOB, GPIOB_U_NDTS);
     	//pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 10000));
     	palClearPad(GPIOB, GPIOB_V_NDTS);
@@ -220,6 +233,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_CONT; // ADC_CR2: select TIM1_CC1 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN2); // W_VOLTAGE
+    		legp = 0; legn = 1;
     		palSetPad(GPIOB, GPIOB_U_NDTS);
     		palSetPad(GPIOB, GPIOB_V_NDTS);
     		palClearPad(GPIOB, GPIOB_W_NDTS);
@@ -227,6 +241,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_1 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC3 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0); // U_VOLTAGE
+    		legp = 2; legn = 1;
     		palClearPad(GPIOB, GPIOB_U_NDTS);
     		palSetPad(GPIOB, GPIOB_V_NDTS);
     		palSetPad(GPIOB, GPIOB_W_NDTS);
@@ -234,6 +249,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_1 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC3 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN1); // V_VOLTAGE
+    		legp = 2; legn = 0;
     		palSetPad(GPIOB, GPIOB_U_NDTS);
     		palClearPad(GPIOB, GPIOB_V_NDTS);
     		palSetPad(GPIOB, GPIOB_W_NDTS);
@@ -241,6 +257,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_0 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC2 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN2); // W_VOLTAGE
+    		legp = 1; legn = 0;
     		palSetPad(GPIOB, GPIOB_U_NDTS);
     		palSetPad(GPIOB, GPIOB_V_NDTS);
     		palClearPad(GPIOB, GPIOB_W_NDTS);
@@ -248,6 +265,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_0 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC2 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0); // U_VOLTAGE
+    		legp = 1; legn = 2;
     		palClearPad(GPIOB, GPIOB_U_NDTS);
     		palSetPad(GPIOB, GPIOB_V_NDTS);
     		palSetPad(GPIOB, GPIOB_W_NDTS);
@@ -255,6 +273,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC1 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN1); // V_VOLTAGE
+    		legp = 0; legn = 2;
     		palSetPad(GPIOB, GPIOB_U_NDTS);
     		palClearPad(GPIOB, GPIOB_V_NDTS);
     		palSetPad(GPIOB, GPIOB_W_NDTS);
@@ -262,6 +281,10 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 
     	//adcStart(&ADCD1, &adc_commutate_group);
     	int i,x;
+    	genpwmcfg.channels[legp].mode = PWM_OUTPUT_ACTIVE_HIGH;
+    	if (m->pwm_mode == PWM_MODE_ANTIPHASE)
+    		genpwmcfg.channels[legn].mode = PWM_OUTPUT_ACTIVE_LOW;
+
     	if (m->state == OBLDC_STATE_RUNNING) {
     		adc_commutate_count = 0;
     		// Test configuration: sample the PWM on the active leg
@@ -269,6 +292,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0); // U_VOLTAGE
     		adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
+    		genpwmcfg.channels[0].mode = PWM_OUTPUT_ACTIVE_HIGH;
     		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
     		pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 600));
     		for (i=0; i<100000; i++) { // waste some time
@@ -279,10 +303,17 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		}
     		//ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
     		//Hier einfach PWM und ADC direkt nacheinander starten
-    	} else if (m->state == OBLDC_STATE_STARTING){
-    		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    	} else if (m->state == OBLDC_STATE_STARTING) {
     		//inv_duty_cycle = 10000-duty_cycle;
-    		pwmEnableChannel(&PWMD1, table_angle2leg[angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
+    			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    			pwmEnableChannel(&PWMD1, legp, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    			pwmEnableChannel(&PWMD1, legn, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    		} else {
+    			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    			pwmEnableChannel(&PWMD1, legp, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    		}
+    		//pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
     	} else {
     		//pwmEnableChannel(&PWMD1, table_angle2leg[angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
     	}

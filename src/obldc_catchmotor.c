@@ -205,10 +205,12 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   init_motor_struct(&motor);
   motor.angle = 1;
   motor.state = OBLDC_STATE_STARTING;
+  //motor.pwm_duty_cycle = 0;
+  //set_bldc_pwm(&motor);
   while (TRUE) {
 	  if(motor.state == OBLDC_STATE_STARTING) { // Ramp up the motor
 		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
-		  motor.pwm_duty_cycle = 300 + (speed*4)/3;
+		  motor.pwm_duty_cycle = 350 + (speed*4)/3;
 		  set_bldc_pwm(&motor);
 		  speed = speed + acceleration;
 		  delta_t = 1000000 / speed;
@@ -239,7 +241,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.angle = 1;
 			  motor.state = OBLDC_STATE_RUNNING;
 			  motor.pwm_duty_cycle = 300;  // ACHTUNG!!!
-			  set_bldc_pwm(&motor); // Start running with back EMF detection
+			  //set_bldc_pwm(&motor); // Start running with back EMF detection
 			  chThdSleepMilliseconds(5000);
 			  palSetPad(GPIOB, GPIOB_LEDR);
 			  adcStopConversion(&ADCD1);

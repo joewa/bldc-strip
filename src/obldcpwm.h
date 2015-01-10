@@ -15,9 +15,8 @@ typedef enum {
 } obldc_state;
 
 typedef enum {
-	PWM_MODE_SINGLEPHASE,	// one phase pulses, one phase low side on, one phase open: DANGEROUS when braking
+	PWM_MODE_SINGLEPHASE,	// one phase pulses, one phase low side on, one phase open: DANGEROUS when braking and zero crossings
 	PWM_MODE_ANTIPHASE,		// inverted pulses to two phases, one phase open
-	PWM_MODE_COMBINED,		// use SINGLEPHASE mode at high load and ANTIPHASE at low load
 	PWM_MODE_ONEPULSE		// One pulse per commutation, appropriate for very high motor speeds
 } obldc_pwm_mode;
 
@@ -39,8 +38,8 @@ typedef struct {
 } motor_s;
 
 
-#define OBLDC_PWM_SWITCH_FREQUENCY_MIN 8000 // lowest switching frequency [Hz]
-#define OBLDC_PWM_SWITCH_FREQUENCY_MAX 36000 // highest switching frequency [Hz]
+#define OBLDC_PWM_SWITCH_FREQUENCY_MIN 10000 // lowest switching frequency [Hz]
+#define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
 #define OBLDC_PWM_MIN_DUTY_CYCLE 0.02 // Minimum duty cycle
 #define OBLDC_PWM_MAX_DUTY_CYCLE 0.95 // Maximum duty cycle
@@ -55,6 +54,7 @@ typedef struct {
 
 void mystartPWM(void);
 void set_bldc_pwm(motor_s* m);
+int get_hw_duty_cycle(motor_s* m);
 void set_bldc_pwm_adc(int angle, int duty_cycle, int period);
 void startcatchmodePWM(void);
 void init_motor_struct(motor_s* motor);
