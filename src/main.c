@@ -16,6 +16,7 @@ int main(void) {
 	uartSCPInit();
 	//mystartPWM();
 	startmyadc();
+	v_bat_current_conversion();
 	int temp = catchmotor_setup();
 	// start measurements
 	//startcatchmodePWM();

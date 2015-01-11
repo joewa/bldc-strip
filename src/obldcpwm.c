@@ -13,6 +13,8 @@
 
 #include "obldc_def.h"
 #include "obldcpwm.h"
+#include "ringbuffer.h"
+
 
 motor_s motor;	// Stores all motor data
 
@@ -24,6 +26,16 @@ motor_s motor;	// Stores all motor data
 
 #define ADC_COMMUTATE_NUM_CHANNELS 1
 #define ADC_COMMUTATE_BUF_DEPTH     100
+#define NREG 20 // Number of samples for a valid regression
+#define DROPNOISYSAMPLES 0 // "Drop samples with switching noise
+
+typedef struct {
+  int16_t size;
+  int16_t start;
+  int16_t end;
+  int16_t elems[NREG+1];
+} commutate_Buffer;
+
 //f_single =  1000000
 //T_cb_ADC1 =    2.0000e-05
 //f_cb_ADC1 =    5.0000e+04
@@ -36,21 +48,17 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
 #define PWM_CLOCK_FREQUENCY			2e6 	// [Hz]
 #define PWM_DEFAULT_FREQUENCY		40e3	// [Hz]
 
+#define ADC_COMMUTATE_FREQUENCY		1e6		// [Hz]
+#define ADC_PWM_DIVIDER				(PWM_CLOCK_FREQUENCY / ADC_COMMUTATE_FREQUENCY)
 
-int get_hw_duty_cycle(motor_s* m) {
-	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
-		return m->pwm_duty_cycle;
-	else
-		return (5000 + m->pwm_duty_cycle / 2);
-}
 
 //uint8_t table_angle2leg[7];
 //uint8_t table_angle2leg2[7];
 void init_motor_struct(motor_s* motor) {
 	motor->state			= OBLDC_STATE_OFF;
 	motor->pwm_mode			= PWM_MODE_ANTIPHASE; //PWM_MODE_SINGLEPHASE;
-	motor->pwm_duty_cycle	= 0;
-	motor->pwm_frequency	= PWM_DEFAULT_FREQUENCY;
+	motor->pwm_t_on			= 0;
+	motor->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
 	motor->angle			= 0;
 	motor->direction		= 0;
 	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0
@@ -62,10 +70,21 @@ void init_motor_struct(motor_s* motor) {
 	table_angle2leg[6]=0; table_angle2leg2[0]=2; // 6,  1,  0, -1*/
 }
 
+void motor_set_duty_cycle(motor_s* m, int d) {
+	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
+		m->pwm_t_on = m->pwm_period * d / 10000;
+	else
+		m->pwm_t_on = m->pwm_period * (5000 + d / 2) / 10000;
+	m->pwm_t_on_ADC = m->pwm_t_on / ADC_PWM_DIVIDER;
+	m->pwm_period_ADC = m->pwm_period / ADC_PWM_DIVIDER;
+}
 
-uint32_t adc_commutate_count;
+// TODO: void motor_set_period(motor_s* m, int period)
+// TODO: void motor_set_pwm_mode(motor_s* m, obldc_pwm_mode pwm_mode)
+
+uint16_t k_cb_commutate; // Counts how often the ADC callback was called
 void reset_adc_commutate_count() {
-	adc_commutate_count = 0;
+	k_cb_commutate = 0;
 }
 
 /*
@@ -99,64 +118,67 @@ static PWMConfig genpwmcfg= {
 };
 
 
+
+
 /*
  * ADC streaming callback.
  */
+
+
+uint16_t yreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
+uint16_t xreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
+
 static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
-
   (void)adcp;
-
   //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
   //float voltage = avg_ch1/4095.0*3;
-  uint16_t csamples[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1];
+  uint16_t* csamples = yreg;
   int i,a,b;
-  chSysLockFromISR();
-  //ADCD1.adc->CR2 &= ~ADC_CR2_EXTTRIG;	// Externen Trigger wieder ausschalten
-  //ADCD1.adc->CR2 |= ADC_CR2_CONT;		// ADC soll selber weiter laufen
-  /*if (!adc_commutate_count) { // Start PWM so that ADC is in Sync with Timer 1
-	  pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-	  chSysLockFromISR();
-	  pwmEnableChannelI(&PWMD1, table_angle2leg[motor.angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, motor.pwm_duty_cycle));
-  } else chSysLockFromISR();*/
+  int k_sample; // Sample in the present commutation cycle
+  uint16_t k_pwm_period;//Indicates if the pwm sample occurred at pwm-on
+  uint16_t x_old, y_old;
 
+  commutate_Buffer xbuf, ybuf;
+  commutate_Buffer* xbuf_ptr;
+  commutate_Buffer* ybuf_ptr;
+
+  chSysLockFromISR();
+
+  xbuf_ptr = &xbuf; ybuf_ptr = &ybuf;
+  bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG); // TODO: Global definieren!
+
+  k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
+	  k_pwm_period = k_sample % motor.pwm_period_ADC;
+	  if (k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC - DROPNOISYSAMPLES) {
+		  if (isBufferFull(ybuf_ptr)) {
+			  bufferRead(xbuf_ptr, x_old); bufferRead(ybuf_ptr, y_old);
+			  // TODO: decrement obsolete buffer values from sums
+		  }
+		  bufferWrite(ybuf_ptr, buffer[i]);
+		  bufferWrite(xbuf_ptr, k_sample);
+	  }
+	  k_sample++;
 	  csamples[i] = buffer[i];
   }
-  // Beim Triggern mit CC-event wird es nie mit gemessen. Bei freilaufenendem ADC dagegen schon
-  // Lies nach ob sich ADC_CR2_EXTTRIG und ADC_CR2_CONT widersprechen/ausschließen
-
-  for (i=10; i<24; i++ ) {
-	  if (csamples[i] > 200) {
-		  //adc_commutate_count--;
-		  break;
-	  }
-  }
 
 
-  /*for (i=0; i<39; i++){
-	  if(csamples[i] > 2500){
-		  a=csamples[i];
-		  b=i;
-	  }
-  }*/
-
-  if (adc_commutate_count >= 4) {
+  if (k_cb_commutate >= 4) {
 	  /*pwmEnableChannelI(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
 	  pwmEnableChannelI(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
 	  pwmEnableChannelI(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
 	  adcStopConversionI(&ADCD1); // HERE breakpoint
 	  pwmStop(&PWMD1); // PWM signal generation*/
-	  adc_commutate_count = 0;
+	  k_cb_commutate = 0;
   }
-  adc_commutate_count++;
+  k_cb_commutate++; // k_cb_ADC++; PUT BREAKPOINT HERE
   chSysUnlockFromISR();
 }
-static void adc_commutate_err_cb(ADCDriver *adcp, adcerror_t err) {
 
+static void adc_commutate_err_cb(ADCDriver *adcp, adcerror_t err) {
   (void)adcp;
   (void)err;
   //adc_commutate_count++;
-
 }
 
 /**
@@ -204,12 +226,12 @@ static uint8_t halldecode[8];
  * Period in microseconds
  */
 void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
-	int angle, duty_cycle, frequency, inv_duty_cycle;
+	int angle, t_on, period, inv_duty_cycle;
 	uint8_t legp, legn; // Positive and negative PWM leg
-	angle 		= m->angle;
-	duty_cycle 	= get_hw_duty_cycle(m);
-	frequency	= m->pwm_frequency;
-	//pwmStop(&PWMD1);
+	angle 	= m->angle;
+	t_on	= m->pwm_t_on;
+	period	= m->pwm_period;
+
 	if (m->state == OBLDC_STATE_OFF || m->state == OBLDC_STATE_CATCHING) { // PWM OFF!
 		angle = 0;
 	}
@@ -284,9 +306,11 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	genpwmcfg.channels[legp].mode = PWM_OUTPUT_ACTIVE_HIGH;
     	if (m->pwm_mode == PWM_MODE_ANTIPHASE)
     		genpwmcfg.channels[legn].mode = PWM_OUTPUT_ACTIVE_LOW;
+    	else
+    		genpwmcfg.channels[legn].mode = PWM_OUTPUT_ACTIVE_HIGH;
 
     	if (m->state == OBLDC_STATE_RUNNING) {
-    		adc_commutate_count = 0;
+    		k_cb_commutate = 0;
     		// Test configuration: sample the PWM on the active leg
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_CONT; // ADC_CR2: use ext event | select TIM1_CC1 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5);
@@ -294,24 +318,24 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
     		genpwmcfg.channels[0].mode = PWM_OUTPUT_ACTIVE_HIGH;
     		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-    		pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 600));
-    		for (i=0; i<100000; i++) { // waste some time
+    		pwmEnableChannel(&PWMD1, 0, t_on);
+    		/*for (i=0; i<100000; i++) { // waste some time
     			x=2*i;
     		}
     		for (i=0; i<100000; i++) { // waste some time
     			x=2*i;
-    		}
+    		}*/
     		//ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
     		//Hier einfach PWM und ADC direkt nacheinander starten
     	} else if (m->state == OBLDC_STATE_STARTING) {
     		//inv_duty_cycle = 10000-duty_cycle;
     		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
     			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-    			pwmEnableChannel(&PWMD1, legp, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    			pwmEnableChannel(&PWMD1, legn, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
-    		} else {
+    			pwmEnableChannel(&PWMD1, legp, t_on);
+    			pwmEnableChannel(&PWMD1, legn, t_on);
+    		} else if (m->pwm_mode == PWM_MODE_SINGLEPHASE) {
     			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-    			pwmEnableChannel(&PWMD1, legp, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, duty_cycle));
+    			pwmEnableChannel(&PWMD1, legp, t_on);
     		}
     		//pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
     	} else {

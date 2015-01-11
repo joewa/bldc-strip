@@ -31,11 +31,14 @@ typedef enum {
 typedef struct {
 	obldc_state state;
 	obldc_pwm_mode pwm_mode;
-	int pwm_duty_cycle;
-	int pwm_frequency;
+	int pwm_t_on;		// in timer clock ticks
+	int pwm_period;		// in timer clock ticks
+	int pwm_t_on_ADC;	// in ADC clock ticks
+	int pwm_period_ADC;
 	int angle;
 	int direction;
 } motor_s;
+
 
 
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 10000 // lowest switching frequency [Hz]
@@ -54,7 +57,7 @@ typedef struct {
 
 void mystartPWM(void);
 void set_bldc_pwm(motor_s* m);
-int get_hw_duty_cycle(motor_s* m);
+void motor_set_duty_cycle(motor_s* m, int d);
 void set_bldc_pwm_adc(int angle, int duty_cycle, int period);
 void startcatchmodePWM(void);
 void init_motor_struct(motor_s* motor);
