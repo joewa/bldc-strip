@@ -10,7 +10,6 @@
 #include "hal.h"
 
 #include "obldcadc.h"
-#include "obldcpwm.h"
 #include "obldc_def.h"
 
 #define ADC_GRP1_NUM_CHANNELS   8
@@ -19,12 +18,10 @@
 #define ADC_CATCH_NUM_CHANNELS  3
 #define ADC_CATCH_BUF_DEPTH     1
 
-#define ADC_VBAT_CURRENT_NUM_CHANNELS 3
-#define ADC_VBAT_CURRENT_BUF_DEPTH 1
+
 
 static adcsample_t samples1[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
 static adcsample_t catchsamples[ADC_CATCH_NUM_CHANNELS * ADC_CATCH_BUF_DEPTH];
-static adcsample_t vbat_current_samples[ADC_VBAT_CURRENT_NUM_CHANNELS * ADC_VBAT_CURRENT_BUF_DEPTH];
 
 uint32_t adccount;
 void resetadccount() {
@@ -166,40 +163,9 @@ static const ADCConversionGroup adccatchgroup_simple = {
 		ADC_SQR3_SQ3_N(ADC_CHANNEL_IN2) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN1) | ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0) // ADC_SQR3
 };
 
-static const ADCConversionGroup adc_vbat_current_group = {
-		FALSE, // linear mode
-		ADC_VBAT_CURRENT_NUM_CHANNELS,
-		NULL, // no callback and end of conversion
-		adccatcherrorcallback,
-		0, // ADC_CR1
-		0, // ADC_CR2
-		0, // ADC_SMPR1
-		ADC_SMPR2_SMP_AN3(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN4(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN5(ADC_SAMPLE_239P5), // ADC_SMPR2
-		ADC_SQR1_NUM_CH(ADC_VBAT_CURRENT_NUM_CHANNELS), // ADC_SQR1
-		0, // ADC_SQR2
-		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN3) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN4) | ADC_SQR3_SQ5_N(ADC_CHANNEL_IN5)   // ADC_SQR3
-};
 
-void startmyadc(void) {
-	adcStart(&ADCD1, NULL);
-}
 
-void v_bat_current_conversion(void) {
-	adcStartConversion(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH);
-}
 
-adcsample_t* get_vbat_current_samples(void) {
-	return vbat_current_samples;
-}
-
-adcsample_t get_vbat_sample(void) { // value scaled to be 50% of phase voltage sample
-	// /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
-	// the voltage divider at v_bat is 1.5 and 10 kOhm
-	// So, the transformation is 115*36 / (15*136)
-	int v_scaled;
-	v_scaled = (int)vbat_current_samples[0] * 4140 / 2040 / 2;
-	return (adcsample_t)v_scaled;
-}
 
 void catchconversion(void) {
 	//adcConvert(&ADCD1, &adccatchgroup, catchsamples, ADC_CATCH_BUF_DEPTH);// kehrt nicht zurueck

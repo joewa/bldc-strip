@@ -25,9 +25,9 @@ motor_s motor;	// Stores all motor data
 //f_cb_ADC1 =    5.0000e+04
 
 #define ADC_COMMUTATE_NUM_CHANNELS 1
-#define ADC_COMMUTATE_BUF_DEPTH     100
+#define ADC_COMMUTATE_BUF_DEPTH     50
 #define NREG 20 // Number of samples for a valid regression
-#define DROPNOISYSAMPLES 0 // "Drop samples with switching noise
+#define DROPNOISYSAMPLES 1 // "Drop samples with switching noise
 
 typedef struct {
   int16_t size;
@@ -35,13 +35,6 @@ typedef struct {
   int16_t end;
   int16_t elems[NREG+1];
 } commutate_Buffer;
-
-//f_single =  1000000
-//T_cb_ADC1 =    2.0000e-05
-//f_cb_ADC1 =    5.0000e+04
-
-
-
 
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
 
@@ -52,8 +45,24 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
 #define ADC_PWM_DIVIDER				(PWM_CLOCK_FREQUENCY / ADC_COMMUTATE_FREQUENCY)
 
 
+#define ADC_VBAT_CURRENT_NUM_CHANNELS 3
+#define ADC_VBAT_CURRENT_BUF_DEPTH 1
+
+static adcsample_t vbat_current_samples[ADC_VBAT_CURRENT_NUM_CHANNELS * ADC_VBAT_CURRENT_BUF_DEPTH];
+
+
+
+void startmyadc(void) {
+	adcStart(&ADCD1, NULL);
+}
+
+
 //uint8_t table_angle2leg[7];
 //uint8_t table_angle2leg2[7];
+motor_s* get_motor_ptr(void) {
+	return &motor;
+}
+
 void init_motor_struct(motor_s* motor) {
 	motor->state			= OBLDC_STATE_OFF;
 	motor->pwm_mode			= PWM_MODE_ANTIPHASE; //PWM_MODE_SINGLEPHASE;
@@ -61,13 +70,14 @@ void init_motor_struct(motor_s* motor) {
 	motor->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
 	motor->angle			= 0;
 	motor->direction		= 0;
-	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0
-	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0
-	table_angle2leg[2]=2; table_angle2leg2[0]=1; // 2,  0, -1,  1
-	table_angle2leg[3]=2; table_angle2leg2[0]=0; // 3, -1,  0,  1
-	table_angle2leg[4]=1; table_angle2leg2[0]=0; // 4, -1,  1,  0
-	table_angle2leg[5]=1; table_angle2leg2[0]=2; // 5,  0,  1, -1
-	table_angle2leg[6]=0; table_angle2leg2[0]=2; // 6,  1,  0, -1*/
+	motor->sumx=0; motor->sumx2=0; motor->sumxy=0; motor->sumy=0; motor->sumy2=0;
+	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0   SenseBridgeSign
+	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0		-1
+	table_angle2leg[2]=2; table_angle2leg2[0]=1; // 2,  0, -1,  1		1
+	table_angle2leg[3]=2; table_angle2leg2[0]=0; // 3, -1,  0,  1		-1
+	table_angle2leg[4]=1; table_angle2leg2[0]=0; // 4, -1,  1,  0		1
+	table_angle2leg[5]=1; table_angle2leg2[0]=2; // 5,  0,  1, -1		-1
+	table_angle2leg[6]=0; table_angle2leg2[0]=2; // 6,  1,  0, -1		1*/
 }
 
 void motor_set_duty_cycle(motor_s* m, int d) {
@@ -77,6 +87,9 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 		m->pwm_t_on = m->pwm_period * (5000 + d / 2) / 10000;
 	m->pwm_t_on_ADC = m->pwm_t_on / ADC_PWM_DIVIDER;
 	m->pwm_period_ADC = m->pwm_period / ADC_PWM_DIVIDER;
+	m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
+	m->invSenseSign = m->angle % 2;
+	//m->u_dc = get_vbat_sample();
 }
 
 // TODO: void motor_set_period(motor_s* m, int period)
@@ -126,7 +139,7 @@ static PWMConfig genpwmcfg= {
 
 
 uint16_t yreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
-uint16_t xreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
+//uint16_t xreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
 
 static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   (void)adcp;
@@ -136,13 +149,15 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   int i,a,b;
   int k_sample; // Sample in the present commutation cycle
   uint16_t k_pwm_period;//Indicates if the pwm sample occurred at pwm-on
-  uint16_t x_old, y_old;
+  int16_t y, x_old, y_old;
+  int m_reg, b_reg, reg_den, k_zc;
 
   commutate_Buffer xbuf, ybuf;
   commutate_Buffer* xbuf_ptr;
   commutate_Buffer* ybuf_ptr;
 
   chSysLockFromISR();
+  //u_dc_int = get_vbat_sample();
 
   xbuf_ptr = &xbuf; ybuf_ptr = &ybuf;
   bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG); // TODO: Global definieren!
@@ -150,16 +165,38 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
-	  if (k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC - DROPNOISYSAMPLES) {
+	  if ( (k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) || // Samples during t_on
+			  (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC) ) {// Samples during t_off
 		  if (isBufferFull(ybuf_ptr)) {
 			  bufferRead(xbuf_ptr, x_old); bufferRead(ybuf_ptr, y_old);
-			  // TODO: decrement obsolete buffer values from sums
+			  // Decrement obsolete buffer values from sums
+		      motor.sumx -= x_old;
+		      motor.sumx2 -= x_old * x_old;
+		      motor.sumxy -= x_old * y_old;
+		      motor.sumy -= y_old;
+		      motor.sumy2 -= y_old * y_old;
 		  }
-		  bufferWrite(ybuf_ptr, buffer[i]);
+		  if (motor.invSenseSign)
+			  y = -(buffer[i] - motor.u_dc);  // Sensebridgesign
+		  else
+			  y = buffer[i] - motor.u_dc;
+		  //bufferWrite(ybuf_ptr, buffer[i]);
+		  bufferWrite(ybuf_ptr, y);
 		  bufferWrite(xbuf_ptr, k_sample);
+	      motor.sumx += k_sample;
+	      motor.sumx2 += k_sample * k_sample;
+	      motor.sumxy += k_sample * y;
+	      motor.sumy += y;
+	      motor.sumy2 += y * y;
 	  }
 	  k_sample++;
 	  csamples[i] = buffer[i];
+  }
+
+  reg_den = NREG * motor.sumx2  -  motor.sumx * motor.sumx;
+  if( isBufferFull(ybuf_ptr) && (reg_den != 0) ) {
+	  m_reg = (NREG * motor.sumxy  -  motor.sumx * motor.sumy) / reg_den;
+	  b_reg = (motor.sumy * motor.sumx2  -  motor.sumx * motor.sumxy) / reg_den; // TODO: PUT BREAKPOINT HERE and check m_reg (vs motor speed)
   }
 
 
@@ -181,6 +218,24 @@ static void adc_commutate_err_cb(ADCDriver *adcp, adcerror_t err) {
   //adc_commutate_count++;
 }
 
+
+static uint8_t halldecode[8];
+
+
+
+static const ADCConversionGroup adc_vbat_current_group = {
+		FALSE, // linear mode
+		ADC_VBAT_CURRENT_NUM_CHANNELS,
+		NULL, // no callback and end of conversion
+		NULL,
+		0, // ADC_CR1
+		0, // ADC_CR2
+		0, // ADC_SMPR1
+		ADC_SMPR2_SMP_AN3(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN4(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN5(ADC_SAMPLE_239P5), // ADC_SMPR2
+		ADC_SQR1_NUM_CH(ADC_VBAT_CURRENT_NUM_CHANNELS), // ADC_SQR1
+		0, // ADC_SQR2
+		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN3) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN4) | ADC_SQR3_SQ5_N(ADC_CHANNEL_IN5)   // ADC_SQR3
+};
 /**
  * adc_commutate_group is used for back-emf sensing to determine when the motor shall commutate.
  */
@@ -216,7 +271,24 @@ static ADCConversionGroup adc_commutate_group = {
 		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0)// ADC_SQR3
 };
 
-static uint8_t halldecode[8];
+
+void v_bat_current_conversion(void) {
+	adcStartConversion(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH);
+}
+
+adcsample_t* get_vbat_current_samples(void) {
+	return vbat_current_samples;
+}
+
+adcsample_t get_vbat_sample(void) { // value scaled to be 50% of phase voltage sample
+	// /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
+	// the voltage divider at v_bat is 1.5 and 10 kOhm
+	// So, the transformation is 115*36 / (15*136)
+	int v_scaled;
+	v_scaled = (int)vbat_current_samples[0] * 4140 / 2040 / 2;
+	motor.u_dc = v_scaled; // UGLY!
+	return (adcsample_t)v_scaled;
+}
 
 
 

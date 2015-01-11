@@ -7,6 +7,7 @@
 #include "obldc_catchmotor.h"
 
 int main(void) {
+	int temp;
 	//Start System
 	halInit();
 	chSysInit();
@@ -17,7 +18,10 @@ int main(void) {
 	//mystartPWM();
 	startmyadc();
 	v_bat_current_conversion();
-	int temp = catchmotor_setup();
+    chThdSleepMicroseconds(40);
+    temp = get_vbat_sample();//UGLY!!
+    chThdSleepMicroseconds(40);
+	temp = catchmotor_setup();
 	// start measurements
 	//startcatchmodePWM();
 	//startCatchMotorThread();

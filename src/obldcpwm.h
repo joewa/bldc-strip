@@ -4,6 +4,10 @@
  *  Created on: 22.05.2014
  *      Author: joerg
  */
+
+#ifndef OBLDCPWM_H_
+#define OBLDCPWM_H_
+
 #include "obldcadc.h"
 
 // besser aufgehoben im reglerteil -> simulation
@@ -37,6 +41,9 @@ typedef struct {
 	int pwm_period_ADC;
 	int angle;
 	int direction;
+	int16_t u_dc;
+	int32_t sumx, sumx2, sumxy, sumy, sumy2;
+	uint8_t invSenseSign;// True when voltage must be inverted
 } motor_s;
 
 
@@ -50,16 +57,20 @@ typedef struct {
 #define OBLDC_MIN_CATCH_VOLTAGE_OBSOLETE 360 // 1V minimum voltage to evaluate for motor position catching; /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage TODO: Check max ADC voltage 3V or 3.3V?
 
 
-#ifndef OBLDCPWM_H_
-#define OBLDCPWM_H_
+
 
 
 
 void mystartPWM(void);
+motor_s* get_motor_ptr(void);
 void set_bldc_pwm(motor_s* m);
 void motor_set_duty_cycle(motor_s* m, int d);
 void set_bldc_pwm_adc(int angle, int duty_cycle, int period);
 void startcatchmodePWM(void);
 void init_motor_struct(motor_s* motor);
+
+void v_bat_current_conversion(void);
+adcsample_t get_vbat_sample(void);
+
 
 #endif /* OBLDCPWM_H_ */
