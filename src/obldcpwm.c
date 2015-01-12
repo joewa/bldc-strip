@@ -36,6 +36,9 @@ typedef struct {
   int16_t elems[NREG+1];
 } commutate_Buffer;
 
+commutate_Buffer xbuf, ybuf;
+
+
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
 
 #define PWM_CLOCK_FREQUENCY			2e6 	// [Hz]
@@ -90,6 +93,7 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
 	m->invSenseSign = m->angle % 2;
 	//m->u_dc = get_vbat_sample();
+	bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG);
 }
 
 // TODO: void motor_set_period(motor_s* m, int period)
@@ -146,13 +150,12 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
   //float voltage = avg_ch1/4095.0*3;
   uint16_t* csamples = yreg;
-  int i,a,b;
+  int i;
   int k_sample; // Sample in the present commutation cycle
   uint16_t k_pwm_period;//Indicates if the pwm sample occurred at pwm-on
   int16_t y, x_old, y_old;
-  int m_reg, b_reg, reg_den, k_zc;
+  int64_t m_reg, b_reg, reg_den, k_zc;
 
-  commutate_Buffer xbuf, ybuf;
   commutate_Buffer* xbuf_ptr;
   commutate_Buffer* ybuf_ptr;
 
@@ -160,21 +163,24 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   //u_dc_int = get_vbat_sample();
 
   xbuf_ptr = &xbuf; ybuf_ptr = &ybuf;
-  bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG); // TODO: Global definieren!
-
+  //k_start = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
+  //k_end = k_start + (ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2;
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
+  //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
 	  if ( (k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) || // Samples during t_on
 			  (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC) ) {// Samples during t_off
+		  //BEGIN COMMENT
+		  /*
 		  if (isBufferFull(ybuf_ptr)) {
 			  bufferRead(xbuf_ptr, x_old); bufferRead(ybuf_ptr, y_old);
 			  // Decrement obsolete buffer values from sums
 		      motor.sumx -= x_old;
-		      motor.sumx2 -= x_old * x_old;
-		      motor.sumxy -= x_old * y_old;
+		      motor.sumx2 -= (int64_t)x_old * (int64_t)x_old;
+		      motor.sumxy -= (int64_t)x_old * (int64_t)y_old;
 		      motor.sumy -= y_old;
-		      motor.sumy2 -= y_old * y_old;
+		      motor.sumy2 -= (int64_t)y_old * (int64_t)y_old;
 		  }
 		  if (motor.invSenseSign)
 			  y = -(buffer[i] - motor.u_dc);  // Sensebridgesign
@@ -184,30 +190,50 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  bufferWrite(ybuf_ptr, y);
 		  bufferWrite(xbuf_ptr, k_sample);
 	      motor.sumx += k_sample;
-	      motor.sumx2 += k_sample * k_sample;
-	      motor.sumxy += k_sample * y;
+	      motor.sumx2 += (int64_t)k_sample * (int64_t)k_sample;
+	      motor.sumxy += (int64_t)k_sample * (int64_t)y;
 	      motor.sumy += y;
-	      motor.sumy2 += y * y;
+	      motor.sumy2 += (int64_t)y * (int64_t)y;*/ // END COMMENT
+		  // BEGIN; THE NEW SIMPLE STUFF
+		  if (motor.invSenseSign)
+			  y = -(buffer[i] - motor.u_dc);  // Sensebridgesign
+		  else
+			  y = buffer[i] - motor.u_dc;
+		  if(y < -30000) {// Detect zero crossing here; You cannot optimize this out; heeehehee
+			  adcStopConversionI(&ADCD1); // HERE breakpoint
+			  return;
+			  /*
+			   * Keep it simple: Chibios is blocked while doing all the stuff above.
+			   * Consider simple zero crossing detection instead!
+			   * Goenne dir ein paar confirmation-cycles. Nimm den tollen Ringpuffer dafuer
+			   * Next step TODO:
+			   * Schedule a general purpose timer and that is properly referenced
+			   */
+		  }
+		  // END; THE NEW SIMPLE STUFF
 	  }
 	  k_sample++;
 	  csamples[i] = buffer[i];
   }
+  // Check for timeout
+  if(k_sample > 1000000) {  // TIMEOUT
+	  k_sample++;
+	  adcStopConversionI(&ADCD1); // HERE breakpoint
+	  return;
+  }
 
+/*
   reg_den = NREG * motor.sumx2  -  motor.sumx * motor.sumx;
   if( isBufferFull(ybuf_ptr) && (reg_den != 0) ) {
 	  m_reg = (NREG * motor.sumxy  -  motor.sumx * motor.sumy) / reg_den;
 	  b_reg = (motor.sumy * motor.sumx2  -  motor.sumx * motor.sumxy) / reg_den; // TODO: PUT BREAKPOINT HERE and check m_reg (vs motor speed)
+	  if( m_reg < 0 ) {
+		  k_zc = -b_reg / m_reg;
+		  //if(k_zc < k_sample)
+	  }
   }
+*/
 
-
-  if (k_cb_commutate >= 4) {
-	  /*pwmEnableChannelI(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-	  pwmEnableChannelI(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-	  pwmEnableChannelI(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
-	  adcStopConversionI(&ADCD1); // HERE breakpoint
-	  pwmStop(&PWMD1); // PWM signal generation*/
-	  k_cb_commutate = 0;
-  }
   k_cb_commutate++; // k_cb_ADC++; PUT BREAKPOINT HERE
   chSysUnlockFromISR();
 }

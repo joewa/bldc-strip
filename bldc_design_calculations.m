@@ -11,3 +11,26 @@ t_on = duty_cycle * 1/f_PWM
 samples_when_on = t_on * f_single
 
 
+% Check max samples for linear fit;
+x = 0;
+sumx2 = 0;
+sumy = 0;
+sumy2 = 0;
+NREG = 20;
+while sumy * sumx2 < 2^63
+  x = x + 1;
+  sumx2 = sumx2 + x^2;
+  if x <= NREG
+    sumy = sumy + 1000;
+    sumy2 = sumy2 + 1000^2;
+  end
+end
+disp('Maximum number of samples')
+x
+sumy
+sumy2
+
+
+
+
+

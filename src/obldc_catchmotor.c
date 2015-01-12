@@ -20,7 +20,7 @@ static uint8_t halldecode[8];
 
 int last_hall_decoded;
 int last_halldiff, last_last_halldiff, crossing_counter;
-int catchcycle(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
+int catchcycle(motor_s* m, int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 	static int vdiff_last[3]; // Neu
 	int vdiff[3];
 	static int vdiff_1_last;
@@ -168,7 +168,7 @@ static THD_FUNCTION(tCatchMotorTread, arg) {
   char sbyte = 77;
   int catchstate = 0; int catchresult = 0;
 
-  catchcycle(0, 0, 0, TRUE); // initialize catch state variables
+  catchcycle(&motor, 0, 0, 0, TRUE); // initialize catch state variables
   while (TRUE) {
 	  catchconversion(); // start ADC Converter
 	  chThdSleepMicroseconds(50);
@@ -177,7 +177,7 @@ static THD_FUNCTION(tCatchMotorTread, arg) {
 	  int voltage_u = getcatchsamples()[0]; // /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
 	  int voltage_v = getcatchsamples()[1]; // /4095.0 * 3 * 13.6/3.6;
 	  int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
-	  catchstate = catchcycle(voltage_u, voltage_v, voltage_w, FALSE);
+	  catchstate = catchcycle(&motor, voltage_u, voltage_v, voltage_w, FALSE);
 	  // Write result TODO
 	  if (catchstate != 0) catchresult = catchstate;
   }
@@ -218,7 +218,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.state = OBLDC_STATE_CATCHING;
 			  set_bldc_pwm(&motor);
 			  speed = 100;
-			  catchcycle(0, 0, 0, TRUE); // initialize catch state variables
+			  catchcycle(&motor, 0, 0, 0, TRUE); // initialize catch state variables
 		  }
 		  chThdSleepMicroseconds(delta_t);
 		  motor.angle = (motor.angle) % 6 + 1;
@@ -232,7 +232,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  int voltage_u = getcatchsamples()[0]; // /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
 		  int voltage_v = getcatchsamples()[1]; // /4095.0 * 3 * 13.6/3.6;
 		  int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
-		  catchstate = catchcycle(voltage_u, voltage_v, voltage_w, FALSE);
+		  catchstate = catchcycle(&motor, voltage_u, voltage_v, voltage_w, FALSE);
 		  // Write result TODO
 		  if (1) {//(catchstate != 0) { // TODO Wenn motor nich angeschlossen
 			  catchresult = catchstate;
@@ -240,7 +240,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  //adcStopConversion(&ADCD1);
 			  motor.angle = 1;
 			  motor.state = OBLDC_STATE_RUNNING;
-			  motor_set_duty_cycle(&motor, 300);// ACHTUNG!!!
+			  //motor_set_duty_cycle(&motor, 300);// ACHTUNG!!!
 			  set_bldc_pwm(&motor); // Start running with back EMF detection
 			  chThdSleepMilliseconds(5000);
 			  palSetPad(GPIOB, GPIOB_LEDR);

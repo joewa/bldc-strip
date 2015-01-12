@@ -42,7 +42,7 @@ typedef struct {
 	int angle;
 	int direction;
 	int16_t u_dc;
-	int32_t sumx, sumx2, sumxy, sumy, sumy2;
+	int64_t sumx, sumx2, sumxy, sumy, sumy2;
 	uint8_t invSenseSign;// True when voltage must be inverted
 } motor_s;
 
