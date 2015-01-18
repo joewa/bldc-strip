@@ -139,6 +139,8 @@ int catchcycle(motor_s* m, int voltage_u, int voltage_v, int voltage_w, uint8_t 
 		// neue adc-messung starten
 		//catchconversion();
 	}
+	motor.direction = direction;
+	motor.angle = halldiff;
 	return direction;
 }
 
@@ -198,7 +200,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 
   //int angle = 1;
   int acceleration = 3;
-  int speed = 100;  // initial speed
+  int speed = 50;  // initial speed
   int delta_t = 50;
 
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
@@ -210,14 +212,14 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   while (TRUE) {
 	  if(motor.state == OBLDC_STATE_STARTING) { // Ramp up the motor
 		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
-		  motor_set_duty_cycle( &motor, 350 + (speed * 4) / 3 );
+		  motor_set_duty_cycle( &motor, 500 + (speed * 6) / 3 );
 		  set_bldc_pwm(&motor);
 		  speed = speed + acceleration;
 		  delta_t = 1000000 / speed;
 		  if (speed > 710) { // speed reached --> try to catch motor
 			  motor.state = OBLDC_STATE_CATCHING;
 			  set_bldc_pwm(&motor);
-			  speed = 100;
+			  speed = 50;
 			  catchcycle(&motor, 0, 0, 0, TRUE); // initialize catch state variables
 		  }
 		  chThdSleepMicroseconds(delta_t);
@@ -240,7 +242,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  //adcStopConversion(&ADCD1);
 			  motor.angle = 1;
 			  motor.state = OBLDC_STATE_RUNNING;
-			  //motor_set_duty_cycle(&motor, 300);// ACHTUNG!!!
+			  motor_set_duty_cycle(&motor, 0);// ACHTUNG!!! 1000 geht gerade noch
 			  set_bldc_pwm(&motor); // Start running with back EMF detection
 			  chThdSleepMilliseconds(5000);
 			  palSetPad(GPIOB, GPIOB_LEDR);

@@ -41,8 +41,8 @@ commutate_Buffer xbuf, ybuf;
 
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
 
-#define PWM_CLOCK_FREQUENCY			2e6 	// [Hz]
-#define PWM_DEFAULT_FREQUENCY		40e3	// [Hz]
+#define PWM_CLOCK_FREQUENCY			28e6 //2e6 //14e6 	// [Hz]
+#define PWM_DEFAULT_FREQUENCY		100e3 //160e3 //100e3	// [Hz]
 
 #define ADC_COMMUTATE_FREQUENCY		1e6		// [Hz]
 #define ADC_PWM_DIVIDER				(PWM_CLOCK_FREQUENCY / ADC_COMMUTATE_FREQUENCY)
@@ -145,6 +145,13 @@ static PWMConfig genpwmcfg= {
 uint16_t yreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
 //uint16_t xreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
 
+/*
+ * The rotor (magnets) have a permeability which causes an emf in the open phase.
+ * The emf is zero when the rotor angle is where either no torque (e.g. 0°) is produced or the torque is maximum (e.g. at 90°).
+ * The current ripple (determined by observing the power consumption of the ESC) is minimal at maximum torque.
+ * At a battery voltage of 11.5V the maximal V-pp is about 3.0V
+ */
+
 static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   (void)adcp;
   //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
@@ -199,9 +206,10 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 			  y = -(buffer[i] - motor.u_dc);  // Sensebridgesign
 		  else
 			  y = buffer[i] - motor.u_dc;
-		  if(y < -30000) {// Detect zero crossing here; You cannot optimize this out; heeehehee
+		  if(y < 0) {// Detect zero crossing here; You cannot optimize this out; heeehehee
 			  adcStopConversionI(&ADCD1); // HERE breakpoint
-			  return;
+			  //chSysUnlockFromISR();
+			  //return;
 			  /*
 			   * Keep it simple: Chibios is blocked while doing all the stuff above.
 			   * Consider simple zero crossing detection instead!
@@ -219,6 +227,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   if(k_sample > 1000000) {  // TIMEOUT
 	  k_sample++;
 	  adcStopConversionI(&ADCD1); // HERE breakpoint
+	  chSysUnlockFromISR();
 	  return;
   }
 
@@ -409,22 +418,23 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 
     	if (m->state == OBLDC_STATE_RUNNING) {
     		k_cb_commutate = 0;
-    		// Test configuration: sample the PWM on the active leg
+    		//BEGIN TEST
+    		/* Test configuration: sample the PWM on the active leg
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_CONT; // ADC_CR2: use ext event | select TIM1_CC1 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0); // U_VOLTAGE
+    		genpwmcfg.channels[0].mode = PWM_OUTPUT_ACTIVE_HIGH;*/
+    		//END TEST
     		adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
-    		genpwmcfg.channels[0].mode = PWM_OUTPUT_ACTIVE_HIGH;
+
     		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
-    		pwmEnableChannel(&PWMD1, 0, t_on);
-    		/*for (i=0; i<100000; i++) { // waste some time
-    			x=2*i;
-    		}
-    		for (i=0; i<100000; i++) { // waste some time
-    			x=2*i;
-    		}*/
+    		//pwmEnableChannel(&PWMD1, 0, t_on); // TEST
+    		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
+    			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    			pwmEnableChannel(&PWMD1, legp, t_on);
+    			pwmEnableChannel(&PWMD1, legn, t_on);
+    		} // PWM_MODE_SINGLEPHASE not supported in STATE_RUNNING
     		//ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
-    		//Hier einfach PWM und ADC direkt nacheinander starten
     	} else if (m->state == OBLDC_STATE_STARTING) {
     		//inv_duty_cycle = 10000-duty_cycle;
     		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
