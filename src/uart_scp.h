@@ -39,6 +39,7 @@
 #define SCP_LEDRED		0xF0
 #define SCP_LEDGREEN	0xF1
 
+void uartSendACK(void);
 void uartSCPInit(void);
 
 #endif /* UART_SCP_H_ */

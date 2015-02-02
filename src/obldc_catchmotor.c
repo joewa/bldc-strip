@@ -18,8 +18,12 @@ extern motor_s motor; // Motor-struct from obldcpwm.c
 
 static uint8_t halldecode[8];
 
+// Winkel-Test
+uint8_t letzte_winkel[10];
+int winkelcount = 0;
+
 int last_hall_decoded;
-int last_halldiff, last_last_halldiff, crossing_counter;
+int last_halldiff, last_last_halldiff, last_last_last_halldiff, crossing_counter;
 int catchcycle(motor_s* m, int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
 	static int vdiff_last[3]; // Neu
 	int vdiff[3];
@@ -108,14 +112,15 @@ int catchcycle(motor_s* m, int voltage_u, int voltage_v, int voltage_w, uint8_t 
 				// check if distance to last 'angle' is = 1
 
 				halldiff = (hall_decoded - last_hall_decoded) % 6;
-				if ( halldiff >= 3 ) { halldiff -= 6; } // correct difference
+				//if ( halldiff >= 3 ) { halldiff -= 6; } // correct difference
+				if ( halldiff >= 3 ) { halldiff = 6 - halldiff; } // correct difference
 
 				abshalldiff = halldiff;
 				if (abshalldiff < 0) abshalldiff=-abshalldiff; //ABS
 
 				// check for four consecutive zero crossings to be rock safe!
 				crossing_counter++;
-				if (crossing_counter > 3 && last_last_halldiff == last_halldiff && halldiff == last_halldiff && abshalldiff == 1 && last_hall_decoded != 0) {
+				if (crossing_counter > 4 && last_last_last_halldiff == last_last_halldiff && last_last_halldiff == last_halldiff && halldiff == last_halldiff && abshalldiff == 1 && last_hall_decoded != 0) {
 					// determine direction of rotation
 					direction = halldiff;
 					crossing_counter = 0;
@@ -123,6 +128,12 @@ int catchcycle(motor_s* m, int voltage_u, int voltage_v, int voltage_w, uint8_t 
 				last_hall_decoded = hall_decoded;
 				last_halldiff = halldiff;
 				last_last_halldiff = last_halldiff;
+				last_last_last_halldiff = last_last_halldiff;
+				if (winkelcount<10) {
+				  // Winkel-Test
+				  letzte_winkel[winkelcount] = hall_decoded;
+				  winkelcount++;
+				}
 			}
 
 
@@ -140,7 +151,7 @@ int catchcycle(motor_s* m, int voltage_u, int voltage_v, int voltage_w, uint8_t 
 		//catchconversion();
 	}
 	motor.direction = direction;
-	motor.angle = halldiff;
+	motor.angle = hall_decoded;
 	return direction;
 }
 
@@ -216,7 +227,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  set_bldc_pwm(&motor);
 		  speed = speed + acceleration;
 		  delta_t = 1000000 / speed;
-		  if (speed > 710) { // speed reached --> try to catch motor
+		  if (speed > 719) { // speed reached --> try to catch motor
 			  motor.state = OBLDC_STATE_CATCHING;
 			  set_bldc_pwm(&motor);
 			  speed = 50;
@@ -236,22 +247,31 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
 		  catchstate = catchcycle(&motor, voltage_u, voltage_v, voltage_w, FALSE);
 		  // Write result TODO
-		  if (1) {//(catchstate != 0) { // TODO Wenn motor nich angeschlossen
+		  if (catchstate != 0 && (motor.angle == 3 || motor.angle == 5) ) {
+			  /*
+			   * TODO catchcycle scheint fuer Winkel 3 und 5 ordentlich zu funktionieren.
+			   * --> Ueberarbeiten, damit es fuer alle anderen Winkel auch geht!
+			   */
 			  catchresult = catchstate;
+			  uartSendACK(); // Oszilloskop-Trigger auf UART
 			  palClearPad(GPIOB, GPIOB_LEDR);
 			  //adcStopConversion(&ADCD1);
-			  motor.angle = 1;
+			  //motor.angle = 1;
 			  motor.state = OBLDC_STATE_RUNNING;
-			  motor_set_duty_cycle(&motor, 0);// ACHTUNG!!! 1000 geht gerade noch
+			  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 			  set_bldc_pwm(&motor); // Start running with back EMF detection
 			  chThdSleepMilliseconds(5000);
 			  palSetPad(GPIOB, GPIOB_LEDR);
 			  adcStopConversion(&ADCD1);
 			  catchcount = 0;
+			  for (winkelcount=0; winkelcount < 10; winkelcount++) letzte_winkel[winkelcount] = 9;//Winkelcount ist Debug-Kram
+			  winkelcount = 0;
 			  motor.state = OBLDC_STATE_STARTING;
 		  }
 		  if(catchcount > 10000) { // Timeout!
 			  catchcount = 0;
+			  for (winkelcount=0; winkelcount < 10; winkelcount++) letzte_winkel[winkelcount] = 9;
+			  winkelcount = 0;
 			  motor.state = OBLDC_STATE_STARTING;
 		  }
 	  }

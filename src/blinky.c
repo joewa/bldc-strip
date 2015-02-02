@@ -49,7 +49,7 @@ static THD_FUNCTION(tBlinkyGreen, arg) {
 
     // Use this with the Discovery board
     //palTogglePad(GPIOC, GPIOC_LED3);
-    uartStartSend(&UARTD1, 1, &sbyte);
+    //uartStartSend(&UARTD1, 1, &sbyte);
   }
   return 0;
 }

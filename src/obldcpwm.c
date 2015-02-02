@@ -160,7 +160,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   int i;
   int k_sample; // Sample in the present commutation cycle
   uint16_t k_pwm_period;//Indicates if the pwm sample occurred at pwm-on
-  int16_t y, x_old, y_old;
+  int16_t y_on, y_off, x_old, y_old;
   int64_t m_reg, b_reg, reg_den, k_zc;
 
   commutate_Buffer* xbuf_ptr;
@@ -176,8 +176,33 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
   //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
-	  if ( (k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) || // Samples during t_on
-			  (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC) ) {// Samples during t_off
+	  //if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
+	  if ( k_pwm_period == DROPNOISYSAMPLES + 2) { // Nimm erstmal nur das erste gueltige Sample von t_on
+		  // BEGIN; THE NEW SIMPLE STUFF
+		  if (motor.invSenseSign)
+			  y_on = -(buffer[i] - motor.u_dc);  // Sensebridgesign
+		  else
+			  y_on = buffer[i] - motor.u_dc;
+	  }
+	  //else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
+	  else if (k_pwm_period > motor.pwm_t_on_ADC + 2 + DROPNOISYSAMPLES)  {// // Nimm erstmal nur das erste gueltige Sample von t_off
+		  if (motor.invSenseSign)
+			  y_off = -(buffer[i] - motor.u_dc);  // Sensebridgesign
+		  else
+			  y_off = buffer[i] - motor.u_dc;
+
+		  if(y_on+500 < y_off) {// Detect zero crossing here
+			  adcStopConversionI(&ADCD1);
+			  pwmStop(&PWMD1);
+			  chSysUnlockFromISR();// HERE breakpoint
+			  return;
+		  }
+
+	  }
+
+		  // END; THE NEW SIMPLE STUFF
+
+			 //|| (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC) ) {// Samples during t_off
 		  //BEGIN COMMENT
 		  /*
 		  if (isBufferFull(ybuf_ptr)) {
@@ -201,25 +226,13 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	      motor.sumxy += (int64_t)k_sample * (int64_t)y;
 	      motor.sumy += y;
 	      motor.sumy2 += (int64_t)y * (int64_t)y;*/ // END COMMENT
-		  // BEGIN; THE NEW SIMPLE STUFF
-		  if (motor.invSenseSign)
-			  y = -(buffer[i] - motor.u_dc);  // Sensebridgesign
-		  else
-			  y = buffer[i] - motor.u_dc;
-		  if(y < 0) {// Detect zero crossing here; You cannot optimize this out; heeehehee
-			  adcStopConversionI(&ADCD1); // HERE breakpoint
-			  //chSysUnlockFromISR();
-			  //return;
-			  /*
-			   * Keep it simple: Chibios is blocked while doing all the stuff above.
-			   * Consider simple zero crossing detection instead!
-			   * Goenne dir ein paar confirmation-cycles. Nimm den tollen Ringpuffer dafuer
-			   * Next step TODO:
-			   * Schedule a general purpose timer and that is properly referenced
-			   */
-		  }
-		  // END; THE NEW SIMPLE STUFF
-	  }
+		  /*
+		   * Keep it simple: Chibios is blocked while doing all the stuff above.
+		   * Consider simple zero crossing detection instead!
+		   * Goenne dir ein paar confirmation-cycles. Nimm den tollen Ringpuffer dafuer
+		   * Next step TODO:
+		   * Schedule a general purpose timer and that is properly referenced
+		   */
 	  k_sample++;
 	  csamples[i] = buffer[i];
   }

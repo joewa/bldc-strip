@@ -142,6 +142,12 @@ static void rxend(UARTDriver *uartp) {
 static UARTConfig uart_cfg_1 = {txend1, txend2, rxend, rxchar, rxerr, 9600, 0,
                                 USART_CR2_LINEN, 0};
 
+void uartSendACK(void) {
+	txBuffer[0] = SCP_ACK;
+	uartStartSend(&UARTD1, 1, txBuffer);
+}
+
+
 void uartSCPInit(void) {
 	/*
 	 * * Activates the serial driver 1
