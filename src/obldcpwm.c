@@ -15,6 +15,7 @@
 #include "obldcpwm.h"
 #include "ringbuffer.h"
 
+extern uint8_t debugbyte;
 
 motor_s motor;	// Stores all motor data
 
@@ -73,7 +74,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
 	motor->angle			= 0;
 	motor->direction		= 0;
-	motor->sumx=0; motor->sumx2=0; motor->sumxy=0; motor->sumy=0; motor->sumy2=0;
+	//motor->sumx=0; motor->sumx2=0; motor->sumxy=0; motor->sumy=0; motor->sumy2=0;
 	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0   SenseBridgeSign
 	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0		-1
 	table_angle2leg[2]=2; table_angle2leg2[0]=1; // 2,  0, -1,  1		1
@@ -90,7 +91,8 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 		m->pwm_t_on = m->pwm_period * (5000 + d / 2) / 10000;
 	m->pwm_t_on_ADC = m->pwm_t_on / ADC_PWM_DIVIDER;
 	m->pwm_period_ADC = m->pwm_period / ADC_PWM_DIVIDER;
-	m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
+	m->state_reluct = 0; // Unknown
+	//m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
 	m->invSenseSign = m->angle % 2;
 	//m->u_dc = get_vbat_sample();
 	bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG);
@@ -99,7 +101,7 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 // TODO: void motor_set_period(motor_s* m, int period)
 // TODO: void motor_set_pwm_mode(motor_s* m, obldc_pwm_mode pwm_mode)
 
-uint16_t k_cb_commutate; // Counts how often the ADC callback was called
+uint32_t k_cb_commutate; // Counts how often the ADC callback was called
 void reset_adc_commutate_count() {
 	k_cb_commutate = 0;
 }
@@ -143,6 +145,7 @@ static PWMConfig genpwmcfg= {
 
 
 uint16_t yreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
+uint16_t* csamples;
 //uint16_t xreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
 
 /*
@@ -152,21 +155,24 @@ uint16_t yreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; /
  * At a battery voltage of 11.5V the maximal V-pp is about 3.0V
  */
 
+int16_t y_on, y_off, sample_cnt_t_on, sample_cnt_t_off, x_old, y_old;
 static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   (void)adcp;
   //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
   //float voltage = avg_ch1/4095.0*3;
-  uint16_t* csamples = yreg;
+  //uint16_t* csamples = yreg;
+  csamples = yreg;
   int i;
-  int k_sample; // Sample in the present commutation cycle
+  uint32_t k_sample; // Sample in the present commutation cycle
   uint16_t k_pwm_period;//Indicates if the pwm sample occurred at pwm-on
-  int16_t y_on, y_off, x_old, y_old;
+
   int64_t m_reg, b_reg, reg_den, k_zc;
 
   commutate_Buffer* xbuf_ptr;
   commutate_Buffer* ybuf_ptr;
 
   chSysLockFromISR();
+  sample_cnt_t_on = 0; sample_cnt_t_off = 0; y_on = 0; y_off = 0;
   //u_dc_int = get_vbat_sample();
 
   xbuf_ptr = &xbuf; ybuf_ptr = &ybuf;
@@ -176,28 +182,13 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
   //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
-	  //if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
-	  if ( k_pwm_period == DROPNOISYSAMPLES + 2) { // Nimm erstmal nur das erste gueltige Sample von t_on
-		  // BEGIN; THE NEW SIMPLE STUFF
-		  if (motor.invSenseSign)
-			  y_on = -(buffer[i] - motor.u_dc);  // Sensebridgesign
-		  else
-			  y_on = buffer[i] - motor.u_dc;
+	  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
+		  sample_cnt_t_on++;
+		  y_on += buffer[i];
 	  }
-	  //else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
-	  else if (k_pwm_period > motor.pwm_t_on_ADC + 2 + DROPNOISYSAMPLES)  {// // Nimm erstmal nur das erste gueltige Sample von t_off
-		  if (motor.invSenseSign)
-			  y_off = -(buffer[i] - motor.u_dc);  // Sensebridgesign
-		  else
-			  y_off = buffer[i] - motor.u_dc;
-
-		  if(y_on+500 < y_off) {// Detect zero crossing here
-			  adcStopConversionI(&ADCD1);
-			  pwmStop(&PWMD1);
-			  chSysUnlockFromISR();// HERE breakpoint
-			  return;
-		  }
-
+	  else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
+		  sample_cnt_t_off++;
+    	  y_off += buffer[i];  // Sensebridgesign
 	  }
 
 		  // END; THE NEW SIMPLE STUFF
@@ -236,8 +227,51 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  k_sample++;
 	  csamples[i] = buffer[i];
   }
+
+  if (motor.invSenseSign) {
+	  //y_on = -(buffer[i] - motor.u_dc);  // Sensebridgesign
+	  y_on = -(y_on / sample_cnt_t_on - motor.u_dc);
+	  y_off = -(y_off / sample_cnt_t_off - motor.u_dc);
+  }
+  else {
+	  //y_on = buffer[i] - motor.u_dc;
+	  y_on = y_on / sample_cnt_t_on - motor.u_dc;
+	  y_off = y_off / sample_cnt_t_off - motor.u_dc;
+  }
+  /*
+   * Sensorless-Startup-Method:
+   * 1. Voltage is applied to the motor; i.e. the motor is in synchronous position
+   * 2. The angle is incremented by 2, e.g. from 1 to 3
+   * 3. The following states will be detected sequentially:
+   * 	0.: y_on > y_off + margin; motor is before maximum torque position --> go to state 1
+   * 	1.: y_on and y_off are within margin; Motor is at maximum torque position --> go to state 2
+   * 	2.: y_on+margin < y_off; motor has passed the maximum torque position
+   * 4. Now immediately increment the angle by 1 and repeat...
+   */
+  if(y_on+300 < y_off) {// Detect zero crossing here
+	  if(motor.state_reluct == 2) {
+		  motor.state_reluct = 3;
+		  debugbyte = 0;
+	  }
+	  //adcStopConversionI(&ADCD1);
+	  //pwmStop(&PWMD1);
+	  //chSysUnlockFromISR();// HERE breakpoint
+	  //return;
+  } else if(y_on > y_off + 300) {
+	  if(motor.state_reluct == 0) {
+		  motor.state_reluct = 1;
+		  debugbyte = 255;
+	  }
+  } else {
+	  if(motor.state_reluct == 1) {
+		  motor.state_reluct = 2;
+		  debugbyte = 85;
+	  }
+  }
+
+
   // Check for timeout
-  if(k_sample > 1000000) {  // TIMEOUT
+  if(k_sample > 10000000) {//(k_sample > 1000000) {  // TIMEOUT
 	  k_sample++;
 	  adcStopConversionI(&ADCD1); // HERE breakpoint
 	  chSysUnlockFromISR();
@@ -448,7 +482,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     			pwmEnableChannel(&PWMD1, legn, t_on);
     		} // PWM_MODE_SINGLEPHASE not supported in STATE_RUNNING
     		//ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
-    	} else if (m->state == OBLDC_STATE_STARTING) {
+    	} else if (m->state == OBLDC_STATE_STARTING_SYNC) {
     		//inv_duty_cycle = 10000-duty_cycle;
     		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
     			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation

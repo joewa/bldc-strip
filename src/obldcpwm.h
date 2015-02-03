@@ -11,9 +11,12 @@
 #include "obldcadc.h"
 
 // besser aufgehoben im reglerteil -> simulation
+
+
 typedef enum {
 	OBLDC_STATE_OFF = 0,
-	OBLDC_STATE_STARTING,
+	OBLDC_STATE_STARTING_SYNC,
+	OBLDC_STATE_STARTING_SENSE,
 	OBLDC_STATE_CATCHING,
 	OBLDC_STATE_RUNNING
 } obldc_state;
@@ -42,7 +45,8 @@ typedef struct {
 	int angle;
 	int direction;
 	int16_t u_dc;
-	int64_t sumx, sumx2, sumxy, sumy, sumy2;
+	uint8_t state_reluct; // 0=unknown
+	//int64_t sumx, sumx2, sumxy, sumy, sumy2;
 	uint8_t invSenseSign;// True when voltage must be inverted
 } motor_s;
 

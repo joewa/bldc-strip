@@ -217,11 +217,11 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
   init_motor_struct(&motor);
   motor.angle = 1;
-  motor.state = OBLDC_STATE_STARTING;
+  motor.state = OBLDC_STATE_STARTING_SYNC;
   //motor.pwm_duty_cycle = 0;
   //set_bldc_pwm(&motor);
   while (TRUE) {
-	  if(motor.state == OBLDC_STATE_STARTING) { // Ramp up the motor
+	  if(motor.state == OBLDC_STATE_STARTING_SYNC) { // Ramp up the motor
 		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
 		  motor_set_duty_cycle( &motor, 500 + (speed * 6) / 3 );
 		  set_bldc_pwm(&motor);
@@ -237,7 +237,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  motor.angle = (motor.angle) % 6 + 1;
 	  }
 	  if(motor.state == OBLDC_STATE_CATCHING) {
-		  catchcount++;
+		  //catchcount++;
 		  catchconversion(); // start ADC Converter
 		  chThdSleepMicroseconds(40);
 		  // evaluate last ADC measurement
@@ -247,7 +247,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
 		  catchstate = catchcycle(&motor, voltage_u, voltage_v, voltage_w, FALSE);
 		  // Write result TODO
-		  if (catchstate != 0 && (motor.angle == 3 || motor.angle == 5) ) {
+		  if (1) {//catchstate != 0 && (motor.angle == 3 || motor.angle == 5) ) {
 			  /*
 			   * TODO catchcycle scheint fuer Winkel 3 und 5 ordentlich zu funktionieren.
 			   * --> Ueberarbeiten, damit es fuer alle anderen Winkel auch geht!
@@ -256,23 +256,30 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  uartSendACK(); // Oszilloskop-Trigger auf UART
 			  palClearPad(GPIOB, GPIOB_LEDR);
 			  //adcStopConversion(&ADCD1);
-			  //motor.angle = 1;
 			  motor.state = OBLDC_STATE_RUNNING;
+			  motor.angle = 6;
 			  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 			  set_bldc_pwm(&motor); // Start running with back EMF detection
-			  chThdSleepMilliseconds(5000);
+			  chThdSleepMilliseconds(5000); chThdSleepMilliseconds(5000);
+			  pwmStop(&PWMD1);
+			  adcStopConversion(&ADCD1);
+			  motor.angle = 2;
+			  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
+			  set_bldc_pwm(&motor); // Start running with back EMF detection
+			  chThdSleepMilliseconds(5000); chThdSleepMilliseconds(5000);
 			  palSetPad(GPIOB, GPIOB_LEDR);
+			  pwmStop(&PWMD1);
 			  adcStopConversion(&ADCD1);
 			  catchcount = 0;
 			  for (winkelcount=0; winkelcount < 10; winkelcount++) letzte_winkel[winkelcount] = 9;//Winkelcount ist Debug-Kram
 			  winkelcount = 0;
-			  motor.state = OBLDC_STATE_STARTING;
+			  motor.state = OBLDC_STATE_STARTING_SYNC;
 		  }
 		  if(catchcount > 10000) { // Timeout!
 			  catchcount = 0;
 			  for (winkelcount=0; winkelcount < 10; winkelcount++) letzte_winkel[winkelcount] = 9;
 			  winkelcount = 0;
-			  motor.state = OBLDC_STATE_STARTING;
+			  motor.state = OBLDC_STATE_STARTING_SYNC;
 		  }
 	  }
   }
