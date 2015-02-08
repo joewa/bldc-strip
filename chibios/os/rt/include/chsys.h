@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -386,6 +385,25 @@ static inline void chSysUnconditionalUnlock(void) {
   if (!port_irq_enabled(port_get_irq_status()))
     chSysUnlock();
 }
+
+#if !CH_CFG_NO_IDLE_THREAD || defined(__DOXYGEN__)
+/**
+ * @brief   Returns a pointer to the idle thread.
+ * @pre     In order to use this function the option @p CH_CFG_NO_IDLE_THREAD
+ *          must be disabled.
+ * @note    The reference counter of the idle thread is not incremented but
+ *          it is not strictly required being the idle thread a static
+ *          object.
+ *
+ * @return              Pointer to the idle thread.
+ *
+ * @xclass
+ */
+static inline thread_t *chSysGetIdleThreadX(void) {
+
+  return ch.rlist.r_queue.p_prev;
+}
+#endif /* !CH_CFG_NO_IDLE_THREAD */
 
 #endif /* _CHSYS_H_ */
 

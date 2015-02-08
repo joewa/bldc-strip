@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -134,10 +134,18 @@ void stm32_clock_init(void) {
   RCC->CR |= RCC_CR_HSION;                  /* Make sure HSI is ON.         */
   while (!(RCC->CR & RCC_CR_HSIRDY))
     ;                                       /* Wait until HSI is stable.    */
+
+  /* HSI is selected as new source without touching the other fields in
+     CFGR. Clearing the register has to be postponed after HSI is the
+     new source.*/
+  RCC->CFGR &= ~RCC_CFGR_SW;                /* Reset SW */
+  RCC->CFGR |= RCC_CFGR_SWS_HSI;            /* Select HSI as internal*/
+  while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI)
+    ;                                       /* Wait until HSI is selected.  */
+
+  /* Registers finally cleared to reset values.*/
   RCC->CR &= RCC_CR_HSITRIM | RCC_CR_HSION; /* CR Reset value.              */
   RCC->CFGR = 0;                            /* CFGR reset value.            */
-  while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI)
-    ;                                       /* Waits until HSI is selected. */
 
 #if STM32_HSE_ENABLED
   /* HSE activation.*/
@@ -152,11 +160,18 @@ void stm32_clock_init(void) {
     ;                                       /* Waits until HSE is stable.   */
 #endif
 
-#if STM32_HSE14_ENABLED
+#if STM32_HSI14_ENABLED
   /* HSI14 activation.*/
   RCC->CR2 |= RCC_CR2_HSI14ON;
   while (!(RCC->CR2 & RCC_CR2_HSI14RDY))
     ;                                       /* Waits until HSI14 is stable. */
+#endif
+
+#if STM32_HSI48_ENABLED
+  /* HSI48 activation.*/
+  RCC->CR2 |= RCC_CR2_HSI48ON;
+  while (!(RCC->CR2 & RCC_CR2_HSI48RDY))
+    ;                                       /* Waits until HSI48 is stable. */
 #endif
 
 #if STM32_LSI_ENABLED
@@ -170,8 +185,8 @@ void stm32_clock_init(void) {
   RCC->CFGR  = STM32_MCOSEL | STM32_PLLMUL | STM32_PLLSRC |
                STM32_ADCPRE | STM32_PPRE   | STM32_HPRE;
   RCC->CFGR2 = STM32_PREDIV;
-  RCC->CFGR3 = STM32_ADCSW  | STM32_CECSW  | STM32_I2C1SW |
-               STM32_USART1SW;
+  RCC->CFGR3 = STM32_ADCSW  | STM32_USBSW  | STM32_CECSW  |
+               STM32_I2C1SW | STM32_USART1SW;
 
 #if STM32_ACTIVATE_PLL
   /* PLL activation.*/

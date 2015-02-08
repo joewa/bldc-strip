@@ -16,6 +16,7 @@ int main(void) {
 	//startBlinkyRed();
 	uartSCPInit();
 	//mystartPWM();
+	motor_start_timer();
 	startmyadc();
 	v_bat_current_conversion();
     chThdSleepMicroseconds(40);

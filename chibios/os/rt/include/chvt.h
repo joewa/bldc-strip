@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -67,7 +66,7 @@
 #endif
 
 #if CH_CFG_ST_FREQUENCY <= 0
-#error "invalid CH_CFG_ST_FREQUENCY specified, must be greated than zero"
+#error "invalid CH_CFG_ST_FREQUENCY specified, must be greater than zero"
 #endif
 
 #if (CH_CFG_ST_TIMEDELTA < 0) || (CH_CFG_ST_TIMEDELTA == 1)
@@ -301,8 +300,6 @@ static inline bool chVTIsTimeWithinX(systime_t time,
  */
 static inline bool chVTIsSystemTimeWithinX(systime_t start, systime_t end) {
 
-  chDbgCheckClassI();
-
   return chVTIsTimeWithinX(chVTGetSystemTimeX(), start, end);
 }
 
@@ -464,16 +461,33 @@ static inline void chVTDoTickI(void) {
   }
 #else /* CH_CFG_ST_TIMEDELTA > 0 */
   virtual_timer_t *vtp;
-  systime_t now = chVTGetSystemTimeX();
-  systime_t delta = now - ch.vtlist.vt_lasttime;
+  systime_t now;
 
-  while ((vtp = ch.vtlist.vt_next)->vt_delta <= delta) {
+  while (true) {
+    vtfunc_t fn;
+    systime_t delta;
+
+    /* Getting the current system time and calculating the time window since
+       the last time has expired.*/
+    now = chVTGetSystemTimeX();
+    delta = now - ch.vtlist.vt_lasttime;
+
+    /* The next element is outside the current time window, the loop
+       is stopped here.*/
+    if ((vtp = ch.vtlist.vt_next)->vt_delta > delta)
+      break;
+
+    /* The "last time" becomes this timer's expiration time.*/
     delta -= vtp->vt_delta;
     ch.vtlist.vt_lasttime += vtp->vt_delta;
-    vtfunc_t fn = vtp->vt_func;
-    vtp->vt_func = (vtfunc_t)NULL;
+
+    /* The timer is removed from the list and marked as non-armed.*/
     vtp->vt_next->vt_prev = (virtual_timer_t *)&ch.vtlist;
     ch.vtlist.vt_next = vtp->vt_next;
+    fn = vtp->vt_func;
+    vtp->vt_func = (vtfunc_t)NULL;
+
+    /* The callback is invoked outside the kernel critical zone.*/
     chSysUnlockFromISR();
     fn(vtp->vt_par);
     chSysLockFromISR();
@@ -484,8 +498,12 @@ static inline void chVTDoTickI(void) {
     port_timer_stop_alarm();
   }
   else {
-    /* Updating the alarm to the next deadline.*/
-    port_timer_set_alarm(now + vtp->vt_delta);
+    /* Updating the alarm to the next deadline, deadline that must not be
+       closer in time than the minimum time delta.*/
+    if (vtp->vt_delta >= CH_CFG_ST_TIMEDELTA)
+      port_timer_set_alarm(now + vtp->vt_delta);
+    else
+      port_timer_set_alarm(now + CH_CFG_ST_TIMEDELTA);
   }
 #endif /* CH_CFG_ST_TIMEDELTA > 0 */
 }

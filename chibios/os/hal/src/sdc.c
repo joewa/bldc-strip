@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -86,7 +85,7 @@ bool _sdc_wait_for_transfer_state(SDCDriver *sdcp) {
     case MMCSD_STS_RCV:
     case MMCSD_STS_PRG:
 #if SDC_NICE_WAITING
-      osalThreadSleep(MS2ST(1));
+      osalThreadSleep(OSAL_MS2ST(1));
 #endif
       continue;
     default:
@@ -262,7 +261,7 @@ bool sdcConnect(SDCDriver *sdcp) {
       }
       if (++i >= SDC_INIT_RETRY)
         goto failed;
-      osalThreadSleep(MS2ST(10));
+      osalThreadSleep(OSAL_MS2ST(10));
     }
   }
 

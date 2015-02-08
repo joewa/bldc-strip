@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -175,15 +174,6 @@
 #if !defined(_FROM_ASM_)
 
 /**
- * @brief   Type of system time.
- */
-#if (CH_CFG_ST_RESOLUTION == 32) || defined(__DOXYGEN__)
-typedef uint32_t systime_t;
-#else
-typedef uint16_t systime_t;
-#endif
-
-/**
  * @brief   Type of stack and memory alignment enforcement.
  * @note    In this architecture the stack alignment is enforced to 64 bits.
  */
@@ -275,14 +265,14 @@ struct context {
  * @details This macro must be inserted at the end of all IRQ handlers
  *          enabled to invoke system APIs.
  */
-#define PORT_IRQ_EPILOGUE()
+#define PORT_IRQ_EPILOGUE() return chSchIsPreemptionRequired()
 
 /**
  * @brief   IRQ handler function declaration.
  * @note    @p id can be a function name or a vector number depending on the
  *          port implementation.
  */
-#define PORT_IRQ_HANDLER(id) void id(void)
+#define PORT_IRQ_HANDLER(id) bool id(void)
 
 /**
  * @brief   Fast IRQ handler function declaration.
@@ -307,7 +297,7 @@ struct context {
 
 #if CH_DBG_ENABLE_STACK_CHECK
 #define port_switch(ntp, otp) {                                             \
-  register struct intctx *r13 asm ("r13");                                  \
+  register struct port_intctx *r13 asm ("r13");                             \
   if ((stkalign_t *)(r13 - 1) < otp->p_stklimit)                            \
     chSysHalt("stack overflow");                                            \
   _port_switch_thumb(ntp, otp);                                             \
@@ -320,7 +310,7 @@ struct context {
 
 #if CH_DBG_ENABLE_STACK_CHECK
 #define port_switch(ntp, otp) {                                             \
-  register struct intctx *r13 asm ("r13");                                  \
+  register struct port_intctx *r13 asm ("r13");                             \
   if ((stkalign_t *)(r13 - 1) < otp->p_stklimit)                            \
   chSysHalt("stack overflow");                                              \
   _port_switch_arm(ntp, otp);                                               \

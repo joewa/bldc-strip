@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -56,12 +56,20 @@
  * @brief Kernel Benchmarks header file
  */
 
+#if CH_CFG_USE_SEMAPHORES || defined(__DOXYGEN__)
 static semaphore_t sem1;
+#endif
 #if CH_CFG_USE_MUTEXES || defined(__DOXYGEN__)
 static mutex_t mtx1;
 #endif
 
 static msg_t thread1(void *p) {
+
+  return (msg_t)p;
+}
+
+#if CH_CFG_USE_MESSAGES || defined(__DOXYGEN__)
+static msg_t thread2(void *p) {
   thread_t *tp;
   msg_t msg;
 
@@ -86,7 +94,7 @@ static unsigned int msg_loop_test(thread_t *tp) {
     (void)chMsgSend(tp, 1);
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   (void)chMsgSend(tp, 0);
@@ -105,7 +113,7 @@ static unsigned int msg_loop_test(thread_t *tp) {
 static void bmk1_execute(void) {
   uint32_t n;
 
-  threads[0] = chThdCreateStatic(wa[0], WA_SIZE, chThdGetPriorityX()-1, thread1, NULL);
+  threads[0] = chThdCreateStatic(wa[0], WA_SIZE, chThdGetPriorityX()-1, thread2, NULL);
   n = msg_loop_test(threads[0]);
   test_wait_threads();
   test_print("--- Score : ");
@@ -134,7 +142,7 @@ ROMCONST struct testcase testbmk1 = {
 static void bmk2_execute(void) {
   uint32_t n;
 
-  threads[0] = chThdCreateStatic(wa[0], WA_SIZE, chThdGetPriorityX()+1, thread1, NULL);
+  threads[0] = chThdCreateStatic(wa[0], WA_SIZE, chThdGetPriorityX()+1, thread2, NULL);
   n = msg_loop_test(threads[0]);
   test_wait_threads();
   test_print("--- Score : ");
@@ -151,11 +159,6 @@ ROMCONST struct testcase testbmk2 = {
   bmk2_execute
 };
 
-static msg_t thread2(void *p) {
-
-  return (msg_t)p;
-}
-
 /**
  * @page test_benchmarks_003 Messages performance #3
  *
@@ -169,11 +172,11 @@ static msg_t thread2(void *p) {
 static void bmk3_execute(void) {
   uint32_t n;
 
-  threads[0] = chThdCreateStatic(wa[0], WA_SIZE, chThdGetPriorityX()+1, thread1, NULL);
-  threads[1] = chThdCreateStatic(wa[1], WA_SIZE, chThdGetPriorityX()-2, thread2, NULL);
-  threads[2] = chThdCreateStatic(wa[2], WA_SIZE, chThdGetPriorityX()-3, thread2, NULL);
-  threads[3] = chThdCreateStatic(wa[3], WA_SIZE, chThdGetPriorityX()-4, thread2, NULL);
-  threads[4] = chThdCreateStatic(wa[4], WA_SIZE, chThdGetPriorityX()-5, thread2, NULL);
+  threads[0] = chThdCreateStatic(wa[0], WA_SIZE, chThdGetPriorityX()+1, thread2, NULL);
+  threads[1] = chThdCreateStatic(wa[1], WA_SIZE, chThdGetPriorityX()-2, thread1, NULL);
+  threads[2] = chThdCreateStatic(wa[2], WA_SIZE, chThdGetPriorityX()-3, thread1, NULL);
+  threads[3] = chThdCreateStatic(wa[3], WA_SIZE, chThdGetPriorityX()-4, thread1, NULL);
+  threads[4] = chThdCreateStatic(wa[4], WA_SIZE, chThdGetPriorityX()-5, thread1, NULL);
   n = msg_loop_test(threads[0]);
   test_wait_threads();
   test_print("--- Score : ");
@@ -189,6 +192,7 @@ ROMCONST struct testcase testbmk3 = {
   NULL,
   bmk3_execute
 };
+#endif /* if CH_CFG_USE_MESSAGES */
 
 /**
  * @page test_benchmarks_004 Context Switch performance
@@ -232,7 +236,7 @@ static void bmk4_execute(void) {
     chSysUnlock();
     n += 4;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   chSysLock();
@@ -271,10 +275,10 @@ static void bmk5_execute(void) {
   test_wait_tick();
   test_start_timer(1000);
   do {
-    chThdWait(chThdCreateStatic(wap, WA_SIZE, prio, thread2, NULL));
+    chThdWait(chThdCreateStatic(wap, WA_SIZE, prio, thread1, NULL));
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   test_print("--- Score : ");
@@ -310,10 +314,10 @@ static void bmk6_execute(void) {
   test_wait_tick();
   test_start_timer(1000);
   do {
-    chThdCreateStatic(wap, WA_SIZE, prio, thread2, NULL);
+    chThdCreateStatic(wap, WA_SIZE, prio, thread1, NULL);
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   test_print("--- Score : ");
@@ -328,6 +332,7 @@ ROMCONST struct testcase testbmk6 = {
   bmk6_execute
 };
 
+#if CH_CFG_USE_SEMAPHORES || defined(__DOXYGEN__)
 /**
  * @page test_benchmarks_007 Mass reschedule performance
  *
@@ -368,7 +373,7 @@ static void bmk7_execute(void) {
     chSemReset(&sem1, 0);
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   test_terminate_threads();
@@ -388,6 +393,7 @@ ROMCONST struct testcase testbmk7 = {
   NULL,
   bmk7_execute
 };
+#endif
 
 /**
  * @page test_benchmarks_008 I/O Round-Robin voluntary reschedule.
@@ -408,7 +414,7 @@ static msg_t thread8(void *p) {
     chThdYield();
     (*(uint32_t *)p) += 4;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while(!chThdShouldTerminateX());
   return 0;
@@ -475,7 +481,7 @@ static void bmk9_execute(void) {
     (void)chIQGet(&iq);
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   test_print("--- Score : ");
@@ -517,7 +523,7 @@ static void bmk10_execute(void) {
     chSysUnlock();
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   test_print("--- Score : ");
@@ -532,6 +538,7 @@ ROMCONST struct testcase testbmk10 = {
   bmk10_execute
 };
 
+#if CH_CFG_USE_SEMAPHORES || defined(__DOXYGEN__)
 /**
  * @page test_benchmarks_011 Semaphores wait/signal performance
  *
@@ -563,7 +570,7 @@ static void bmk11_execute(void) {
     chSemSignal(&sem1);
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   test_print("--- Score : ");
@@ -577,6 +584,7 @@ ROMCONST struct testcase testbmk11 = {
   NULL,
   bmk11_execute
 };
+#endif
 
 #if CH_CFG_USE_MUTEXES || defined(__DOXYGEN__)
 /**
@@ -610,7 +618,7 @@ static void bmk12_execute(void) {
     chMtxUnlock(&mtx1);
     n++;
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   } while (!test_timer_done);
   test_print("--- Score : ");
@@ -636,11 +644,7 @@ ROMCONST struct testcase testbmk12 = {
 static void bmk13_execute(void) {
 
   test_print("--- System: ");
-  test_printn(sizeof(ready_list_t) + sizeof(virtual_timers_list_t) +
-              PORT_IDLE_THREAD_STACK_SIZE +
-              (sizeof(thread_t) + sizeof(struct port_intctx) +
-               sizeof(struct port_extctx) +
-               PORT_INT_REQUIRED_STACK) * 2);
+  test_printn(sizeof(ch_system_t));
   test_println(" bytes");
   test_print("--- Thread: ");
   test_printn(sizeof(thread_t));
@@ -648,9 +652,11 @@ static void bmk13_execute(void) {
   test_print("--- Timer : ");
   test_printn(sizeof(virtual_timer_t));
   test_println(" bytes");
+#if CH_CFG_USE_SEMAPHORES || defined(__DOXYGEN__)
   test_print("--- Semaph: ");
   test_printn(sizeof(semaphore_t));
   test_println(" bytes");
+#endif
 #if CH_CFG_USE_EVENTS || defined(__DOXYGEN__)
   test_print("--- EventS: ");
   test_printn(sizeof(event_source_t));
@@ -693,19 +699,25 @@ ROMCONST struct testcase testbmk13 = {
  */
 ROMCONST struct testcase * ROMCONST patternbmk[] = {
 #if !TEST_NO_BENCHMARKS
+#if CH_CFG_USE_MESSAGES || defined(__DOXYGEN__)
   &testbmk1,
   &testbmk2,
   &testbmk3,
+#endif
   &testbmk4,
   &testbmk5,
   &testbmk6,
+#if CH_CFG_USE_SEMAPHORES || defined(__DOXYGEN__)
   &testbmk7,
+#endif
   &testbmk8,
 #if CH_CFG_USE_QUEUES || defined(__DOXYGEN__)
   &testbmk9,
 #endif
   &testbmk10,
+#if CH_CFG_USE_SEMAPHORES || defined(__DOXYGEN__)
   &testbmk11,
+#endif
 #if CH_CFG_USE_MUTEXES || defined(__DOXYGEN__)
   &testbmk12,
 #endif

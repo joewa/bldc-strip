@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -26,7 +25,9 @@
  * @{
  */
 
+#define __FROM_ASM__
 #include "chconf.h"
+#include "armparams.h"
 
 #define FALSE 0
 #define TRUE 1
@@ -85,7 +86,6 @@ _port_suspend_thumb:
                 // Goes into _port_unlock_thumb
 
                 .code   16
-                .thumb_func
                 .global _port_lock_thumb
 _port_lock_thumb:
                 mov     r3, pc
@@ -102,7 +102,6 @@ _port_enable_thumb:
                 // Goes into _port_unlock_thumb
 
                 .code   16
-                .thumb_func
                 .global _port_unlock_thumb
 _port_unlock_thumb:
                 mov     r3, pc
@@ -137,8 +136,10 @@ _port_switch_arm:
 #endif /* !defined(THUMB_PRESENT) */
 
 /*
- * Common exit point for all IRQ routines, it performs the rescheduling if
- * required.
+ * Common IRQ code. It expects a macro ARM_IRQ_VECTOR_REG with the address
+ * of a register holding the address of the ISR to be invoked, the ISR
+ * then returns in the common epilogue code where the context switch will
+ * be performed, if required.
  * System stack frame structure after a context switch in the
  * interrupt handler:
  *
@@ -149,7 +150,7 @@ _port_switch_arm:
  *      |     r2     |  | External context: IRQ handler frame
  *      |     r1     |  |
  *      |     r0     |  |
- *      |     PC     |  |   (user code return address)
+ *      |   LR_IRQ   |  |   (user code return address)
  *      |   PSR_USR  | -+   (user code status)
  *      |    ....    | <- chSchDoReschedule() stack frame, optimize it for space
  *      |     LR     | -+   (system code return address)
@@ -164,31 +165,33 @@ _port_switch_arm:
  * Low  +------------+
  */
                 .balign 16
-#if defined(THUMB_NO_INTERWORKING)
+                .code   32
+                .global Irq_Handler
+Irq_Handler:
+                stmfd   sp!, {r0-r3, r12, lr}
+                ldr     r0, =ARM_IRQ_VECTOR_REG
+                ldr     r0, [r0]
+#if !defined(THUMB_NO_INTERWORKING)
+                ldr     lr, =_irq_ret_arm       // ISR return point.
+                bx      r0                      // Calling the ISR.
+_irq_ret_arm:
+#else /* defined(THUMB_NO_INTERWORKING) */
+                add     r1, pc, #1
+                bx      r1
                 .code   16
-                .thumb_func
-                .globl  _port_irq_common
-_port_irq_common:
-                bl      chSchIsPreemptionRequired
+                bl      _bxr0                   // Calling the ISR.
                 mov     lr, pc
                 bx      lr
                 .code   32
+#endif /* defined(THUMB_NO_INTERWORKING) */
+                cmp     r0, #0
+                ldmfd   sp!, {r0-r3, r12, lr}
+                subeqs  pc, lr, #4              // No reschedule, returns.
 
-#else /* !defined(THUMB_NO_INTERWORKING) */
-                .code   32
-                .globl  _port_irq_common
-_port_irq_common:
-                bl      chSchIsPreemptionRequired
-#endif /* !defined(THUMB_NO_INTERWORKING) */
-
-                cmp     r0, #0                  // Simply returns if a
-                ldmeqfd sp!, {r0-r3, r12, lr}   // reschedule is not
-                subeqs  pc, lr, #4              // required.
-
-                // Saves the IRQ mode registers in the system stack.
-                ldmfd   sp!, {r0-r3, r12, lr}   // IRQ stack now empty.
+                // Now the frame is created in the system stack, the IRQ
+                // stack is empty.
                 msr     CPSR_c, #MODE_SYS | I_BIT
-                stmfd   sp!, {r0-r3, r12, lr}   // Registers on System Stack.
+                stmfd   sp!, {r0-r3, r12, lr}
                 msr     CPSR_c, #MODE_IRQ | I_BIT
                 mrs     r0, SPSR
                 mov     r1, lr
@@ -201,27 +204,27 @@ _port_irq_common:
                 bx      r0
                 .code   16
 #if CH_DBG_SYSTEM_STATE_CHECK
-                bl      dbg_check_lock
+                bl      _dbg_check_lock
 #endif
                 bl      chSchDoReschedule
 #if CH_DBG_SYSTEM_STATE_CHECK
-                bl      dbg_check_unlock
+                bl      _dbg_check_unlock
 #endif
                 mov     lr, pc
                 bx      lr
                 .code   32
 #else /* !defined(THUMB_NO_INTERWORKING) */
 #if CH_DBG_SYSTEM_STATE_CHECK
-                bl      dbg_check_lock
+                bl      _dbg_check_lock
 #endif
                 bl      chSchDoReschedule
 #if CH_DBG_SYSTEM_STATE_CHECK
-                bl      dbg_check_unlock
+                bl      _dbg_check_unlock
 #endif
 #endif /* !defined(THUMB_NO_INTERWORKING) */
 
                 // Re-establish the IRQ conditions again.
-                ldmfd    sp!, {r0, r1}          // Pop R0=SPSR, R1=LR_IRQ.
+                ldmfd   sp!, {r0, r1}           // Pop R0=SPSR, R1=LR_IRQ.
                 msr     CPSR_c, #MODE_IRQ | I_BIT
                 msr     SPSR_fsxc, r0
                 mov     lr, r1
@@ -229,6 +232,10 @@ _port_irq_common:
                 ldmfd   sp!, {r0-r3, r12, lr}
                 msr     CPSR_c, #MODE_IRQ | I_BIT
                 subs    pc, lr, #4
+#if defined(THUMB_NO_INTERWORKING)
+                .code   16
+_bxr0:          bx      r0
+#endif
 
 /*
  * Threads trampoline code.
@@ -239,26 +246,30 @@ _port_irq_common:
                 .code   32
                 .globl  _port_thread_start
 _port_thread_start:
+#if defined(THUMB_NO_INTERWORKING)
+                add     r0, pc, #1
+                bx      r0
+                .code   16
 #if CH_DBG_SYSTEM_STATE_CHECK
-                mov     r0, #0
-                ldr     r1, =dbg_lock_cnt
-                str     r0, [r1]
+                bl      _dbg_check_unlock
+#endif
+                bl      _port_unlock_thumb
+                mov     r0, r5
+                bl      _bxr4
+                bl      chThdExit
+_zombies:       b       _zombies
+_bxr4:          bx      r4
+
+#else /* !defined(THUMB_NO_INTERWORKING) */
+#if CH_DBG_SYSTEM_STATE_CHECK
+                bl      _dbg_check_unlock
 #endif
                 msr     CPSR_c, #MODE_SYS
-#if defined(THUMB_NO_INTERWORKING)
                 mov     r0, r5
                 mov     lr, pc
                 bx      r4
                 bl      chThdExit
-#else /* !defined(THUMB_NO_INTERWORKING) */
-                add     r0, pc, #1
-                bx      r0
-                .code 16
-                mov     r0, r5
-                bl      jmpr4
-                bl      chThdExit
-jmpr4:
-                bx      r4
+_zombies:       b       _zombies
 #endif /* !defined(THUMB_NO_INTERWORKING) */
 
 #endif /* !defined(__DOXYGEN__) */

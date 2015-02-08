@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@
  * DMA priorities:
  * 0...3        Lowest...Highest.
  */
+
+#define STM32_USE_REVISION_A_FIX
 
 #define STM32F4xx_MCUCONF
 

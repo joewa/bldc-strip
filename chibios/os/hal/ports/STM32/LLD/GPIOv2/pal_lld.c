@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ void _pal_lld_init(const PALConfig *config) {
   RCC->AHBLPENR |= AHB_LPEN_MASK;
 #elif defined(STM32F0XX)
   rccEnableAHB(AHB_EN_MASK, TRUE);
-#elif defined(STM32F30X) || defined(STM32F37X)
+#elif defined(STM32F3XX) || defined(STM32F37X)
   rccEnableAHB(AHB_EN_MASK, TRUE);
 #elif defined(STM32F2XX) || defined(STM32F4XX)
   RCC->AHB1ENR   |= AHB1_EN_MASK;

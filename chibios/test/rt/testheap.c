@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ static void heap1_execute(void) {
   size_t n, sz;
 
   /* Unrelated, for coverage only.*/
-  (void)chCoreStatus();
+  (void)chCoreGetStatusX();
 
   /*
    * Test on the default heap in order to cover the core allocator at

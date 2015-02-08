@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -173,7 +172,7 @@ typedef thread_t * thread_reference_t;
 typedef uint32_t eventflags_t;
 #endif
 
-#if 0
+#if !CH_CFG_USE_EVENTS
 /**
  * @brief   Type of an event flags object.
  * @note    The content of this structure is not part of the API and should
@@ -261,13 +260,13 @@ typedef struct {
  * @note    Not implemented in this simplified OSAL.
  */
 #define osalDbgCheckClassI() chDbgCheckClassI()
-/** @} */
 
 /**
  * @brief   S-Class state check.
  * @note    Not implemented in this simplified OSAL.
  */
 #define osalDbgCheckClassS() chDbgCheckClassS()
+/** @} */
 
 /**
  * @name    IRQ service routines wrappers
@@ -535,12 +534,12 @@ static inline void osalOsRescheduleS(void) {
 
 /**
  * @brief   Current system time.
- * @details Returns the number of system ticks since the @p chSysInit()
+ * @details Returns the number of system ticks since the @p osalInit()
  *          invocation.
  * @note    The counter can reach its maximum and then restart from zero.
  * @note    This function can be called from any context but its atomicity
  *          is not guaranteed on architectures whose word size is less than
- *          @systime_t size.
+ *          @p systime_t size.
  *
  * @return              The system time in ticks.
  *
@@ -743,6 +742,7 @@ static inline void osalThreadDequeueAllI(threads_queue_t *tqp, msg_t msg) {
   chThdDequeueAllI(tqp, msg);
 }
 
+#if CH_CFG_USE_EVENTS || defined(__DOXYGEN__)
 /**
  * @brief   Initializes an event flags object.
  *
@@ -754,7 +754,14 @@ static inline void osalEventObjectInit(event_source_t *esp) {
 
   chEvtObjectInit(esp);
 }
+#else
+static inline void osalEventObjectInit(event_source_t *esp) {
 
+  esp->flags = 0;
+}
+#endif
+
+#if CH_CFG_USE_EVENTS || defined(__DOXYGEN__)
 /**
  * @brief   Add flags to an event source object.
  *
@@ -768,7 +775,15 @@ static inline void osalEventBroadcastFlagsI(event_source_t *esp,
 
   chEvtBroadcastFlagsI(esp, flags);
 }
+#else
+static inline void osalEventBroadcastFlagsI(event_source_t *esp,
+                                            eventflags_t flags) {
 
+  esp->flags |= flags;
+}
+#endif
+
+#if CH_CFG_USE_EVENTS || defined(__DOXYGEN__)
 /**
  * @brief   Add flags to an event source object.
  *
@@ -782,6 +797,14 @@ static inline void osalEventBroadcastFlags(event_source_t *esp,
 
   chEvtBroadcastFlags(esp, flags);
 }
+#else
+static inline void osalEventBroadcastFlags(event_source_t *esp,
+                                            eventflags_t flags) {
+  osalSysLock();
+  esp->flags |= flags;
+  osalSysUnlock();
+}
+#endif
 
 /**
  * @brief   Initializes s @p mutex_t object.
@@ -801,7 +824,7 @@ static inline void osalMutexObjectInit(mutex_t *mp) {
 #endif
 }
 
-/*
+/**
  * @brief   Locks the specified mutex.
  * @post    The mutex is locked and inserted in the per-thread stack of owned
  *          mutexes.

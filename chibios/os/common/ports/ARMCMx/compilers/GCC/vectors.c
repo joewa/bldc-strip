@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,
-              2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -528,7 +527,7 @@ vectors_t _vectors = {
     Vector170,          Vector174,          Vector178,          Vector17C,
 #endif
 #if CORTEX_NUM_VECTORS > 80
-    Vector180,          Vector184,          Vector188,          Vector17C,
+    Vector180,          Vector184,          Vector188,          Vector18C,
 #endif
 #if CORTEX_NUM_VECTORS > 84
     Vector190,          Vector194,          Vector198,          Vector19C,

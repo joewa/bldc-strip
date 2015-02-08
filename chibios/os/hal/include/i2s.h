@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -80,10 +79,6 @@ typedef enum {
  * @brief   Starts a I2S data exchange.
  *
  * @param[in] i2sp      pointer to the @p I2SDriver object
- * @param[in] n         size of the transmit buffer, must be even and greater
- *                      than zero
- * @param[out] txbuf    the pointer to the transmit buffer
- * @param[out] rxbuf    the pointer to the receive buffer
  *
  * @iclass
  */

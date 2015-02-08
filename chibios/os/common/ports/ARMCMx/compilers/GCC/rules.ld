@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,
-              2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -107,27 +106,23 @@ SECTIONS
         __main_thread_stack_end__ = .;
     } > ram
 
-    .data :
+    .data ALIGN(4) : ALIGN(4)
     {
         . = ALIGN(4);
         PROVIDE(_data = .);
         *(.data)
-        . = ALIGN(4);
         *(.data.*)
-        . = ALIGN(4);
         *(.ramtext)
         . = ALIGN(4);
         PROVIDE(_edata = .);
     } > ram AT > flash
 
-    .bss :
+    .bss ALIGN(4) : ALIGN(4)
     {
         . = ALIGN(4);
         PROVIDE(_bss_start = .);
         *(.bss)
-        . = ALIGN(4);
         *(.bss.*)
-        . = ALIGN(4);
         *(COMMON)
         . = ALIGN(4);
         PROVIDE(_bss_end = .);

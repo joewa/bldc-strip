@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -71,7 +71,9 @@ extern "C" {
 #endif
   void shellInit(void);
   void shellExit(msg_t msg);
+#if CH_CFG_USE_HEAP && CH_CFG_USE_DYNAMIC
   thread_t *shellCreate(const ShellConfig *scp, size_t size, tprio_t prio);
+#endif
   thread_t *shellCreateStatic(const ShellConfig *scp, void *wsp,
                               size_t size, tprio_t prio);
   bool shellGetLine(BaseSequentialStream *chp, char *line, unsigned size);

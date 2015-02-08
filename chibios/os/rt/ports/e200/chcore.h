@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -115,8 +114,8 @@
 /**
  * @brief   Enables an alternative timer implementation.
  * @details Usually the port uses a timer interface defined in the file
- *          @p nilcore_timer.h, if this option is enabled then the file
- *          @p nilcore_timer_alt.h is included instead.
+ *          @p chcore_timer.h, if this option is enabled then the file
+ *          @p chcore_timer_alt.h is included instead.
  */
 #if !defined(PORT_USE_ALT_TIMER)
 #define PORT_USE_ALT_TIMER              FALSE
@@ -182,15 +181,6 @@
 #if !defined(_FROM_ASM_)
 
 /**
- * @brief   Type of system time.
- */
-#if (CH_CFG_ST_RESOLUTION == 32) || defined(__DOXYGEN__)
-typedef uint32_t systime_t;
-#else
-typedef uint16_t systime_t;
-#endif
-
-/**
  * @brief   Type of stack and memory alignment enforcement.
  * @note    In this architecture the stack alignment is enforced to 64 bits.
  */
@@ -247,7 +237,7 @@ struct port_extctx {
  *          switching.
  * @note    R2 and R13 are not saved because those are assumed to be immutable
  *          during the system life cycle.
- * @note    LR is stored in the caller contex so it is not present in this
+ * @note    LR is stored in the caller context so it is not present in this
  *          structure.
  */
 struct port_intctx {

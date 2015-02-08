@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -322,6 +322,7 @@
 
 /* FSMC attributes.*/
 #define STM32_HAS_FSMC                      TRUE
+#define STM32_FSMC_IS_FMC                   TRUE
 #define STM32_FSMC_DMA_MSK                  (STM32_DMA_STREAM_ID_MSK(2, 0) |\
                                              STM32_DMA_STREAM_ID_MSK(2, 1) |\
                                              STM32_DMA_STREAM_ID_MSK(2, 2) |\
@@ -939,7 +940,9 @@
 /* TIM attributes.*/
 #define STM32_TIM_MAX_CHANNELS              4
 
-#define STM32_HAS_TIM1                      FALSE
+#define STM32_HAS_TIM1                      TRUE
+#define STM32_TIM1_IS_32BITS                FALSE
+#define STM32_TIM1_CHANNELS                 4
 
 #define STM32_HAS_TIM2                      TRUE
 #define STM32_TIM2_IS_32BITS                TRUE

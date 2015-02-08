@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -46,11 +45,11 @@
  *              - Called from an ISR.
  *              - Not called from a critical zone.
  *              .
- *            - SV#6, misplaced @p chSysLockFromIsr().
+ *            - SV#6, misplaced @p chSysLockFromISR().
  *              - Not called from an ISR.
  *              - Called from a critical zone.
  *              .
- *            - SV#7, misplaced @p chSysUnlockFromIsr().
+ *            - SV#7, misplaced @p chSysUnlockFromISR().
  *              - Not called from an ISR.
  *              - Not called from a critical zone.
  *              .
@@ -114,7 +113,7 @@
  */
 void _dbg_check_disable(void) {
 
-  if ((ch.dbg_isr_cnt != 0) || (ch.dbg_lock_cnt != 0))
+  if ((ch.dbg.isr_cnt != 0) || (ch.dbg.lock_cnt != 0))
     chSysHalt("SV#1");
 }
 
@@ -125,7 +124,7 @@ void _dbg_check_disable(void) {
  */
 void _dbg_check_suspend(void) {
 
-  if ((ch.dbg_isr_cnt != 0) || (ch.dbg_lock_cnt != 0))
+  if ((ch.dbg.isr_cnt != 0) || (ch.dbg.lock_cnt != 0))
     chSysHalt("SV#2");
 }
 
@@ -136,7 +135,7 @@ void _dbg_check_suspend(void) {
  */
 void _dbg_check_enable(void) {
 
-  if ((ch.dbg_isr_cnt != 0) || (ch.dbg_lock_cnt != 0))
+  if ((ch.dbg.isr_cnt != 0) || (ch.dbg.lock_cnt != 0))
     chSysHalt("SV#3");
 }
 
@@ -147,7 +146,7 @@ void _dbg_check_enable(void) {
  */
 void _dbg_check_lock(void) {
 
-  if ((ch.dbg_isr_cnt != 0) || (ch.dbg_lock_cnt != 0))
+  if ((ch.dbg.isr_cnt != 0) || (ch.dbg.lock_cnt != 0))
     chSysHalt("SV#4");
   _dbg_enter_lock();
 }
@@ -159,7 +158,7 @@ void _dbg_check_lock(void) {
  */
 void _dbg_check_unlock(void) {
 
-  if ((ch.dbg_isr_cnt != 0) || (ch.dbg_lock_cnt <= 0))
+  if ((ch.dbg.isr_cnt != 0) || (ch.dbg.lock_cnt <= 0))
     chSysHalt("SV#5");
   _dbg_leave_lock();
 }
@@ -171,7 +170,7 @@ void _dbg_check_unlock(void) {
  */
 void _dbg_check_lock_from_isr(void) {
 
-  if ((ch.dbg_isr_cnt <= 0) || (ch.dbg_lock_cnt != 0))
+  if ((ch.dbg.isr_cnt <= 0) || (ch.dbg.lock_cnt != 0))
     chSysHalt("SV#6");
   _dbg_enter_lock();
 }
@@ -183,7 +182,7 @@ void _dbg_check_lock_from_isr(void) {
  */
 void _dbg_check_unlock_from_isr(void) {
 
-  if ((ch.dbg_isr_cnt <= 0) || (ch.dbg_lock_cnt <= 0))
+  if ((ch.dbg.isr_cnt <= 0) || (ch.dbg.lock_cnt <= 0))
     chSysHalt("SV#7");
   _dbg_leave_lock();
 }
@@ -196,9 +195,9 @@ void _dbg_check_unlock_from_isr(void) {
 void _dbg_check_enter_isr(void) {
 
   port_lock_from_isr();
-  if ((ch.dbg_isr_cnt < 0) || (ch.dbg_lock_cnt != 0))
+  if ((ch.dbg.isr_cnt < 0) || (ch.dbg.lock_cnt != 0))
     chSysHalt("SV#8");
-  ch.dbg_isr_cnt++;
+  ch.dbg.isr_cnt++;
   port_unlock_from_isr();
 }
 
@@ -210,9 +209,9 @@ void _dbg_check_enter_isr(void) {
 void _dbg_check_leave_isr(void) {
 
   port_lock_from_isr();
-  if ((ch.dbg_isr_cnt <= 0) || (ch.dbg_lock_cnt != 0))
+  if ((ch.dbg.isr_cnt <= 0) || (ch.dbg.lock_cnt != 0))
     chSysHalt("SV#9");
-  ch.dbg_isr_cnt--;
+  ch.dbg.isr_cnt--;
   port_unlock_from_isr();
 }
 
@@ -226,7 +225,7 @@ void _dbg_check_leave_isr(void) {
  */
 void chDbgCheckClassI(void) {
 
-  if ((ch.dbg_isr_cnt < 0) || (ch.dbg_lock_cnt <= 0))
+  if ((ch.dbg.isr_cnt < 0) || (ch.dbg.lock_cnt <= 0))
     chSysHalt("SV#10");
 }
 
@@ -240,7 +239,7 @@ void chDbgCheckClassI(void) {
  */
 void chDbgCheckClassS(void) {
 
-  if ((ch.dbg_isr_cnt != 0) || (ch.dbg_lock_cnt <= 0))
+  if ((ch.dbg.isr_cnt != 0) || (ch.dbg.lock_cnt <= 0))
     chSysHalt("SV#11");
 }
 
@@ -251,10 +250,10 @@ void chDbgCheckClassS(void) {
  * @brief   Trace circular buffer subsystem initialization.
  * @note    Internal use only.
  */
-void _trace_init(void) {
+void _dbg_trace_init(void) {
 
-  ch.dbg_trace_buffer.tb_size = CH_DBG_TRACE_BUFFER_SIZE;
-  ch.dbg_trace_buffer.tb_ptr = &ch.dbg_trace_buffer.tb_buffer[0];
+  ch.dbg.trace_buffer.tb_size = CH_DBG_TRACE_BUFFER_SIZE;
+  ch.dbg.trace_buffer.tb_ptr = &ch.dbg.trace_buffer.tb_buffer[0];
 }
 
 /**
@@ -266,13 +265,13 @@ void _trace_init(void) {
  */
 void _dbg_trace(thread_t *otp) {
 
-  ch.dbg_trace_buffer.tb_ptr->se_time   = chVTGetSystemTimeX();
-  ch.dbg_trace_buffer.tb_ptr->se_tp     = currp;
-  ch.dbg_trace_buffer.tb_ptr->se_wtobjp = otp->p_u.wtobjp;
-  ch.dbg_trace_buffer.tb_ptr->se_state  = (uint8_t)otp->p_state;
-  if (++ch.dbg_trace_buffer.tb_ptr >=
-      &ch.dbg_trace_buffer.tb_buffer[CH_DBG_TRACE_BUFFER_SIZE])
-    ch.dbg_trace_buffer.tb_ptr = &ch.dbg_trace_buffer.tb_buffer[0];
+  ch.dbg.trace_buffer.tb_ptr->se_time   = chVTGetSystemTimeX();
+  ch.dbg.trace_buffer.tb_ptr->se_tp     = currp;
+  ch.dbg.trace_buffer.tb_ptr->se_wtobjp = otp->p_u.wtobjp;
+  ch.dbg.trace_buffer.tb_ptr->se_state  = (uint8_t)otp->p_state;
+  if (++ch.dbg.trace_buffer.tb_ptr >=
+      &ch.dbg.trace_buffer.tb_buffer[CH_DBG_TRACE_BUFFER_SIZE])
+    ch.dbg.trace_buffer.tb_ptr = &ch.dbg.trace_buffer.tb_buffer[0];
 }
 #endif /* CH_DBG_ENABLE_TRACE */
 

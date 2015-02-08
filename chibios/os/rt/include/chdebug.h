@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -71,13 +70,6 @@
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
 
-#if CH_DBG_ENABLE_ASSERTS     || CH_DBG_ENABLE_CHECKS      ||               \
-    CH_DBG_ENABLE_STACK_CHECK || CH_DBG_SYSTEM_STATE_CHECK
-#define CH_DBG_ENABLED              TRUE
-#else
-#define CH_DBG_ENABLED              FALSE
-#endif
-
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
@@ -129,8 +121,8 @@ typedef struct {
 /*===========================================================================*/
 
 #if CH_DBG_SYSTEM_STATE_CHECK
-#define _dbg_enter_lock() (ch.dbg_lock_cnt = 1)
-#define _dbg_leave_lock() (ch.dbg_lock_cnt = 0)
+#define _dbg_enter_lock() (ch.dbg.lock_cnt = 1)
+#define _dbg_leave_lock() (ch.dbg.lock_cnt = 0)
 #endif
 
 /* When the state checker feature is disabled then the following functions
@@ -221,7 +213,7 @@ extern "C" {
   void chDbgCheckClassS(void);
 #endif
 #if CH_DBG_ENABLE_TRACE || defined(__DOXYGEN__)
-  void _trace_init(void);
+  void _dbg_trace_init(void);
   void _dbg_trace(thread_t *otp);
 #endif
 #ifdef __cplusplus

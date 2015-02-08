@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -159,7 +159,7 @@ static msg_t thread2L(void *p) {
   (void)p;
   chMtxLock(&m1);
   test_cpu_pulse(40);
-  chMtxUnlock();
+  chMtxUnlock(&m1);
   test_cpu_pulse(10);
   test_emit_token('C');
   return 0;
@@ -182,7 +182,7 @@ static msg_t thread2H(void *p) {
   chThdSleepMilliseconds(40);
   chMtxLock(&m1);
   test_cpu_pulse(10);
-  chMtxUnlock();
+  chMtxUnlock(&m1);
   test_emit_token('A');
   return 0;
 }
@@ -250,7 +250,7 @@ static msg_t thread3LL(void *p) {
   (void)p;
   chMtxLock(&m1);
   test_cpu_pulse(30);
-  chMtxUnlock();
+  chMtxUnlock(&m1);
   test_emit_token('E');
   return 0;
 }
@@ -264,9 +264,9 @@ static msg_t thread3L(void *p) {
   test_cpu_pulse(20);
   chMtxLock(&m1);
   test_cpu_pulse(10);
-  chMtxUnlock();
+  chMtxUnlock(&m1);
   test_cpu_pulse(10);
-  chMtxUnlock();
+  chMtxUnlock(&m2);
   test_emit_token('D');
   return 0;
 }
@@ -278,7 +278,7 @@ static msg_t thread3M(void *p) {
   chThdSleepMilliseconds(20);
   chMtxLock(&m2);
   test_cpu_pulse(10);
-  chMtxUnlock();
+  chMtxUnlock(&m2);
   test_emit_token('C');
   return 0;
 }
@@ -300,7 +300,7 @@ static msg_t thread3HH(void *p) {
   chThdSleepMilliseconds(50);
   chMtxLock(&m2);
   test_cpu_pulse(10);
-  chMtxUnlock();
+  chMtxUnlock(&m2);
   test_emit_token('A');
   return 0;
 }

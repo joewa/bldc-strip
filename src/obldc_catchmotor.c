@@ -217,10 +217,42 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
   init_motor_struct(&motor);
   motor.angle = 1;
-  motor.state = OBLDC_STATE_STARTING_SYNC;
+  //motor.state = OBLDC_STATE_STARTING_SYNC;
+  motor.state = OBLDC_STATE_STARTING_SENSE_1;
   //motor.pwm_duty_cycle = 0;
   //set_bldc_pwm(&motor);
   while (TRUE) {
+	  if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
+		  motor.pwm_mode = PWM_MODE_SINGLEPHASE;
+		  motor.angle = 1;
+		  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
+		  set_bldc_pwm(&motor); // Position the motor to sync angle
+		  chThdSleepMilliseconds(1000);
+		  catchcount = 0;
+		  motor.time_zc = motortime_now();
+		  motor.state = OBLDC_STATE_STARTING_SENSE_2;
+		  motor.pwm_mode = PWM_MODE_ANTIPHASE;
+		  motor.angle = 3;
+		  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
+		  set_bldc_pwm(&motor); // Start running with back EMF detection
+	  }
+	  if(motor.state == OBLDC_STATE_STARTING_SENSE_2) { // Ramp up the motor
+		  //catchcount++;
+		  if(motortime_now() - motor.time_zc > 500000) {
+		  //if(catchcount > 1000) { // Timeout!
+			  pwmStop(&PWMD1);
+			  adcStopConversion(&ADCD1);
+			  catchcount = 0;
+			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
+		  }
+		  chThdSleepMicroseconds(200);
+		  /*if(motor.state_reluct == 3) {
+			  catchcount = 0;
+			  motor.angle = (motor.angle) % 6 + 1;
+			  motor_set_duty_cycle(&motor, 1000);// ACHTUNG!!! 1000 geht gerade noch
+			  set_bldc_pwm(&motor);
+		  }*/
+	  }
 	  if(motor.state == OBLDC_STATE_STARTING_SYNC) { // Ramp up the motor
 		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
 		  motor_set_duty_cycle( &motor, 500 + (speed * 6) / 3 );
@@ -257,13 +289,13 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  palClearPad(GPIOB, GPIOB_LEDR);
 			  //adcStopConversion(&ADCD1);
 			  motor.state = OBLDC_STATE_RUNNING;
-			  motor.angle = 6;
+			  motor.angle = 1;
 			  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 			  set_bldc_pwm(&motor); // Start running with back EMF detection
 			  chThdSleepMilliseconds(5000); chThdSleepMilliseconds(5000);
 			  pwmStop(&PWMD1);
 			  adcStopConversion(&ADCD1);
-			  motor.angle = 2;
+			  motor.angle = 3;
 			  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 			  set_bldc_pwm(&motor); // Start running with back EMF detection
 			  chThdSleepMilliseconds(5000); chThdSleepMilliseconds(5000);

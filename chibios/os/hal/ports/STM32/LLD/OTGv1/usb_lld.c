@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -624,7 +624,8 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
   stm32_otg_t *otgp = usbp->otg;
   uint32_t sts, src;
 
-  sts = otgp->GINTSTS & otgp->GINTMSK;
+  sts  = otgp->GINTSTS;
+  sts &= otgp->GINTMSK;
   otgp->GINTSTS = sts;
 
   /* Reset interrupt handling.*/
@@ -760,7 +761,7 @@ void usb_lld_init(void) {
                     (uint8_t *)wsp + sizeof(thread_t),
                     CH_DBG_THREAD_FILL_VALUE);
     _thread_memfill((uint8_t *)wsp + sizeof(thread_t),
-                    (uint8_t *)wsp + sizeof(USBD1.wa_pump) - sizeof(thread_t),
+                    (uint8_t *)wsp + sizeof(USBD1.wa_pump),
                     CH_DBG_STACK_FILL_VALUE);
   }
 #endif /* CH_DBG_FILL_THREADS */
@@ -784,7 +785,7 @@ void usb_lld_init(void) {
                     (uint8_t *)wsp + sizeof(thread_t),
                     CH_DBG_THREAD_FILL_VALUE);
     _thread_memfill((uint8_t *)wsp + sizeof(thread_t),
-                    (uint8_t *)wsp + sizeof(USBD2.wa_pump) - sizeof(thread_t),
+                    (uint8_t *)wsp + sizeof(USBD2.wa_pump),
                     CH_DBG_STACK_FILL_VALUE);
   }
 #endif /* CH_DBG_FILL_THREADS */
@@ -1346,8 +1347,6 @@ msg_t usb_lld_pump(void *p) {
     }
     osalSysLock();
   }
-  osalSysUnlock();
-  return 0;
 }
 
 #endif /* HAL_USE_USB */

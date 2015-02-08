@@ -60,7 +60,8 @@ ifeq ($(BUILDDIR),.)
 endif
 OUTFILES = $(BUILDDIR)/$(PROJECT).elf $(BUILDDIR)/$(PROJECT).hex \
            $(BUILDDIR)/$(PROJECT).mot $(BUILDDIR)/$(PROJECT).bin \
-           $(BUILDDIR)/$(PROJECT).dmp
+           $(BUILDDIR)/$(PROJECT).dmp $(BUILDDIR)/$(PROJECT).list
+           
 
 # Source files groups and paths
 SRC	      = $(CSRC)$(CPPSRC)
@@ -196,12 +197,22 @@ endif
 %.dmp: %.elf $(LDSCRIPT)
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	$(OD) $(ODFLAGS) $< > $@
+	$(SZ) $<
 else
 	@echo Creating $@
 	@$(OD) $(ODFLAGS) $< > $@
 	@echo
 	@$(SZ) $<
 	@echo
+	@echo Done
+endif
+
+%.list: %.elf $(LDSCRIPT)
+ifeq ($(USE_VERBOSE_COMPILE),yes)
+	$(OD) -S $< > $@
+else
+	@echo Creating $@
+	@$(OD) -S $< > $@
 	@echo Done
 endif
 

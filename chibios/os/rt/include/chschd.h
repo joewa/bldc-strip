@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -56,6 +55,105 @@
 #define ABSPRIO         255         /**< @brief Greatest possible priority. */
 /** @} */
 
+/**
+ * @name    Thread states
+ * @{
+ */
+#define CH_STATE_READY          0   /**< @brief Waiting on the ready list.  */
+#define CH_STATE_CURRENT        1   /**< @brief Currently running.          */
+#define CH_STATE_WTSTART        2   /**< @brief Created but not started.    */
+#define CH_STATE_SUSPENDED      3   /**< @brief Suspended state.            */
+#define CH_STATE_QUEUED         4   /**< @brief Waiting on an I/O queue.    */
+#define CH_STATE_WTSEM          5   /**< @brief Waiting on a semaphore.     */
+#define CH_STATE_WTMTX          6   /**< @brief Waiting on a mutex.         */
+#define CH_STATE_WTCOND         7   /**< @brief Waiting on a condition
+                                         variable.                          */
+#define CH_STATE_SLEEPING       8   /**< @brief Waiting in @p chThdSleep()
+                                         or @p chThdSleepUntil().           */
+#define CH_STATE_WTEXIT         9   /**< @brief Waiting in @p chThdWait().  */
+#define CH_STATE_WTOREVT        10  /**< @brief Waiting for an event.       */
+#define CH_STATE_WTANDEVT       11  /**< @brief Waiting for several events. */
+#define CH_STATE_SNDMSGQ        12  /**< @brief Sending a message, in queue.*/
+#define CH_STATE_SNDMSG         13  /**< @brief Sent a message, waiting
+                                         answer.                            */
+#define CH_STATE_WTMSG          14  /**< @brief Waiting for a message.      */
+#define CH_STATE_FINAL          15  /**< @brief Thread terminated.          */
+
+/**
+ * @brief   Thread states as array of strings.
+ * @details Each element in an array initialized with this macro can be
+ *          indexed using the numeric thread state values.
+ */
+#define CH_STATE_NAMES                                                     \
+  "READY", "CURRENT", "WTSTART", "SUSPENDED", "QUEUED", "WTSEM", "WTMTX",  \
+  "WTCOND", "SLEEPING", "WTEXIT", "WTOREVT", "WTANDEVT", "SNDMSGQ",        \
+  "SNDMSG", "WTMSG", "FINAL"
+/** @} */
+
+/**
+ * @name    Thread flags and attributes
+ * @{
+ */
+#define CH_FLAG_MODE_MASK       3   /**< @brief Thread memory mode mask.    */
+#define CH_FLAG_MODE_STATIC     0   /**< @brief Static thread.              */
+#define CH_FLAG_MODE_HEAP       1   /**< @brief Thread allocated from a
+                                         Memory Heap.                       */
+#define CH_FLAG_MODE_MEMPOOL    2   /**< @brief Thread allocated from a
+                                         Memory Pool.                       */
+#define CH_FLAG_TERMINATE       4   /**< @brief Termination requested flag. */
+/** @} */
+
+/**
+ * @name    Working Areas and Alignment
+ */
+/**
+ * @brief   Enforces a correct alignment for a stack area size value.
+ *
+ * @param[in] n         the stack size to be aligned to the next stack
+ *                      alignment boundary
+ * @return              The aligned stack size.
+ *
+ * @api
+ */
+#define THD_ALIGN_STACK_SIZE(n)                                             \
+  ((((n) - 1) | (sizeof(stkalign_t) - 1)) + 1)
+
+/**
+ * @brief   Calculates the total Working Area size.
+ *
+ * @param[in] n         the stack size to be assigned to the thread
+ * @return              The total used memory in bytes.
+ *
+ * @api
+ */
+#define THD_WORKING_AREA_SIZE(n)                                            \
+  THD_ALIGN_STACK_SIZE(sizeof(thread_t) + PORT_WA_SIZE(n))
+
+/**
+ * @brief   Static working area allocation.
+ * @details This macro is used to allocate a static thread working area
+ *          aligned as both position and size.
+ *
+ * @param[in] s         the name to be assigned to the stack array
+ * @param[in] n         the stack size to be assigned to the thread
+ *
+ * @api
+ */
+#define THD_WORKING_AREA(s, n)                                              \
+  stkalign_t s[THD_WORKING_AREA_SIZE(n) / sizeof(stkalign_t)]
+/** @} */
+
+/**
+ * @name    Threads abstraction macros
+ */
+/**
+ * @brief   Thread declaration macro.
+ * @note    Thread declarations should be performed using this macro because
+ *          the port layer could define optimizations for thread functions.
+ */
+#define THD_FUNCTION(tname, arg) PORT_THD_FUNCTION(tname, arg)
+/** @} */
+
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
@@ -69,48 +167,19 @@
 /*===========================================================================*/
 
 /**
- * @extends threads_queue_t
- *
- * @brief   Type of a thread structure.
+ * @brief   Generic threads single link list, it works like a stack.
  */
-typedef struct thread thread_t;
+struct ch_threads_list {
+  thread_t              *p_next;    /**< @brief Next in the list/queue.     */
+};
 
 /**
- * @extends threads_list_t
- *
- * @brief   Type of a generic threads bidirectional linked list header and element.
+ * @brief   Generic threads bidirectional linked list header and element.
  */
-typedef struct {
+struct ch_threads_queue{
   thread_t              *p_next;    /**< @brief Next in the list/queue.     */
   thread_t              *p_prev;    /**< @brief Previous in the queue.      */
-} threads_queue_t;
-
-/**
- * @brief   Type of a generic threads single link list, it works like a stack.
- */
-typedef struct {
-  thread_t              *p_next;    /**< @brief Next in the list/queue.     */
-} threads_list_t;
-
-/**
- * @extends threads_queue_t
- *
- * @brief   Ready list header.
- */
-typedef struct {
-  threads_queue_t       r_queue;    /**< @brief Threads queue.              */
-  tprio_t               r_prio;     /**< @brief This field must be
-                                                initialized to zero.        */
-  struct context        r_ctx;      /**< @brief Not used, present because
-                                                offsets.                    */
-#if CH_CFG_USE_REGISTRY || defined(__DOXYGEN__)
-  thread_t              *r_newer;   /**< @brief Newer registry element.     */
-  thread_t              *r_older;   /**< @brief Older registry element.     */
-#endif
-  /* End of the fields shared with the thread_t structure.*/
-  thread_t              *r_current; /**< @brief The currently running
-                                                thread.                     */
-} ready_list_t;
+};
 
 /**
  * @brief   Structure representing a thread.
@@ -118,7 +187,7 @@ typedef struct {
  *          not needed ChibiOS/RT subsystems it is possible to save RAM space
  *          by shrinking this structure.
  */
-struct thread {
+struct ch_thread {
   thread_t              *p_next;    /**< @brief Next in the list/queue.     */
   /* End of the fields shared with the threads_list_t structure.*/
   thread_t              *p_prev;    /**< @brief Previous in the queue.      */
@@ -245,6 +314,9 @@ struct thread {
   void                  *p_mpool;
 #endif
 #if CH_DBG_STATISTICS || defined(__DOXYGEN__)
+  /**
+   * @brief Thread statistics.
+   */
   time_measurement_t    p_stats;
 #endif
 #if defined(CH_CFG_THREAD_EXTRA_FIELDS)
@@ -254,21 +326,11 @@ struct thread {
 };
 
 /**
- * @brief   Type of a Virtual Timer callback function.
- */
-typedef void (*vtfunc_t)(void *);
-
-/**
- * @brief   Type of a Virtual Timer structure.
- */
-typedef struct virtual_timer virtual_timer_t;
-
-/**
  * @extends virtual_timers_list_t
  *
  * @brief   Virtual Timer descriptor structure.
  */
-struct virtual_timer {
+struct ch_virtual_timer {
   virtual_timer_t       *vt_next;   /**< @brief Next timer in the list.     */
   virtual_timer_t       *vt_prev;   /**< @brief Previous timer in the list. */
   systime_t             vt_delta;   /**< @brief Time delta before timeout.  */
@@ -284,7 +346,7 @@ struct virtual_timer {
  *          in order to make the unlink time constant, the reset of a virtual
  *          timer is often used in the code.
  */
-typedef struct {
+struct ch_virtual_timers_list {
   virtual_timer_t       *vt_next;   /**< @brief Next timer in the delta
                                                 list.                       */
   virtual_timer_t       *vt_prev;   /**< @brief Last timer in the delta
@@ -300,14 +362,62 @@ typedef struct {
   systime_t             vt_lasttime;/**< @brief System time of the last
                                                 tick event.                 */
 #endif
-} virtual_timers_list_t;
+};
+
+/**
+ * @extends threads_queue_t
+ */
+struct ch_ready_list {
+  threads_queue_t       r_queue;    /**< @brief Threads queue.              */
+  tprio_t               r_prio;     /**< @brief This field must be
+                                                initialized to zero.        */
+  struct context        r_ctx;      /**< @brief Not used, present because
+                                                offsets.                    */
+#if CH_CFG_USE_REGISTRY || defined(__DOXYGEN__)
+  thread_t              *r_newer;   /**< @brief Newer registry element.     */
+  thread_t              *r_older;   /**< @brief Older registry element.     */
+#endif
+  /* End of the fields shared with the thread_t structure.*/
+  thread_t              *r_current; /**< @brief The currently running
+                                                thread.                     */
+};
+
+/**
+ * @brief   System debug data structure.
+ */
+struct ch_system_debug {
+  /**
+   * @brief   Pointer to the panic message.
+   * @details This pointer is meant to be accessed through the debugger, it is
+   *          written once and then the system is halted.
+   * @note    Accesses to this pointer must never be optimized out so the
+   *          field itself is declared volatile.
+   */
+  const char            * volatile panic_msg;
+#if CH_DBG_SYSTEM_STATE_CHECK || defined(__DOXYGEN__)
+  /**
+   * @brief   ISR nesting level.
+   */
+  cnt_t                 isr_cnt;
+  /**
+   * @brief   Lock nesting level.
+   */
+  cnt_t                 lock_cnt;
+#endif
+#if CH_DBG_ENABLE_TRACE || defined(__DOXYGEN__)
+  /**
+   * @brief   Public trace buffer.
+   */
+  ch_trace_buffer_t     trace_buffer;
+#endif
+};
 
 /**
  * @brief   System data structure.
  * @note    This structure contain all the data areas used by the OS except
  *          stacks.
  */
-typedef struct ch_system {
+struct ch_system {
   /**
    * @brief   Ready list header.
    */
@@ -316,11 +426,19 @@ typedef struct ch_system {
    * @brief   Virtual timers delta list header.
    */
   virtual_timers_list_t vtlist;
+  /**
+   * @brief   System debug.
+   */
+  system_debug_t        dbg;
+  /**
+   * @brief   Main thread descriptor.
+   */
+  thread_t              mainthread;
 #if CH_CFG_USE_TM || defined(__DOXYGEN__)
   /**
-   * @brief   Measurement calibration value.
+   * @brief   Time measurement calibration data.
    */
-  rtcnt_t               measurement_offset;
+  tm_calibration_t      tm;
 #endif
 #if CH_DBG_STATISTICS || defined(__DOXYGEN__)
   /**
@@ -328,33 +446,13 @@ typedef struct ch_system {
    */
   kernel_stats_t        kernel_stats;
 #endif
-#if CH_DBG_ENABLED || defined(__DOXYGEN__)
+#if !CH_CFG_NO_IDLE_THREAD
   /**
-   * @brief   Pointer to the panic message.
-   * @details This pointer is meant to be accessed through the debugger, it is
-   *          written once and then the system is halted.
-   * @note    Accesses to this pointer must never be optimized out so the
-   *          field itself is declared volatile.
+   * @brief   Idle thread working area.
    */
-  const char            * volatile dbg_panic_msg;
+  THD_WORKING_AREA(idle_thread_wa, PORT_IDLE_THREAD_STACK_SIZE);
 #endif
-#if CH_DBG_SYSTEM_STATE_CHECK || defined(__DOXYGEN__)
-  /**
-   * @brief   ISR nesting level.
-   */
-  cnt_t                 dbg_isr_cnt;
-  /**
-   * @brief   Lock nesting level.
-   */
-  cnt_t                 dbg_lock_cnt;
-#endif
-#if CH_DBG_ENABLE_TRACE || defined(__DOXYGEN__)
-  /**
-   * @brief   Public trace buffer.
-   */
-  ch_trace_buffer_t     dbg_trace_buffer;
-#endif
-} ch_system_t;
+};
 
 /*===========================================================================*/
 /* Module macros.                                                            */
@@ -426,126 +524,146 @@ extern "C" {
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
- /**
-  * @brief   Threads list initialization.
-  *
-  * @notapi
-  */
- static inline void list_init(threads_list_t *tlp) {
+/**
+ * @brief   Threads list initialization.
+ *
+ * @param[in] tlp       pointer to the threads list object
+ *
+ * @notapi
+ */
+static inline void list_init(threads_list_t *tlp) {
 
-   tlp->p_next = (thread_t *)tlp;
- }
+  tlp->p_next = (thread_t *)tlp;
+}
 
- /**
-  * @brief   Evaluates to @p true if the specified threads list is empty.
-  *
-  * @notapi
-  */
- static inline bool list_isempty(threads_list_t *tlp) {
+/**
+ * @brief   Evaluates to @p true if the specified threads list is empty.
+ *
+ * @param[in] tlp       pointer to the threads list object
+ * @return              The status of the list.
+ *
+ * @notapi
+ */
+static inline bool list_isempty(threads_list_t *tlp) {
 
-   return (bool)(tlp->p_next == (thread_t *)tlp);
- }
+  return (bool)(tlp->p_next == (thread_t *)tlp);
+}
 
- /**
-  * @brief   Evaluates to @p true if the specified threads list is not empty.
-  *
-  * @notapi
-  */
- static inline bool list_notempty(threads_list_t *tlp) {
+/**
+ * @brief   Evaluates to @p true if the specified threads list is not empty.
+ *
+ * @param[in] tlp       pointer to the threads list object
+ * @return              The status of the list.
+ *
+ * @notapi
+ */
+static inline bool list_notempty(threads_list_t *tlp) {
 
-   return (bool)(tlp->p_next != (thread_t *)tlp);
- }
+  return (bool)(tlp->p_next != (thread_t *)tlp);
+}
 
- /**
-  * @brief   Threads queue initialization.
-  *
-  * @notapi
-  */
- static inline void queue_init(threads_queue_t *tqp) {
+/**
+ * @brief   Threads queue initialization.
+ *
+ * @param[in] tqp       pointer to the threads queue object
+ *
+ * @notapi
+ */
+static inline void queue_init(threads_queue_t *tqp) {
 
-   tqp->p_next = tqp->p_prev = (thread_t *)tqp;
- }
+  tqp->p_next = tqp->p_prev = (thread_t *)tqp;
+}
 
- /**
-  * @brief   Evaluates to @p true if the specified threads queue is empty.
-  *
-  * @notapi
-  */
- static inline bool queue_isempty(threads_queue_t *tqp) {
+/**
+ * @brief   Evaluates to @p true if the specified threads queue is empty.
+ *
+ * @param[in] tqp       pointer to the threads queue object
+ * @return              The status of the queue.
+ *
+ * @notapi
+ */
+static inline bool queue_isempty(threads_queue_t *tqp) {
 
-   return (bool)(tqp->p_next == (thread_t *)tqp);
- }
+  return (bool)(tqp->p_next == (thread_t *)tqp);
+}
 
- /**
-  * @brief   Evaluates to @p true if the specified threads queue is not empty.
-  *
-  * @notapi
-  */
- static inline bool queue_notempty(threads_queue_t *tqp) {
+/**
+ * @brief   Evaluates to @p true if the specified threads queue is not empty.
+ *
+ * @param[in] tqp       pointer to the threads queue object
+ * @return              The status of the queue.
+ *
+ * @notapi
+ */
+static inline bool queue_notempty(threads_queue_t *tqp) {
 
-   return (bool)(tqp->p_next != (thread_t *)tqp);
- }
+  return (bool)(tqp->p_next != (thread_t *)tqp);
+}
 
- /* If the performance code path has been chosen then all the following
-    functions are inlined into the various kernel modules.*/
- #if CH_CFG_OPTIMIZE_SPEED
- static inline void list_insert(thread_t *tp, threads_list_t *tlp) {
+/* If the performance code path has been chosen then all the following
+   functions are inlined into the various kernel modules.*/
+#if CH_CFG_OPTIMIZE_SPEED
+static inline void list_insert(thread_t *tp, threads_list_t *tlp) {
 
-   tp->p_next = tlp->p_next;
-   tlp->p_next = tp;
- }
+  tp->p_next = tlp->p_next;
+  tlp->p_next = tp;
+}
 
- static inline thread_t *list_remove(threads_list_t *tlp) {
+static inline thread_t *list_remove(threads_list_t *tlp) {
 
-   thread_t *tp = tlp->p_next;
-   tlp->p_next = tp->p_next;
-   return tp;
- }
+  thread_t *tp = tlp->p_next;
+  tlp->p_next = tp->p_next;
+  return tp;
+}
 
- static inline void queue_prio_insert(thread_t *tp, threads_queue_t *tqp) {
+static inline void queue_prio_insert(thread_t *tp, threads_queue_t *tqp) {
 
-   thread_t *cp = (thread_t *)tqp;
-   do {
-     cp = cp->p_next;
-   } while ((cp != (thread_t *)tqp) && (cp->p_prio >= tp->p_prio));
-   tp->p_next = cp;
-   tp->p_prev = cp->p_prev;
-   tp->p_prev->p_next = cp->p_prev = tp;
- }
+  thread_t *cp = (thread_t *)tqp;
+  do {
+    cp = cp->p_next;
+  } while ((cp != (thread_t *)tqp) && (cp->p_prio >= tp->p_prio));
+  tp->p_next = cp;
+  tp->p_prev = cp->p_prev;
+  tp->p_prev->p_next = cp->p_prev = tp;
+}
 
- static inline void queue_insert(thread_t *tp, threads_queue_t *tqp) {
+static inline void queue_insert(thread_t *tp, threads_queue_t *tqp) {
 
-   tp->p_next = (thread_t *)tqp;
-   tp->p_prev = tqp->p_prev;
-   tp->p_prev->p_next = tqp->p_prev = tp;
- }
+  tp->p_next = (thread_t *)tqp;
+  tp->p_prev = tqp->p_prev;
+  tp->p_prev->p_next = tqp->p_prev = tp;
+}
 
- static inline thread_t *queue_fifo_remove(threads_queue_t *tqp) {
-   thread_t *tp = tqp->p_next;
+static inline thread_t *queue_fifo_remove(threads_queue_t *tqp) {
+  thread_t *tp = tqp->p_next;
 
-   (tqp->p_next = tp->p_next)->p_prev = (thread_t *)tqp;
-   return tp;
- }
+  (tqp->p_next = tp->p_next)->p_prev = (thread_t *)tqp;
+  return tp;
+}
 
- static inline thread_t *queue_lifo_remove(threads_queue_t *tqp) {
-   thread_t *tp = tqp->p_prev;
+static inline thread_t *queue_lifo_remove(threads_queue_t *tqp) {
+  thread_t *tp = tqp->p_prev;
 
-   (tqp->p_prev = tp->p_prev)->p_next = (thread_t *)tqp;
-   return tp;
- }
+  (tqp->p_prev = tp->p_prev)->p_next = (thread_t *)tqp;
+  return tp;
+}
 
- static inline thread_t *queue_dequeue(thread_t *tp) {
+static inline thread_t *queue_dequeue(thread_t *tp) {
 
-   tp->p_prev->p_next = tp->p_next;
-   tp->p_next->p_prev = tp->p_prev;
-   return tp;
- }
+  tp->p_prev->p_next = tp->p_next;
+  tp->p_next->p_prev = tp->p_prev;
+  return tp;
+}
 #endif /* CH_CFG_OPTIMIZE_SPEED */
 
 /**
  * @brief   Determines if the current thread must reschedule.
  * @details This function returns @p true if there is a ready thread with
  *          higher priority.
+ *
+ * @return              The priorities situation.
+ * @retval false        if rescheduling is not necessary.
+ * @retval true         if there is a ready thread at higher priority.
  *
  * @iclass
  */
@@ -561,11 +679,15 @@ static inline bool chSchIsRescRequiredI(void) {
  * @details This function returns @p true if there is a ready thread with
  *          equal or higher priority.
  *
+ * @return              The priorities situation.
+ * @retval false        if yielding is not possible.
+ * @retval true         if there is a ready thread at equal or higher priority.
+ *
  * @sclass
  */
 static inline bool chSchCanYieldS(void) {
 
-  chDbgCheckClassI();
+  chDbgCheckClassS();
 
   return firstprio(&ch.rlist.r_queue) >= currp->p_prio;
 }

@@ -77,7 +77,9 @@ ifeq ($(BUILDDIR),.)
   BUILDDIR = build
 endif
 OUTFILES = $(BUILDDIR)/$(PROJECT).elf $(BUILDDIR)/$(PROJECT).hex \
-           $(BUILDDIR)/$(PROJECT).bin $(BUILDDIR)/$(PROJECT).dmp
+           $(BUILDDIR)/$(PROJECT).bin $(BUILDDIR)/$(PROJECT).dmp \
+           $(BUILDDIR)/$(PROJECT).list
+           
 
 # Source files groups and paths
 ifeq ($(USE_THUMB),yes)
@@ -259,12 +261,22 @@ endif
 %.dmp: %.elf $(LDSCRIPT)
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	$(OD) $(ODFLAGS) $< > $@
+	$(SZ) $<
 else
 	@echo Creating $@
 	@$(OD) $(ODFLAGS) $< > $@
 	@echo
 	@$(SZ) $<
 	@echo
+	@echo Done
+endif
+
+%.list: %.elf $(LDSCRIPT)
+ifeq ($(USE_VERBOSE_COMPILE),yes)
+	$(OD) -S $< > $@
+else
+	@echo Creating $@
+	@$(OD) -S $< > $@
 	@echo Done
 endif
 

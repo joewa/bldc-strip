@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -24,7 +23,7 @@
  * @details This header defines abstract interfaces useful to access generic
  *          data streams in a standardized way.
  *
- * @addtogroup data_streams
+ * @addtogroup HAL_STREAMS
  * @details This module define an abstract interface for generic data streams.
  *          Note that no code is present, just abstract interfaces-like
  *          structures, you should look at the system as to a set of
@@ -43,9 +42,9 @@
  * @name    Streams return codes
  * @{
  */
-#define STM_OK               Q_OK
-#define STM_TIMEOUT          Q_TIMEOUT
-#define STM_RESET            Q_RESET
+#define STM_OK               MSG_OK
+#define STM_TIMEOUT          MSG_TIMEOUT
+#define STM_RESET            MSG_RESET
 /** @} */
 
 /* The ChibiOS/RT kernel provides the following definitions by itself, this

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -263,7 +263,7 @@ msg_t lwip_thread(void *p) {
   while (TRUE) {
     eventmask_t mask = chEvtWaitAny(ALL_EVENTS);
     if (mask & PERIODIC_TIMER_ID) {
-      bool_t current_link_status = macPollLinkStatus(&ETHD1);
+      bool current_link_status = macPollLinkStatus(&ETHD1);
       if (current_link_status != netif_is_link_up(&thisif)) {
         if (current_link_status)
           tcpip_callback_with_block((tcpip_callback_fn) netif_set_link_up,

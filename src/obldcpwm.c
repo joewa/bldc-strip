@@ -74,6 +74,10 @@ void init_motor_struct(motor_s* motor) {
 	motor->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
 	motor->angle			= 0;
 	motor->direction		= 0;
+	motor->time				= 0;
+	motor->time_zc			= 0;
+	motor->time_last_zc		= 0;
+	motor->time_next_commutate_cb = 0;
 	//motor->sumx=0; motor->sumx2=0; motor->sumxy=0; motor->sumy=0; motor->sumy2=0;
 	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0   SenseBridgeSign
 	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0		-1
@@ -85,6 +89,12 @@ void init_motor_struct(motor_s* motor) {
 }
 
 void motor_set_duty_cycle(motor_s* m, int d) {
+	if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
+		motor.pwm_mode = PWM_MODE_SINGLEPHASE;
+	}
+	else {
+		motor.pwm_mode = PWM_MODE_ANTIPHASE;
+	}
 	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
 		m->pwm_t_on = m->pwm_period * d / 10000;
 	else
@@ -106,25 +116,10 @@ void reset_adc_commutate_count() {
 	k_cb_commutate = 0;
 }
 
-/*
- * GPT Callback
- */
-/*static void gpt_adc_trigger(GPTDriver *gpt_ptr)
-{
-	adc_commutate_count++;
-}*/
-/*
- * Configure a GPT object
- */
-/*static GPTConfig gpt_adc_commutate_config =
-{
-	 2e6,  // timer clock: 1Mhz
-	 gpt_adc_trigger //gpt_adc_trigger  // Timer callback function
-};*/
 
 static PWMConfig genpwmcfg= {
-		PWM_CLOCK_FREQUENCY, /* 2MHz PWM clock frequency */
-		PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY, /* PWM period 50us */
+		PWM_CLOCK_FREQUENCY, /* PWM clock frequency */
+		PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY, /* PWM period */
 		NULL,  /* No callback */
 		{
 				{PWM_OUTPUT_ACTIVE_HIGH, NULL},
@@ -139,10 +134,99 @@ static PWMConfig genpwmcfg= {
 
 
 
+inline int64_t motortime_now() {
+	return (motor.time + gptGetCounterX(&GPTD4));
+}
+
+static inline void motortime_zc() {
+	motor.time_last_zc = motor.time_zc;
+	motor.time_zc = motortime_now();
+}
+
+
+static void commutatetimercb(GPTDriver *gptp) {
+  msg_t msg;
+
+  (void)gptp;
+  chSysLockFromISR();
+  adcStopConversionI(&ADCD1);
+  if(motor.state == OBLDC_STATE_STARTING_SENSE_2) {
+	  //catchcount = 0;
+	  motor.angle = (motor.angle) % 6 + 1;
+	  motor_set_duty_cycle(&motor, 1000);// ACHTUNG!!! 1000 geht gerade noch
+	  set_bldc_pwm(&motor);
+	  //pwmStop(&PWMD1);
+	  palTogglePad(GPIOB, GPIOB_LEDR);
+  }
+  chSysUnlockFromISR();
+}
+
+
+static void gpttimercb(GPTDriver *gptp) {
+	  msg_t msg;
+
+	  (void)gptp;
+  gptcnt_t gpt_time_now;
+  int64_t time2fire;
+  chSysLockFromISR();
+  //palTogglePad(GPIOB, GPIOB_LEDR);
+  motor.time += TIMER_CB_PERIOD;
+  time2fire = motor.time_next_commutate_cb - motor.time;
+  if(time2fire < 100) time2fire=100;
+  if(motor.time < motor.time_next_commutate_cb && (gptcnt_t)time2fire < TIMER_CB_PERIOD) {
+	  // Schedule next commutatetimercb
+	  //gptStartOneShotI(&GPTD4, (gptcnt_t)time2fire);
+  }
+  chSysUnlockFromISR();
+}
+
+static const GPTConfig gptcommutatecfg = {
+  1000000,  /* 1MHz timer clock.*/
+  commutatetimercb,   /* Timer callback.*/
+  0,
+  0
+};
+
+static const GPTConfig gptcfg3 = {
+  1000000,  /* 1MHz timer clock.*/
+  gpttimercb,   /* Timer callback.*/
+  0,
+  0
+};
+
+static void schedule_commutate_cb(int64_t t) {
+	int64_t gpt_time_now = motortime_now();
+	int64_t time2fire;
+	//palTogglePad(GPIOB, GPIOB_LEDR);
+	//gptStart(&GPTD4,&gptcommutatecfg);
+	if(t > gpt_time_now + 20) { // next event is in the future
+		motor.time_next_commutate_cb = t;
+		//gptStartOneShotI(&GPTD3, 50);
+		time2fire = motor.time_next_commutate_cb - gpt_time_now;
+		//TODO: Hier ist der Wurm drin
+		if(time2fire < TIMER_CB_PERIOD) {
+			// Schedule next commutatetimercb
+			//gptStartOneShotI(&GPTD3, 50);
+			gptStartOneShotI(&GPTD3, (gptcnt_t)time2fire);
+		}
+	} // Else something went wrong. Stop!
+}
+
+void motor_start_timer() {
+	motor.time				= 0;
+	motor.time_zc			= 0;
+	motor.time_last_zc		= 0;
+	motor.time_next_commutate_cb = 0;
+	gptStart(&GPTD4, &gptcfg3);
+	gptStartContinuous(&GPTD4, TIMER_CB_PERIOD);
+	//pwmEnableChannel(&PWMD3, 0, 1000); // to start the counter
+	gptStart(&GPTD3, &gptcommutatecfg);
+	//gptStartOneShot(&GPTD4, 40000);
+}
+
 /*
  * ADC streaming callback.
  */
-
 
 uint16_t yreg[(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2 + 1]; //[NREG+1]
 uint16_t* csamples;
@@ -252,6 +336,8 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  if(motor.state_reluct == 2) {
 		  motor.state_reluct = 3;
 		  debugbyte = 0;
+		  adcStopConversionI(&ADCD1); // OK, commutate!
+		  schedule_commutate_cb(motortime_now() + 50);
 	  }
 	  //adcStopConversionI(&ADCD1);
 	  //pwmStop(&PWMD1);
@@ -266,6 +352,9 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  if(motor.state_reluct == 1) {
 		  motor.state_reluct = 2;
 		  debugbyte = 85;
+		  motortime_zc();
+		  // TODO: Write time of zero crossing here
+		  // TODO: Zeitmessung mit TIM3 mit GPT oder PWM-Treiber machen
 	  }
   }
 
@@ -463,7 +552,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	else
     		genpwmcfg.channels[legn].mode = PWM_OUTPUT_ACTIVE_HIGH;
 
-    	if (m->state == OBLDC_STATE_RUNNING) {
+    	if (m->state == OBLDC_STATE_RUNNING || m->state == OBLDC_STATE_STARTING_SENSE_2) {
     		k_cb_commutate = 0;
     		//BEGIN TEST
     		/* Test configuration: sample the PWM on the active leg
@@ -473,8 +562,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		genpwmcfg.channels[0].mode = PWM_OUTPUT_ACTIVE_HIGH;*/
     		//END TEST
     		adcStartConversion(&ADCD1, &adc_commutate_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH);
-
-    		pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+    		//pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
     		//pwmEnableChannel(&PWMD1, 0, t_on); // TEST
     		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
     			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
@@ -482,7 +570,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     			pwmEnableChannel(&PWMD1, legn, t_on);
     		} // PWM_MODE_SINGLEPHASE not supported in STATE_RUNNING
     		//ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
-    	} else if (m->state == OBLDC_STATE_STARTING_SYNC) {
+    	} else if (m->state == OBLDC_STATE_STARTING_SYNC || m->state == OBLDC_STATE_STARTING_SENSE_1) {
     		//inv_duty_cycle = 10000-duty_cycle;
     		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
     			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
@@ -500,46 +588,8 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 }
 
 
-static void pwmpcb(PWMDriver *pwmp) {
 
-  (void)pwmp;
-  palSetPad(GPIOB, GPIOB_LEDR);
-}
 
-static void pwmc1cb(PWMDriver *pwmp) {
-
-  (void)pwmp;
-  palClearPad(GPIOB, GPIOB_LEDR);
-}
-
-static PWMConfig pwmcfg = {
-  1e6,//2e6, /* 2MHz PWM clock frequency */
-  1000,//200, /* PWM period 100us */
-  pwmpcb,  /* No callback */
-  /* Only channel 1 enabled */
-  {
-    {PWM_OUTPUT_ACTIVE_HIGH, pwmc1cb},
-    {PWM_OUTPUT_ACTIVE_HIGH, NULL},
-    {PWM_OUTPUT_ACTIVE_HIGH, NULL},
-    {PWM_OUTPUT_DISABLED, NULL},
-  },
-  0, // TIM CR2 register initialization data, "should normally be zero"
-  0 // TIM DIER register initialization data, "should normally be zero"
-};
-
-void mystartPWM(void) {
-    /* Enables PWM output (of TIM1, channel 1) on "U" phase connected to PA8 */
-    //palSetPadMode(GPIOA, GPIOA_U_PWM, PAL_MODE_STM32_ALTERNATE_PUSHPULL); // ist schon in board.h definiert
-    pwmStart(&PWMD1, &pwmcfg);
-    //pwmEnableChannel(&PWMD1, 0, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 5000));
-    //palSetPad(GPIOB, GPIOB_U_NDTS); // activate driver
-    palClearPad(GPIOB, GPIOB_U_NDTS); // deactivate driver
-    //pwmEnableChannel(&PWMD1, 1, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
-    palSetPad(GPIOB, GPIOB_V_NDTS); // activate driver
-    //pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 2500));
-    //palSetPad(GPIOB, GPIOB_W_NDTS); // activate driver
-    palClearPad(GPIOB, GPIOB_W_NDTS); // deactivate driver
-}
 
 /* ---------- Catch mode ---------- */
 void catchcycle_obsolete(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {

@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -36,6 +36,9 @@
 /*===========================================================================*/
 
 /**
+ * @name    Implementation capabilities
+ */
+/**
  * @brief   This RTC implementation supports callbacks.
  */
 #define RTC_SUPPORTS_CALLBACKS      TRUE
@@ -44,6 +47,12 @@
  * @brief   One alarm comparator available.
  */
 #define RTC_ALARMS                  1
+
+/**
+ * @brief   Presence of a local persistent storage.
+ */
+#define RTC_HAS_STORAGE             FALSE
+/** @} */
 
 /*===========================================================================*/
 /* Driver pre-compile time settings.                                         */
@@ -76,14 +85,15 @@
 /*===========================================================================*/
 
 /**
+ * @brief   FileStream specific methods.
+ */
+#define _rtc_driver_methods                                                 \
+  _file_stream_methods
+
+/**
  * @brief   Type of a structure representing an RTC alarm time stamp.
  */
 typedef struct RTCAlarm RTCAlarm;
-
-/**
- * @brief   Type of a structure representing an RTC callbacks config.
- */
-typedef struct RTCCallbackConfig RTCCallbackConfig;
 
 /**
  * @brief   Type of an RTC alarm.
@@ -106,30 +116,6 @@ typedef enum {
 typedef void (*rtccb_t)(RTCDriver *rtcp, rtcevent_t event);
 
 /**
- * @brief   Structure representing an RTC callbacks config.
- */
-struct RTCCallbackConfig{
-  /**
-   * @brief Generic RTC callback pointer.
-   */
-  rtccb_t           callback;
-};
-
-/**
- * @brief   Structure representing an RTC time stamp.
- */
-struct RTCTime {
-  /**
-   * @brief Seconds since UNIX epoch.
-   */
-  uint32_t tv_sec;
-  /**
-   * @brief Fractional part.
-   */
-  uint32_t tv_msec;
-};
-
-/**
  * @brief   Structure representing an RTC alarm time stamp.
  */
 struct RTCAlarm {
@@ -139,12 +125,33 @@ struct RTCAlarm {
   uint32_t          tv_sec;
 };
 
+#if RTC_HAS_STORAGE || defined(__DOXYGEN__)
+/**
+ * @extends FileStream
+ *
+ * @brief   @p RTCDriver virtual methods table.
+ */
+struct RTCDriverVMT {
+  _rtc_driver_methods
+};
+#endif
+
 /**
  * @brief   Structure representing an RTC driver.
  */
 struct RTCDriver{
+#if RTC_HAS_STORAGE || defined(__DOXYGEN__)
   /**
-   * @brief Callback pointer.
+   * @brief Virtual Methods Table.
+   */
+  const struct RTCDriverVMT *vmt;
+#endif
+  /**
+   * @brief   Pointer to the RTC registers block.
+   */
+  RTC_TypeDef       *rtc;
+  /**
+   * @brief   Callback pointer.
    */
   rtccb_t           callback;
 };
@@ -159,6 +166,9 @@ struct RTCDriver{
 
 #if !defined(__DOXYGEN__)
 extern RTCDriver RTCD1;
+#if RTC_HAS_STORAGE
+extern struct RTCDriverVMT _rtc_lld_vmt;
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -166,16 +176,18 @@ extern "C" {
 #endif
   void rtc_lld_set_prescaler(void);
   void rtc_lld_init(void);
-  void rtc_lld_set_time(RTCDriver *rtcp, const RTCTime *timespec);
-  void rtc_lld_get_time(RTCDriver *rtcp, RTCTime *timespec);
+  void rtc_lld_set_time(RTCDriver *rtcp, const RTCDateTime *timespec);
+  void rtc_lld_get_time(RTCDriver *rtcp, RTCDateTime *timespec);
   void rtc_lld_set_alarm(RTCDriver *rtcp,
-                         rtcalarm_t alarm,
+                         rtcalarm_t alarm_number,
                          const RTCAlarm *alarmspec);
   void rtc_lld_get_alarm(RTCDriver *rtcp,
-                         rtcalarm_t alarm,
+                         rtcalarm_t alarm_number,
                          RTCAlarm *alarmspec);
   void rtc_lld_set_callback(RTCDriver *rtcp, rtccb_t callback);
   uint32_t rtc_lld_get_time_fat(RTCDriver *rtcp);
+  void rtcSTM32GetSecMsec(RTCDriver *rtcp, uint32_t *tv_sec, uint32_t *tv_msec);
+  void rtcSTM32SetSec(RTCDriver *rtcp, uint32_t tv_sec);
 #ifdef __cplusplus
 }
 #endif

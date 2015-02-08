@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -102,7 +102,9 @@ ICUDriver ICUD9;
 /* Driver local functions.                                                   */
 /*===========================================================================*/
 
-static void icu_lld_wait_edge(ICUDriver *icup) {
+static bool icu_lld_wait_edge(ICUDriver *icup) {
+  uint32_t sr;
+  bool result;
 
   /* Polled mode so re-enabling the interrupts while the operation is
      performed.*/
@@ -111,23 +113,29 @@ static void icu_lld_wait_edge(ICUDriver *icup) {
   /* Polling the right bit depending on the input channel.*/
   if (icup->config->channel == ICU_CHANNEL_1) {
     /* Waiting for an edge.*/
-    while ((icup->tim->SR & STM32_TIM_SR_CC1IF) == 0)
+    while (((sr = icup->tim->SR) &
+            (STM32_TIM_SR_CC1IF | STM32_TIM_SR_UIF)) == 0)
       ;
-
-    /* Resetting capture flag.*/
-    icup->tim->SR &= ~STM32_TIM_SR_CC1IF;
   }
   else {
     /* Waiting for an edge.*/
-    while ((icup->tim->SR & STM32_TIM_SR_CC2IF) == 0)
+    while (((sr = icup->tim->SR) &
+            (STM32_TIM_SR_CC2IF | STM32_TIM_SR_UIF)) == 0)
       ;
-
-    /* Resetting capture flag.*/
-    icup->tim->SR &= ~STM32_TIM_SR_CC2IF;
   }
+
+  /* Edge or overflow?*/
+  result = (sr & STM32_TIM_SR_UIF) != 0 ? true : false;
 
   /* Done, disabling interrupts again.*/
   chSysLock();
+
+  /* Resetting all flags.*/
+  icup->tim->SR &= ~(STM32_TIM_SR_CC1IF |
+                     STM32_TIM_SR_CC2IF |
+                     STM32_TIM_SR_UIF);
+
+  return result;
 }
 
 /**
@@ -644,22 +652,26 @@ void icu_lld_start_capture(ICUDriver *icup) {
 
 /**
  * @brief   Waits for a completed capture.
- * @note    The wait is performed in polled mode.
- * @note    The function cannot work if notifications are enabled.
+ * @note    The operation is performed in polled mode.
+ * @note    In order to use this function notifications must be disabled.
  *
  * @param[in] icup      pointer to the @p ICUDriver object
+ * @return              The capture status.
+ * @retval false        if the capture is successful.
+ * @retval true         if a timer overflow occurred.
  *
  * @notapi
  */
-void icu_lld_wait_capture(ICUDriver *icup) {
+bool icu_lld_wait_capture(ICUDriver *icup) {
 
   /* If the driver is still in the ICU_WAITING state then we need to wait
      for the first activation edge.*/
   if (icup->state == ICU_WAITING)
-    icu_lld_wait_edge(icup);
+    if (icu_lld_wait_edge(icup))
+      return true;
 
   /* This edge marks the availability of a capture result.*/
-  icu_lld_wait_edge(icup);
+  return icu_lld_wait_edge(icup);
 }
 
 /**
@@ -687,7 +699,7 @@ void icu_lld_stop_capture(ICUDriver *icup) {
  *
  * @api
  */
-void icu_enable_notifications(ICUDriver *icup) {
+void icu_lld_enable_notifications(ICUDriver *icup) {
   uint32_t dier = icup->tim->DIER;
 
   /* If interrupts were already enabled then the operation is skipped.
@@ -733,7 +745,7 @@ void icu_enable_notifications(ICUDriver *icup) {
  *
  * @api
  */
-void icu_disable_notifications(ICUDriver *icup) {
+void icu_lld_disable_notifications(ICUDriver *icup) {
 
   /* All interrupts disabled.*/
   icup->tim->DIER &= ~STM32_TIM_DIER_IRQ_MASK;

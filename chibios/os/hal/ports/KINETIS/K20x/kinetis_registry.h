@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2014 Derek Mulcahy
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -44,6 +44,12 @@
 /* ADC attributes.*/
 #define KINETIS_HAS_ADC0            TRUE
 #define KINETIS_ADC0_IRC_VECTOR     Vector98
+
+/* I2C attributes.*/
+#define KINETIS_I2C0_IRQ_VECTOR     Vector6C
+
+/* USB attributes */
+#define KINETIS_USB_IRQ_VECTOR      VectorCC
 
 /** @} */
 

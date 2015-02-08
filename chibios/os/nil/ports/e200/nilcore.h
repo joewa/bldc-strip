@@ -1,14 +1,14 @@
 /*
-    ChibiOS/NIL - Copyright (C) 2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/NIL.
+    This file is part of ChibiOS.
 
-    ChibiOS/NIL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/NIL is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -151,15 +151,6 @@
 #if !defined(_FROM_ASM_)
 
 /**
- * @brief   Type of system time.
- */
-#if (NIL_CFG_ST_RESOLUTION == 32) || defined(__DOXYGEN__)
-typedef uint32_t systime_t;
-#else
-typedef uint16_t systime_t;
-#endif
-
-/**
  * @brief   Type of stack and memory alignment enforcement.
  */
 typedef uint64_t stkalign_t;
@@ -215,7 +206,7 @@ struct port_extctx {
  *          switching.
  * @note    R2 and R13 are not saved because those are assumed to be immutable
  *          during the system life cycle.
- * @note    LR is stored in the caller contex so it is not present in this
+ * @note    LR is stored in the caller context so it is not present in this
  *          structure.
  */
 struct port_intctx {

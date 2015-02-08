@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -22,7 +21,7 @@
  * @file    hal_queues.h
  * @brief   I/O Queues macros and structures.
  *
- * @addtogroup io_queues
+ * @addtogroup HAL_QUEUES
  * @{
  */
 
@@ -49,7 +48,11 @@
  */
 typedef struct io_queue io_queue_t;
 
-/** @brief Queue notification callback type.*/
+/**
+ * @brief   Queue notification callback type.
+ *
+ * @param[in] qp        the queue pointer.
+ */
 typedef void (*qnotify_t)(io_queue_t *qp);
 
 /**
@@ -58,8 +61,7 @@ typedef void (*qnotify_t)(io_queue_t *qp);
  *          queue. The queue is asymmetrical because one end is meant to be
  *          accessed from a thread context, and thus can be blocking, the other
  *          end is accessible from interrupt handlers or from within a kernel
- *          lock zone (see <b>I-Locked</b> and <b>S-Locked</b> states in
- *          @ref system_states) and is non-blocking.
+ *          lock zone and is non-blocking.
  */
 struct io_queue {
   threads_queue_t       q_waiting;  /**< @brief Waiting thread.             */
@@ -117,8 +119,7 @@ struct io_queue {
  * @brief   Type of an input queue structure.
  * @details This structure represents a generic asymmetrical input queue.
  *          Writing to the queue is non-blocking and can be performed from
- *          interrupt handlers or from within a kernel lock zone (see
- *          <b>I-Locked</b> and <b>S-Locked</b> states in @ref system_states).
+ *          interrupt handlers or from within a kernel lock zone.
  *          Reading the queue can be a blocking operation and is supposed to
  *          be performed by a system thread.
  */
@@ -232,8 +233,7 @@ typedef io_queue_t input_queue_t;
  * @brief   Type of an output queue structure.
  * @details This structure represents a generic asymmetrical output queue.
  *          Reading from the queue is non-blocking and can be performed from
- *          interrupt handlers or from within a kernel lock zone (see
- *          <b>I-Locked</b> and <b>S-Locked</b> states in @ref system_states).
+ *          interrupt handlers or from within a kernel lock zone.
  *          Writing the queue can be a blocking operation and is supposed to
  *          be performed by a system thread.
  */

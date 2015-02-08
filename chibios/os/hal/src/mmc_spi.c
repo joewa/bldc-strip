@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -169,7 +168,7 @@ static void wait(MMCDriver *mmcp) {
       break;
 #ifdef MMC_NICE_WAITING
     /* Trying to be nice with the other threads.*/
-    chThdSleep(1);
+    osalThreadSleep(1);
 #endif
   }
 }
@@ -289,11 +288,12 @@ static uint8_t send_command_R3(MMCDriver *mmcp, uint8_t cmd, uint32_t arg,
  * @brief   Reads the CSD.
  *
  * @param[in] mmcp      pointer to the @p MMCDriver object
- * @param[out] csd       pointer to the CSD buffer
+ * @param[out] cmd      command
+ * @param[out] cxd      pointer to the CSD/CID buffer
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS   the operation succeeded.
- * @retval HAL_FAILED    the operation failed.
+ * @retval HAL_SUCCESS  the operation succeeded.
+ * @retval HAL_FAILED   the operation failed.
  *
  * @notapi
  */
@@ -348,7 +348,8 @@ static void sync(MMCDriver *mmcp) {
     if (buf[0] == 0xFF)
       break;
 #ifdef MMC_NICE_WAITING
-    chThdSleep(1);      /* Trying to be nice with the other threads.*/
+    /* Trying to be nice with the other threads.*/
+    osalThreadSleep(1);
 #endif
   }
   spiUnselect(mmcp->config->spip);
@@ -460,7 +461,7 @@ bool mmcConnect(MMCDriver *mmcp) {
       break;
     if (++i >= MMC_CMD0_RETRY)
       goto failed;
-    chThdSleepMilliseconds(10);
+    osalThreadSleepMilliseconds(10);
   }
 
   /* Try to detect if this is a high capacity card and switch to block
@@ -480,7 +481,7 @@ bool mmcConnect(MMCDriver *mmcp) {
 
       if (++i >= MMC_ACMD41_RETRY)
         goto failed;
-      chThdSleepMilliseconds(10);
+      osalThreadSleepMilliseconds(10);
     }
 
     /* Execute dedicated read on OCR register */
@@ -501,7 +502,7 @@ bool mmcConnect(MMCDriver *mmcp) {
       goto failed;
     if (++i >= MMC_CMD1_RETRY)
       goto failed;
-    chThdSleepMilliseconds(10);
+    osalThreadSleepMilliseconds(10);
   }
 
   /* Initialization complete, full speed.*/

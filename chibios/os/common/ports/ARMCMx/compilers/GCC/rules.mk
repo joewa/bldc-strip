@@ -64,7 +64,8 @@ endif
 OUTFILES = $(BUILDDIR)/$(PROJECT).elf \
            $(BUILDDIR)/$(PROJECT).hex \
            $(BUILDDIR)/$(PROJECT).bin \
-           $(BUILDDIR)/$(PROJECT).dmp
+           $(BUILDDIR)/$(PROJECT).dmp \
+           $(BUILDDIR)/$(PROJECT).list
 
 ifdef SREC
 OUTFILES += $(BUILDDIR)/$(PROJECT).srec
@@ -258,11 +259,20 @@ endif
 %.dmp: %.elf $(LDSCRIPT)
 ifeq ($(USE_VERBOSE_COMPILE),yes)
 	$(OD) $(ODFLAGS) $< > $@
+	$(SZ) $<
 else
 	@echo Creating $@
 	@$(OD) $(ODFLAGS) $< > $@
 	@echo
 	@$(SZ) $<
+endif
+
+%.list: %.elf $(LDSCRIPT)
+ifeq ($(USE_VERBOSE_COMPILE),yes)
+	$(OD) -S $< > $@
+else
+	@echo Creating $@
+	@$(OD) -S $< > $@
 	@echo
 	@echo Done
 endif

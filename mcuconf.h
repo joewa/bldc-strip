@@ -58,7 +58,7 @@
  */
 #define STM32_ADC_USE_ADC1                  TRUE
 #define STM32_ADC_ADC1_DMA_PRIORITY         2
-#define STM32_ADC_ADC1_IRQ_PRIORITY         6
+#define STM32_ADC_ADC1_IRQ_PRIORITY         5//6
 
 /*
  * CAN driver system settings.
@@ -86,13 +86,13 @@
  */
 #define STM32_GPT_USE_TIM1                  FALSE
 #define STM32_GPT_USE_TIM2                  FALSE
-#define STM32_GPT_USE_TIM3                  FALSE
-#define STM32_GPT_USE_TIM4                  FALSE
+#define STM32_GPT_USE_TIM3                  TRUE
+#define STM32_GPT_USE_TIM4                  TRUE
 #define STM32_GPT_USE_TIM5                  FALSE
 #define STM32_GPT_USE_TIM8                  FALSE
 #define STM32_GPT_TIM1_IRQ_PRIORITY         7
 #define STM32_GPT_TIM2_IRQ_PRIORITY         7
-#define STM32_GPT_TIM3_IRQ_PRIORITY         7
+#define STM32_GPT_TIM3_IRQ_PRIORITY         8
 #define STM32_GPT_TIM4_IRQ_PRIORITY         7
 #define STM32_GPT_TIM5_IRQ_PRIORITY         7
 #define STM32_GPT_TIM8_IRQ_PRIORITY         7
@@ -103,8 +103,8 @@
 #define STM32_I2C_USE_I2C1                  FALSE
 #define STM32_I2C_USE_I2C2                  FALSE
 #define STM32_I2C_BUSY_TIMEOUT              50
-#define STM32_I2C_I2C1_IRQ_PRIORITY         5
-#define STM32_I2C_I2C2_IRQ_PRIORITY         5
+#define STM32_I2C_I2C1_IRQ_PRIORITY         6//5
+#define STM32_I2C_I2C2_IRQ_PRIORITY         6//5
 #define STM32_I2C_I2C1_DMA_PRIORITY         3
 #define STM32_I2C_I2C2_DMA_PRIORITY         3
 #define STM32_I2C_DMA_ERROR_HOOK(i2cp)      osalSysHalt("DMA failure")
@@ -147,6 +147,7 @@
  */
 #define STM32_RTC_IRQ_PRIORITY              15
 
+
 /*
  * SERIAL driver system settings.
  */
@@ -174,6 +175,14 @@
 #define STM32_SPI_SPI2_IRQ_PRIORITY         10
 #define STM32_SPI_SPI3_IRQ_PRIORITY         10
 #define STM32_SPI_DMA_ERROR_HOOK(spip)      osalSysHalt("DMA failure")
+
+/*
+ * ST driver system settings.
+ */
+#define STM32_ST_IRQ_PRIORITY               8
+#define STM32_ST_USE_TIMER                  2
+
+
 
 /*
  * UART driver system settings.

@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -180,9 +179,14 @@ void chVTDoResetI(virtual_timer_t *vtp) {
       port_timer_stop_alarm();
     }
     else {
-      /* The alarm is set to the next element in the delta list.*/
-      port_timer_set_alarm(ch.vtlist.vt_lasttime +
-                           ch.vtlist.vt_next->vt_delta);
+      /* Updating the alarm to the next deadline, deadline that must not be
+         closer in time than the minimum time delta.*/
+      if (ch.vtlist.vt_next->vt_delta >= CH_CFG_ST_TIMEDELTA)
+        port_timer_set_alarm(ch.vtlist.vt_lasttime +
+                             ch.vtlist.vt_next->vt_delta);
+      else
+        port_timer_set_alarm(ch.vtlist.vt_lasttime +
+                             CH_CFG_ST_TIMEDELTA);
     }
   }
 #endif /* CH_CFG_ST_TIMEDELTA > 0 */

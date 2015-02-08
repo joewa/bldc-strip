@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -107,6 +106,8 @@ static const struct SerialUSBDriverVMT vmt = {
 
 /**
  * @brief   Notification of data removed from the input queue.
+ *
+ * @param[in] qp        the queue pointer.
  */
 static void inotify(io_queue_t *qp) {
   size_t n, maxsize;
@@ -138,6 +139,8 @@ static void inotify(io_queue_t *qp) {
 
 /**
  * @brief   Notification of data inserted into the output queue.
+ *
+ * @param[in] qp        the queue pointer.
  */
 static void onotify(io_queue_t *qp) {
   size_t n;
@@ -286,8 +289,8 @@ void sduConfigureHookI(SerialUSBDriver *sdup) {
  *
  * @param[in] usbp      pointer to the @p USBDriver object
  * @return              The hook status.
- * @retval TRUE         Message handled internally.
- * @retval FALSE        Message not handled.
+ * @retval true         Message handled internally.
+ * @retval false        Message not handled.
  */
 bool sduRequestsHook(USBDriver *usbp) {
 
@@ -295,19 +298,19 @@ bool sduRequestsHook(USBDriver *usbp) {
     switch (usbp->setup[1]) {
     case CDC_GET_LINE_CODING:
       usbSetupTransfer(usbp, (uint8_t *)&linecoding, sizeof(linecoding), NULL);
-      return TRUE;
+      return true;
     case CDC_SET_LINE_CODING:
       usbSetupTransfer(usbp, (uint8_t *)&linecoding, sizeof(linecoding), NULL);
-      return TRUE;
+      return true;
     case CDC_SET_CONTROL_LINE_STATE:
       /* Nothing to do, there are no control lines.*/
       usbSetupTransfer(usbp, NULL, 0, NULL);
-      return TRUE;
+      return true;
     default:
-      return FALSE;
+      return false;
     }
   }
-  return FALSE;
+  return false;
 }
 
 /**

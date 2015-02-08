@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -175,10 +175,10 @@ static void mac_lld_set_address(const uint8_t *p) {
 /* Driver interrupt handlers.                                                */
 /*===========================================================================*/
 
-CH_IRQ_HANDLER(ETH_IRQHandler) {
+OSAL_IRQ_HANDLER(ETH_IRQHandler) {
   uint32_t dmasr;
 
-  CH_IRQ_PROLOGUE();
+  OSAL_IRQ_PROLOGUE();
 
   dmasr = ETH->DMASR;
   ETH->DMASR = dmasr; /* Clear status bits.*/
@@ -186,9 +186,9 @@ CH_IRQ_HANDLER(ETH_IRQHandler) {
   if (dmasr & ETH_DMASR_RS) {
     /* Data Received.*/
     osalSysLockFromISR();
-    chSemResetI(&ETHD1.rdsem, 0);
+    osalThreadDequeueAllI(&ETHD1.rdqueue, MSG_RESET);
 #if MAC_USE_EVENTS
-    chEvtBroadcastI(&ETHD1.rdevent);
+    osalEventBroadcastFlagsI(&ETHD1.rdevent, 0);
 #endif
     osalSysUnlockFromISR();
   }
@@ -196,11 +196,11 @@ CH_IRQ_HANDLER(ETH_IRQHandler) {
   if (dmasr & ETH_DMASR_TS) {
     /* Data Transmitted.*/
     osalSysLockFromISR();
-    chSemResetI(&ETHD1.tdsem, 0);
+    osalThreadDequeueAllI(&ETHD1.tdqueue, MSG_RESET);
     osalSysUnlockFromISR();
   }
 
-  CH_IRQ_EPILOGUE();
+  OSAL_IRQ_EPILOGUE();
 }
 
 /*===========================================================================*/
@@ -396,8 +396,8 @@ void mac_lld_stop(MACDriver *macp) {
  * @param[in] macp      pointer to the @p MACDriver object
  * @param[out] tdp      pointer to a @p MACTransmitDescriptor structure
  * @return              The operation status.
- * @retval RDY_OK       the descriptor has been obtained.
- * @retval RDY_TIMEOUT  descriptor not available.
+ * @retval MSG_OK       the descriptor has been obtained.
+ * @retval MSG_TIMEOUT  descriptor not available.
  *
  * @notapi
  */
@@ -472,8 +472,8 @@ void mac_lld_release_transmit_descriptor(MACTransmitDescriptor *tdp) {
  * @param[in] macp      pointer to the @p MACDriver object
  * @param[out] rdp      pointer to a @p MACReceiveDescriptor structure
  * @return              The operation status.
- * @retval RDY_OK       the descriptor has been obtained.
- * @retval RDY_TIMEOUT  descriptor not available.
+ * @retval MSG_OK       the descriptor has been obtained.
+ * @retval MSG_TIMEOUT  descriptor not available.
  *
  * @notapi
  */

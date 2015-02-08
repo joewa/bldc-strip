@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -22,7 +21,7 @@
  * @file    hal_queues.c
  * @brief   I/O Queues code.
  *
- * @addtogroup io_queues
+ * @addtogroup HAL_QUEUES
  * @details Queues are mostly used in serial-like device drivers.
  *          Serial device drivers are usually designed to have a lower side
  *          (lower driver, it is usually an interrupt service routine) and an
@@ -47,8 +46,7 @@
  * @brief   Initializes an input queue.
  * @details A Semaphore is internally initialized and works as a counter of
  *          the bytes contained in the queue.
- * @note    The callback is invoked from within the S-Locked system state,
- *          see @ref system_states.
+ * @note    The callback is invoked from within the S-Locked system state.
  *
  * @param[out] iqp      pointer to an @p input_queue_t structure
  * @param[in] bp        pointer to a memory area allocated as queue buffer
@@ -225,8 +223,7 @@ size_t iqReadTimeout(input_queue_t *iqp, uint8_t *bp,
  * @brief   Initializes an output queue.
  * @details A Semaphore is internally initialized and works as a counter of
  *          the free bytes in the queue.
- * @note    The callback is invoked from within the S-Locked system state,
- *          see @ref system_states.
+ * @note    The callback is invoked from within the S-Locked system state.
  *
  * @param[out] oqp      pointer to an @p output_queue_t structure
  * @param[in] bp        pointer to a memory area allocated as queue buffer

@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -62,7 +61,6 @@ typedef int16_t         msg_t;          /**< Inter-thread message.          */
 typedef uint8_t         eventid_t;      /**< Event Id.                      */
 typedef uint8_t         eventmask_t;    /**< Event mask.                    */
 typedef uint8_t         eventflags_t;   /**< Event flags.                   */
-typedef uint16_t        systime_t;      /**< System time.                   */
 typedef int8_t          cnt_t;          /**< Resources counter.             */
 
 /**

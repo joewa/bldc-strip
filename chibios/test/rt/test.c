@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006-2013 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -229,7 +229,7 @@ void test_cpu_pulse(unsigned duration) {
   do {
     now = chThdGetTicksX(chThdGetSelfX());
 #if defined(SIMULATOR)
-    ChkIntSources();
+    _sim_check_for_interrupts();
 #endif
   }
   while (end > start ? (now >= start) && (now < end) :

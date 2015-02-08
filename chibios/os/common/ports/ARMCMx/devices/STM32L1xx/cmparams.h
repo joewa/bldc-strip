@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,
-              2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -20,11 +19,11 @@
 
 /**
  * @file    STM32L1xx/cmparams.h
- * @brief   ARM Cortex-M4 parameters for the STM32L1xx.
+ * @brief   ARM Cortex-M3 parameters for the STM32L1xx.
  *
  * @defgroup ARMCMx_STM32L1xx STM32L1xx Specific Parameters
  * @ingroup ARMCMx_SPECIFIC
- * @details This file contains the Cortex-M4 specific parameters for the
+ * @details This file contains the Cortex-M3 specific parameters for the
  *          STM32L1xx platform.
  * @{
  */

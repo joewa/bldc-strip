@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -617,7 +617,7 @@ void pwm_lld_start(PWMDriver *pwmp) {
 #endif
   /* Timer configured and started.*/
   pwmp->tim->CR1   = STM32_TIM_CR1_ARPE | STM32_TIM_CR1_URS |
-                     STM32_TIM_CR1_CEN;// | TIM_CR1_CMS_0; // JOEWA
+                     STM32_TIM_CR1_CEN;
 }
 
 /**

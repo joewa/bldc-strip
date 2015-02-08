@@ -1,5 +1,5 @@
 /*
-    ChibiOS/RT - Copyright (C) 2014 Fabio Utzig
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -58,8 +58,50 @@ I2CDriver I2CD2;
 /*===========================================================================*/
 
 void config_frequency(I2CDriver *i2cp) {
-  /* TODO */
-  i2cp->i2c->F = 0x20;
+
+  /* Each index in the table corresponds to a a frequency
+   * divider used to generate the SCL clock from the main
+   * system clock.
+   */
+  uint16_t icr_table[] = {
+    /* 0x00 - 0x0F */
+    20,22,24,26,28,30,34,40,28,32,36,40,44,48,56,68,
+    /* 0x10 - 0x1F */
+    48,56,64,72,80,88,104,128,80,96,112,128,144,160,192,240,
+    /* 0x20 - 0x2F */
+    160,192,224,256,288,320,384,480,320,384,448,512,576,640,768,960,
+    /* 0x30 - 0x3F */
+    640,768,896,1024,1152,1280,1536,1920,1280,1536,1792,2048,2304,2560,3072,3840,
+  };
+
+  int length = sizeof(icr_table) / sizeof(icr_table[0]);
+  uint16_t divisor;
+  uint8_t i = 0, index = 0;
+  uint16_t best, diff;
+
+  if (i2cp->config != NULL)
+    divisor = KINETIS_SYSCLK_FREQUENCY / i2cp->config->clock;
+  else
+    divisor = KINETIS_SYSCLK_FREQUENCY / 100000;
+
+  best = ~0;
+  index = 0;
+  /* Tries to find the SCL clock which is the closest
+   * approximation to the clock passed in config. To
+   * stay on the safe side, only values that generate
+   * lower frequency are used.
+   */
+  for (i = 0; i < length; i++) {
+    if (icr_table[i] >= divisor) {
+      diff = icr_table[i] - divisor;
+      if (diff < best) {
+        best = diff;
+        index = i;
+      }
+    }
+  }
+
+  i2cp->i2c->F = index;
 }
 
 /**
@@ -138,8 +180,7 @@ static void serve_interrupt(I2CDriver *i2cp) {
 
 #if KINETIS_I2C_USE_I2C0 || defined(__DOXYGEN__)
 
-/* FIXME: Vector6C on K2x; Vector60 on KL2x */
-PORT_IRQ_HANDLER(Vector6C) {
+PORT_IRQ_HANDLER(KINETIS_I2C0_IRQ_VECTOR) {
 
   PORT_IRQ_PROLOGUE();
   serve_interrupt(&I2CD1);

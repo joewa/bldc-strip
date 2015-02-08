@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -66,6 +66,7 @@ namespace chibios_rt {
   /*------------------------------------------------------------------------*
    * chibios_rt::Core                                                       *
    *------------------------------------------------------------------------*/
+#if CH_CFG_USE_MEMCORE
   void *Core::alloc(size_t size) {
 
     return chCoreAlloc(size);
@@ -78,8 +79,9 @@ namespace chibios_rt {
 
   size_t Core::getStatus(void) {
 
-    return chCoreStatus();
+    return chCoreGetStatusX();
   }
+#endif /* CH_CFG_USE_MEMCORE */
 
   /*------------------------------------------------------------------------*
    * chibios_rt::Timer                                                      *

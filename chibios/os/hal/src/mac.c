@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -81,10 +80,10 @@ void macObjectInit(MACDriver *macp) {
 
   macp->state  = MAC_STOP;
   macp->config = NULL;
-  chSemObjectInit(&macp->tdsem, 0);
-  chSemObjectInit(&macp->rdsem, 0);
+  osalThreadQueueObjectInit(&macp->tdqueue);
+  osalThreadQueueObjectInit(&macp->rdqueue);
 #if MAC_USE_EVENTS
-  chEvtObjectInit(&macp->rdevent);
+  osalEventObjectInit(&macp->rdevent);
 #endif
 }
 
@@ -160,7 +159,8 @@ msg_t macWaitTransmitDescriptor(MACDriver *macp,
          (time > 0)) {
     osalSysLock();
     now = osalOsGetSystemTimeX();
-    if ((msg = chSemWaitTimeoutS(&macp->tdsem, time)) == MSG_TIMEOUT) {
+    msg = osalThreadEnqueueTimeoutS(&macp->tdqueue, time);
+    if (msg == MSG_TIMEOUT) {
       osalSysUnlock();
       break;
     }
@@ -218,7 +218,8 @@ msg_t macWaitReceiveDescriptor(MACDriver *macp,
          (time > 0)) {
     osalSysLock();
     now = osalOsGetSystemTimeX();
-    if ((msg = chSemWaitTimeoutS(&macp->rdsem, time)) == MSG_TIMEOUT) {
+    msg = osalThreadEnqueueTimeoutS(&macp->rdqueue, time);
+    if (msg == MSG_TIMEOUT) {
       osalSysUnlock();
       break;
     }

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ static void cmd_mem(BaseSequentialStream *chp, int argc, char *argv[]) {
     return;
   }
   n = chHeapStatus(NULL, &size);
-  chprintf(chp, "core free memory : %u bytes\r\n", chCoreStatus());
+  chprintf(chp, "core free memory : %u bytes\r\n", chCoreGetStatusX());
   chprintf(chp, "heap fragments   : %u\r\n", n);
   chprintf(chp, "heap free total  : %u bytes\r\n", size);
 }
@@ -136,7 +136,6 @@ static const ShellConfig shell_cfg1 = {
  * Application entry point.
  */
 int main(void) {
-  static THD_WORKING_AREA(wa_usb_lld_pump, STM32_USB_OTG_THREAD_STACK_SIZE);
   thread_t *shelltp = NULL;
 
   /*
@@ -165,8 +164,6 @@ int main(void) {
    * Note, a delay is inserted in order to not have to disconnect the cable
    * after a reset.
    */
-  chThdCreateStatic(wa_usb_lld_pump, sizeof(wa_usb_lld_pump),
-                    STM32_USB_OTG_THREAD_PRIO, usb_lld_pump, serusbcfg.usbp);
   usbDisconnectBus(serusbcfg.usbp);
   chThdSleepMilliseconds(1000);
   usbStart(serusbcfg.usbp, &usbcfg);

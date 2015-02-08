@@ -16,7 +16,8 @@
 typedef enum {
 	OBLDC_STATE_OFF = 0,
 	OBLDC_STATE_STARTING_SYNC,
-	OBLDC_STATE_STARTING_SENSE,
+	OBLDC_STATE_STARTING_SENSE_1,
+	OBLDC_STATE_STARTING_SENSE_2,
 	OBLDC_STATE_CATCHING,
 	OBLDC_STATE_RUNNING
 } obldc_state;
@@ -46,12 +47,15 @@ typedef struct {
 	int direction;
 	int16_t u_dc;
 	uint8_t state_reluct; // 0=unknown
+	int64_t time; // Motor time in usec
+	int64_t time_zc, time_last_zc;
+	int64_t time_next_commutate_cb;
 	//int64_t sumx, sumx2, sumxy, sumy, sumy2;
 	uint8_t invSenseSign;// True when voltage must be inverted
 } motor_s;
 
 
-
+#define TIMER_CB_PERIOD 10000
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 10000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
@@ -64,8 +68,8 @@ typedef struct {
 
 
 
-
-void mystartPWM(void);
+void motor_start_timer();
+inline int64_t motortime_now();
 motor_s* get_motor_ptr(void);
 void set_bldc_pwm(motor_s* m);
 void motor_set_duty_cycle(motor_s* m, int d);

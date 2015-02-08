@@ -42,11 +42,11 @@ static THD_FUNCTION(tBlinkyGreen, arg) {
   char sbyte = 77;
   uint8_t last_debugbyte=33;
   while (TRUE) {
-    chThdSleepMilliseconds(2);
-    if(debugbyte!=last_debugbyte) {
+    chThdSleepMilliseconds(50);
+    /*if(debugbyte!=last_debugbyte) {
     	last_debugbyte = debugbyte;
     	uartStartSend(&UARTD1, 1, &debugbyte);
-    }
+    }*/
     // Use this with the strip
     palTogglePad(GPIOB, GPIOB_LEDG);
     //palTogglePad(GPIOB, GPIOB_U_NDTS);

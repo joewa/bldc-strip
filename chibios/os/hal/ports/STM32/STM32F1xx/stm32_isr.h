@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -129,6 +129,13 @@
 
 #define STM32_USB1_HP_NUMBER        19
 #define STM32_USB1_LP_NUMBER        20
+
+/*
+ * RTC unit
+ */
+#define STM32_RTC1_HANDLER          Vector4C
+
+#define STM32_RTC1_NUMBER           3
 /** @} */
 
 /*===========================================================================*/

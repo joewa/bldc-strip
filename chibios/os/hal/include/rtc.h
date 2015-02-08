@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -34,6 +33,8 @@
 #define _RTC_H_
 
 #if HAL_USE_RTC || defined(__DOXYGEN__)
+
+#include <time.h>
 
 /*===========================================================================*/
 /* Driver constants.                                                         */
@@ -91,7 +92,7 @@ typedef struct RTCDriver RTCDriver;
  * @brief   Type of a structure representing an RTC date/time stamp.
  */
 typedef struct {
-  uint32_t      year:8;             /**< @brief Years since 1980.           */
+  uint32_t      year: 8;            /**< @brief Years since 1980.           */
   uint32_t      month: 4;           /**< @brief Months 1..12.               */
   uint32_t      dstflag: 1;         /**< @brief DST correction flag.        */
   uint32_t      dayofweek: 3;       /**< @brief Day of week 1..7.           */
@@ -105,71 +106,6 @@ typedef struct {
 /* Driver macros.                                                            */
 /*===========================================================================*/
 
-/**
- * @brief   Set current time.
- *
- * @param[in] rtcp      pointer to RTC driver structure
- * @param[in] timespec  pointer to a @p RTCDateTime structure
- *
- * @iclass
- */
-#define rtcSetTimeI(rtcp, timespec)                                         \
-  rtc_lld_set_time(rtcp, timespec)
-
-/**
- * @brief   Get current time.
- *
- * @param[in] rtcp      pointer to RTC driver structure
- * @param[out] timespec pointer to a @p RTCDateTime structure
- *
- * @iclass
- */
-#define rtcGetTimeI(rtcp, timespec)                                         \
-  rtc_lld_get_time(rtcp, timespec)
-
-#if (RTC_ALARMS > 0) || defined(__DOXYGEN__)
-/**
- * @brief   Set alarm time.
- *
- * @param[in] rtcp      pointer to RTC driver structure
- * @param[in] alarm     alarm identifier
- * @param[in] alarmspec pointer to a @p RTCAlarm structure or @p NULL
- *
- * @iclass
- */
-#define rtcSetAlarmI(rtcp, alarm, alarmspec)                                \
-  rtc_lld_set_alarm(rtcp, alarm, alarmspec)
-
-/**
- * @brief   Get current alarm.
- * @note    If an alarm has not been set then the returned alarm specification
- *          is not meaningful.
- *
- * @param[in] rtcp      pointer to RTC driver structure
- * @param[in] alarm     alarm identifier
- * @param[out] alarmspec pointer to a @p RTCAlarm structure
- *
- * @iclass
- */
-#define rtcGetAlarmI(rtcp, alarm, alarmspec)                                \
-  rtc_lld_get_alarm(rtcp, alarm, alarmspec)
-#endif /* RTC_ALARMS > 0 */
-
-#if RTC_SUPPORTS_CALLBACKS || defined(__DOXYGEN__)
-/**
- * @brief   Enables or disables RTC callbacks.
- * @details This function enables or disables the callback, use a @p NULL
- *          pointer in order to disable it.
- *
- * @param[in] rtcp      pointer to RTC driver structure
- * @param[in] callback  callback function pointer or @p NULL
- *
- * @iclass
- */
-#define rtcSetCallbackI(rtcp, callback)                                     \
-  rtc_lld_set_callback(rtcp, callback)
-#endif /* RTC_SUPPORTS_CALLBACKS */
-
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
@@ -178,6 +114,7 @@ typedef struct {
 extern "C" {
 #endif
   void rtcInit(void);
+  void rtcObjectInit(RTCDriver *rtcp);
   void rtcSetTime(RTCDriver *rtcp, const RTCDateTime *timespec);
   void rtcGetTime(RTCDriver *rtcp, RTCDateTime *timespec);
 #if RTC_ALARMS > 0
@@ -189,7 +126,12 @@ extern "C" {
 #if RTC_SUPPORTS_CALLBACKS
   void rtcSetCallback(RTCDriver *rtcp, rtccb_t callback);
 #endif
-  uint32_t rtcConvertDateTimeToFAT(RTCDateTime *timespec);
+  void rtcConvertDateTimeToStructTm(const RTCDateTime *timespec,
+                                    struct tm *timp);
+  void rtcConvertStructTmToDateTime(const struct tm *timp,
+                                    uint32_t tv_msec,
+                                    RTCDateTime *timespec);
+  uint32_t rtcConvertDateTimeToFAT(const RTCDateTime *timespec);
 #ifdef __cplusplus
 }
 #endif

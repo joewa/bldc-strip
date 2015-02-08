@@ -1,15 +1,14 @@
 /*
-    ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/RT.
+    This file is part of ChibiOS.
 
-    ChibiOS/RT is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -24,7 +23,6 @@
  *
  * @addtogroup threads
  * @details Threads related APIs and services.
- *
  *          <h2>Operation mode</h2>
  *          A thread is an abstraction of an independent instructions flow.
  *          In ChibiOS/RT a thread is represented by a "C" function owning
@@ -176,7 +174,7 @@ void _thread_memfill(uint8_t *startp, uint8_t *endp, uint8_t v) {
  * @iclass
  */
 thread_t *chThdCreateI(void *wsp, size_t size,
-                     tprio_t prio, tfunc_t pf, void *arg) {
+                       tprio_t prio, tfunc_t pf, void *arg) {
   /* The thread structure is laid out in the lower part of the thread
      workspace.*/
   thread_t *tp = wsp;
@@ -227,6 +225,8 @@ thread_t *chThdCreateStatic(void *wsp, size_t size,
  * @brief   Resumes a thread created with @p chThdCreateI().
  *
  * @param[in] tp        pointer to the thread
+ * @return              The pointer to the @p thread_t structure allocated for
+ *                      the thread into the working space area.
  *
  * @api
  */
@@ -498,7 +498,7 @@ msg_t chThdSuspendS(thread_reference_t *trp) {
   *trp = tp;
   tp->p_u.wtobjp = &trp;
   chSchGoSleepS(CH_STATE_SUSPENDED);
-  return chThdGetSelfX()->p_msg;
+  return chThdGetSelfX()->p_u.rdymsg;
 }
 
 /**

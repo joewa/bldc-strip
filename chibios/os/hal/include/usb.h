@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -34,6 +33,9 @@
 /*===========================================================================*/
 /* Driver constants.                                                         */
 /*===========================================================================*/
+
+#define USB_ENDPOINT_OUT(ep)                (ep)
+#define USB_ENDPOINT_IN(ep)                 ((ep) | 0x80)
 
 #define USB_RTYPE_DIR_MASK                  0x80
 #define USB_RTYPE_DIR_HOST2DEV              0x00
@@ -112,6 +114,11 @@
   (uint8_t)((bcd) & 255),                                                   \
   (uint8_t)(((bcd) >> 8) & 255)
 
+/*
+ * @define  Device Descriptor size.
+ */
+#define USB_DESC_DEVICE_SIZE                18
+
 /**
  * @brief   Device Descriptor helper macro.
  */
@@ -119,7 +126,7 @@
                         bDeviceProtocol, bMaxPacketSize, idVendor,          \
                         idProduct, bcdDevice, iManufacturer,                \
                         iProduct, iSerialNumber, bNumConfigurations)        \
-  USB_DESC_BYTE(18),                                                        \
+  USB_DESC_BYTE(USB_DESC_DEVICE_SIZE),                                      \
   USB_DESC_BYTE(USB_DESCRIPTOR_DEVICE),                                     \
   USB_DESC_BCD(bcdUSB),                                                     \
   USB_DESC_BYTE(bDeviceClass),                                              \
@@ -135,12 +142,17 @@
   USB_DESC_BYTE(bNumConfigurations)
 
 /**
+ * @brief   Configuration Descriptor size.
+ */
+#define USB_DESC_CONFIGURATION_SIZE         9
+
+/**
  * @brief   Configuration Descriptor helper macro.
  */
 #define USB_DESC_CONFIGURATION(wTotalLength, bNumInterfaces,                \
                                bConfigurationValue, iConfiguration,         \
                                bmAttributes, bMaxPower)                     \
-  USB_DESC_BYTE(9),                                                         \
+  USB_DESC_BYTE(USB_DESC_CONFIGURATION_SIZE),                               \
   USB_DESC_BYTE(USB_DESCRIPTOR_CONFIGURATION),                              \
   USB_DESC_WORD(wTotalLength),                                              \
   USB_DESC_BYTE(bNumInterfaces),                                            \
@@ -150,13 +162,18 @@
   USB_DESC_BYTE(bMaxPower)
 
 /**
+ * @brief   Interface Descriptor size.
+ */
+#define USB_DESC_INTERFACE_SIZE             9
+
+/**
  * @brief   Interface Descriptor helper macro.
  */
 #define USB_DESC_INTERFACE(bInterfaceNumber, bAlternateSetting,             \
                            bNumEndpoints, bInterfaceClass,                  \
                            bInterfaceSubClass, bInterfaceProtocol,          \
                            iInterface)                                      \
-  USB_DESC_BYTE(9),                                                         \
+  USB_DESC_BYTE(USB_DESC_INTERFACE_SIZE),                                   \
   USB_DESC_BYTE(USB_DESCRIPTOR_INTERFACE),                                  \
   USB_DESC_BYTE(bInterfaceNumber),                                          \
   USB_DESC_BYTE(bAlternateSetting),                                         \
@@ -167,13 +184,18 @@
   USB_DESC_INDEX(iInterface)
 
 /**
+ * @brief   Interface Association Descriptor size.
+ */
+#define USB_DESC_INTERFACE_ASSOCIATION_SIZE 8
+
+/**
  * @brief   Interface Association Descriptor helper macro.
  */
 #define USB_DESC_INTERFACE_ASSOCIATION(bFirstInterface,                     \
                            bInterfaceCount, bFunctionClass,                 \
                            bFunctionSubClass, bFunctionProcotol,            \
                            iInterface)                                      \
-  USB_DESC_BYTE(8),                                                         \
+  USB_DESC_BYTE(USB_DESC_INTERFACE_ASSOCIATION_SIZE),                       \
   USB_DESC_BYTE(USB_DESCRIPTOR_INTERFACE_ASSOCIATION),                      \
   USB_DESC_BYTE(bFirstInterface),                                           \
   USB_DESC_BYTE(bInterfaceCount),                                           \
@@ -183,11 +205,16 @@
   USB_DESC_INDEX(iInterface)
 
 /**
+ * @brief   Endpoint Descriptor size.
+ */
+#define USB_DESC_ENDPOINT_SIZE              7
+
+/**
  * @brief   Endpoint Descriptor helper macro.
  */
 #define USB_DESC_ENDPOINT(bEndpointAddress, bmAttributes, wMaxPacketSize,   \
                           bInterval)                                        \
-  USB_DESC_BYTE(7),                                                         \
+  USB_DESC_BYTE(USB_DESC_ENDPOINT_SIZE),                                    \
   USB_DESC_BYTE(USB_DESCRIPTOR_ENDPOINT),                                   \
   USB_DESC_BYTE(bEndpointAddress),                                          \
   USB_DESC_BYTE(bmAttributes),                                              \
@@ -322,8 +349,8 @@ typedef void (*usbeventcb_t)(USBDriver *usbp, usbevent_t event);
  * @param[in] usbp      pointer to the @p USBDriver object triggering the
  *                      callback
  * @return              The request handling exit code.
- * @retval FALSE        Request not recognized by the handler.
- * @retval TRUE         Request handled.
+ * @retval false        Request not recognized by the handler.
+ * @retval true         Request handled.
  */
 typedef bool (*usbreqhandler_t)(USBDriver *usbp);
 
@@ -398,8 +425,8 @@ typedef const USBDescriptor * (*usbgetdescriptor_t)(USBDriver *usbp,
  * @param[in] usbp      pointer to the @p USBDriver object
  * @param[in] ep        endpoint number
  * @return              The operation status.
- * @retval FALSE        Endpoint ready.
- * @retval TRUE         Endpoint transmitting.
+ * @retval false        Endpoint ready.
+ * @retval true         Endpoint transmitting.
  *
  * @iclass
  */
@@ -411,8 +438,8 @@ typedef const USBDescriptor * (*usbgetdescriptor_t)(USBDriver *usbp,
  * @param[in] usbp      pointer to the @p USBDriver object
  * @param[in] ep        endpoint number
  * @return              The operation status.
- * @retval FALSE        Endpoint ready.
- * @retval TRUE         Endpoint receiving.
+ * @retval false        Endpoint ready.
+ * @retval true         Endpoint receiving.
  *
  * @iclass
  */
@@ -469,7 +496,7 @@ typedef const USBDescriptor * (*usbgetdescriptor_t)(USBDriver *usbp,
 /** @} */
 
 /**
- * @name    Low Level driver helper macros
+ * @name    Low level driver helper macros
  * @{
  */
 /**

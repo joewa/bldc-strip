@@ -1,5 +1,5 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 
 #include "mcuconf.h"
 
-#if ((NIL_CFG_ST_TIMEDELTA > 0 || CH_CFG_ST_TIMEDELTA > 0) && \
+#if ((OSAL_ST_MODE == OSAL_ST_MODE_FREERUNNING) && \
      (AVR_GPT_USE_TIM1 || AVR_PWM_USE_TIM1 || AVR_ICU_USE_TIM1))
   #error "Timer 1 cannot be used by drivers when running in tickless mode."
 #endif

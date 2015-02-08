@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -93,18 +92,6 @@ typedef void (*icucallback_t)(ICUDriver *icup);
 } while (0)
 
 /**
- * @brief   Waits for a completed capture.
- *
- * @param[in] icup      pointer to the @p ICUDriver object
- *
- * @iclass
- */
-#define icuWaitCaptureI(icup) do {                                          \
-  icu_lld_wait_capture(icup);                                               \
-  icup->state = ICU_ACTIVE;                                                 \
-} while (0)
-
-/**
  * @brief   Stops the input capture.
  *
  * @param[in] icup      pointer to the @p ICUDriver object
@@ -125,7 +112,7 @@ typedef void (*icucallback_t)(ICUDriver *icup);
  *
  * @iclass
  */
-#define icuEnableNotificationsI(icup) icu_enable_notifications(icup)
+#define icuEnableNotificationsI(icup) icu_lld_enable_notifications(icup)
 
 /**
  * @brief   Disables notifications.
@@ -136,7 +123,20 @@ typedef void (*icucallback_t)(ICUDriver *icup);
  *
  * @iclass
  */
-#define icuDisableNotificationsI(icup) icu_disable_notifications(icup)
+#define icuDisableNotificationsI(icup) icu_lld_disable_notifications(icup)
+
+/**
+ * @brief   Check on notifications status.
+ *
+ * @param[in] icup      pointer to the @p ICUDriver object
+ * @return              The notifications status.
+ * @retval false        if notifications are not enabled.
+ * @retval true         if notifications are enabled.
+ *
+ * @notapi
+ */
+#define icuAreNotificationsEnabledX(icup)                                   \
+  icu_lld_are_notifications_enabled(icup)
 
 /**
  * @brief   Returns the width of the latest pulse.
@@ -168,7 +168,7 @@ typedef void (*icucallback_t)(ICUDriver *icup);
 /** @} */
 
 /**
- * @name    Low Level driver helper macros
+ * @name    Low level driver helper macros
  * @{
  */
 /**
@@ -180,12 +180,13 @@ typedef void (*icucallback_t)(ICUDriver *icup);
  */
 #define _icu_isr_invoke_width_cb(icup) do {                                 \
   if (((icup)->state == ICU_ACTIVE) &&                                      \
-      ((icup)->config->period_cb != NULL))                                  \
+      ((icup)->config->width_cb != NULL))                                   \
     (icup)->config->width_cb(icup);                                         \
 } while (0)
 
 /**
  * @brief   Common ISR code, ICU period event.
+ * @note    A period event brings the driver into the @p ICU_ACTIVE state.
  *
  * @param[in] icup      pointer to the @p ICUDriver object
  *
@@ -200,6 +201,8 @@ typedef void (*icucallback_t)(ICUDriver *icup);
 
 /**
  * @brief   Common ISR code, ICU timer overflow event.
+ * @note    An overflow always brings the driver back to the @p ICU_WAITING
+ *          state.
  *
  * @param[in] icup      pointer to the @p ICUDriver object
  *
@@ -207,6 +210,7 @@ typedef void (*icucallback_t)(ICUDriver *icup);
  */
 #define _icu_isr_invoke_overflow_cb(icup) do {                              \
   (icup)->config->overflow_cb(icup);                                        \
+  (icup)->state = ICU_WAITING;                                              \
 } while (0)
 /** @} */
 
@@ -222,7 +226,7 @@ extern "C" {
   void icuStart(ICUDriver *icup, const ICUConfig *config);
   void icuStop(ICUDriver *icup);
   void icuStartCapture(ICUDriver *icup);
-  void icuWaitCapture(ICUDriver *icup);
+  bool icuWaitCapture(ICUDriver *icup);
   void icuStopCapture(ICUDriver *icup);
   void icuEnableNotifications(ICUDriver *icup);
   void icuDisableNotifications(ICUDriver *icup);

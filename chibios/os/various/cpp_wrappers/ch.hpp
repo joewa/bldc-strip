@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006-2014 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -127,6 +127,7 @@ namespace chibios_rt {
     static bool isTimeWithin(systime_t start, systime_t end);
   };
 
+#if CH_CFG_USE_MEMCORE || defined(__DOXYGEN__)
   /*------------------------------------------------------------------------*
    * chibios_rt::System                                                     *
    *------------------------------------------------------------------------*/
@@ -173,6 +174,7 @@ namespace chibios_rt {
      */
     static size_t getStatus(void);
   };
+#endif /* CH_CFG_USE_MEMCORE */
 
   /*------------------------------------------------------------------------*
    * chibios_rt::Timer                                                      *

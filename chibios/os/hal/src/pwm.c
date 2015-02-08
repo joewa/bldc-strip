@@ -1,15 +1,14 @@
 /*
-    ChibiOS/HAL - Copyright (C) 2006,2007,2008,2009,2010,
-                  2011,2012,2013,2014 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio.
 
-    This file is part of ChibiOS/HAL 
+    This file is part of ChibiOS.
 
-    ChibiOS/HAL is free software; you can redistribute it and/or modify
+    ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
-    ChibiOS/RT is distributed in the hope that it will be useful,
+    ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -224,7 +223,7 @@ void pwmEnablePeriodicNotification(PWMDriver *pwmp) {
   osalDbgAssert(pwmp->state == PWM_READY, "not ready");
   osalDbgAssert(pwmp->config->callback != NULL, "undefined periodic callback");
 
-  pwm_lld_enable_periodic_notification(pwmp);
+  pwmEnablePeriodicNotificationI(pwmp);
 
   osalSysUnlock();
 }
@@ -247,7 +246,7 @@ void pwmDisablePeriodicNotification(PWMDriver *pwmp) {
   osalDbgAssert(pwmp->state == PWM_READY, "not ready");
   osalDbgAssert(pwmp->config->callback != NULL, "undefined periodic callback");
 
-  pwm_lld_disable_periodic_notification(pwmp);
+  pwmDisablePeriodicNotificationI(pwmp);
 
   osalSysUnlock();
 }
@@ -275,7 +274,7 @@ void pwmEnableChannelNotification(PWMDriver *pwmp, pwmchannel_t channel) {
   osalDbgAssert(pwmp->config->channels[channel].callback != NULL,
                 "undefined channel callback");
 
-  pwm_lld_enable_channel_notification(pwmp, channel);
+  pwmEnableChannelNotificationI(pwmp, channel);
 
   osalSysUnlock();
 }
@@ -303,7 +302,7 @@ void pwmDisableChannelNotification(PWMDriver *pwmp, pwmchannel_t channel) {
   osalDbgAssert(pwmp->config->channels[channel].callback != NULL,
                 "undefined channel callback");
 
-  pwm_lld_disable_channel_notification(pwmp, channel);
+  pwmDisableChannelNotificationI(pwmp, channel);
 
   osalSysUnlock();
 }
