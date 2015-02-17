@@ -78,6 +78,8 @@ void init_motor_struct(motor_s* motor) {
 	motor->time_zc			= 0;
 	motor->time_last_zc		= 0;
 	motor->time_next_commutate_cb = 0;
+	motor->delta_t_zc		= 0xFFFF;
+	motor->last_delta_t_zc	= 0xFFFF;
 	//motor->sumx=0; motor->sumx2=0; motor->sumxy=0; motor->sumy=0; motor->sumy2=0;
 	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0   SenseBridgeSign
 	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0		-1
@@ -91,6 +93,12 @@ void init_motor_struct(motor_s* motor) {
 void motor_set_duty_cycle(motor_s* m, int d) {
 	if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
 		motor.pwm_mode = PWM_MODE_SINGLEPHASE;
+		// No zero crossing occurred yet
+		motor.time_zc			= 0;
+		motor.time_last_zc		= 0;
+		motor.time_next_commutate_cb = 0;
+		motor.delta_t_zc		= 0xFFFF;
+		motor.last_delta_t_zc	= 0xFFFF;
 	}
 	else {
 		motor.pwm_mode = PWM_MODE_ANTIPHASE;
@@ -141,6 +149,8 @@ inline int64_t motortime_now() {
 static inline void motortime_zc() {
 	motor.time_last_zc = motor.time_zc;
 	motor.time_zc = motortime_now();
+	motor.last_delta_t_zc = motor.delta_t_zc;
+	motor.delta_t_zc = motor.time_zc - motor.time_last_zc; // TODO: state machine dass kein ueberlauf auftreten kann
 }
 
 
@@ -148,7 +158,7 @@ static void commutatetimercb(GPTDriver *gptp) {
   msg_t msg;
 
   (void)gptp;
-  chSysLockFromISR();
+  //chSysLockFromISR();
   adcStopConversionI(&ADCD1);
   if(motor.state == OBLDC_STATE_STARTING_SENSE_2) {
 	  //catchcount = 0;
@@ -158,7 +168,7 @@ static void commutatetimercb(GPTDriver *gptp) {
 	  //pwmStop(&PWMD1);
 	  palTogglePad(GPIOB, GPIOB_LEDR);
   }
-  chSysUnlockFromISR();
+  //chSysUnlockFromISR();
 }
 
 
@@ -265,6 +275,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
   //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
+	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
 	  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
 		  sample_cnt_t_on++;

@@ -9,9 +9,12 @@
 #include "hal.h"
 #include "uart.h"
 #include "uart_scp.h"
+#include "obldcpwm.h"
 
 uint8_t rxBuffer[SCP_PACKET_LENGTH];
 uint8_t txBuffer[SCP_PACKET_LENGTH];
+
+extern motor_s motor; // Motor-struct from obldcpwm.c
 
 uint8_t crc8(uint8_t *data_in, uint8_t number_of_bytes_to_read) {
   uint8_t crc;
@@ -85,7 +88,7 @@ static void rxchar(UARTDriver *uartp, uint16_t c) {
 static void rxend(UARTDriver *uartp) {
   (void)uartp;
 
-  chSysLockFromISR();
+  //chSysLockFromISR(); // commutation is disturbed when called
 
   uint8_t crc = crc8(rxBuffer, SCP_PACKET_LENGTH - 1);
 
@@ -124,6 +127,13 @@ static void rxend(UARTDriver *uartp) {
         txBuffer[0] = SCP_NACK;
       }
       break;
+    case SCP_MOTORSTATE:
+    	txBuffer[0] = SCP_ACK;
+    	txBuffer[1] = (uint8_t)motor.state;
+    	txBuffer[2] = (uint8_t)(motor.delta_t_zc >> 8); // High byte
+    	txBuffer[3] = (uint8_t)(motor.delta_t_zc); // Low byte
+
+      break;
 
     }
 
@@ -132,7 +142,7 @@ static void rxend(UARTDriver *uartp) {
     uartStartSendI(&UARTD1, SCP_PACKET_LENGTH, txBuffer);
     uartStartReceiveI(&UARTD1, SCP_PACKET_LENGTH, rxBuffer);
 
-    chSysUnlockFromISR();
+    //chSysUnlockFromISR();
   }
 }
 

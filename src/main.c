@@ -15,25 +15,20 @@ int main(void) {
 	startBlinkyGreen();
 	//startBlinkyRed();
 	uartSCPInit();
-	//mystartPWM();
 	motor_start_timer();
 	startmyadc();
 	v_bat_current_conversion();
-    chThdSleepMicroseconds(40);
+    chThdSleepMicroseconds(50);
     temp = get_vbat_sample();//UGLY!!
-    chThdSleepMicroseconds(40);
+    chThdSleepMicroseconds(50);
 	temp = catchmotor_setup();
-	// start measurements
-	//startcatchmodePWM();
-	//startCatchMotorThread();
 	startRampMotorThread();
-	//startRampMotorCb(); // works a few cycles then it hangs
 	// Just idle on the main loop
 	while (TRUE) {
 // palTogglePad(GPIOB, GPIOB_LEDG);
 // palTogglePad(GPIOB, GPIOB_LEDR);
 //uartStartSend(&UARTD1, 13, "Starting...\r\n");
 		chThdSleepMilliseconds(1000);
-		resetadccount();
+		//resetadccount();
 	}
 }

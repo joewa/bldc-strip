@@ -50,13 +50,14 @@ typedef struct {
 	int64_t time; // Motor time in usec
 	int64_t time_zc, time_last_zc;
 	int64_t time_next_commutate_cb;
+	uint16_t delta_t_zc, last_delta_t_zc;
 	//int64_t sumx, sumx2, sumxy, sumy, sumy2;
 	uint8_t invSenseSign;// True when voltage must be inverted
 } motor_s;
 
 
 #define TIMER_CB_PERIOD 10000
-#define OBLDC_PWM_SWITCH_FREQUENCY_MIN 10000 // lowest switching frequency [Hz]
+#define OBLDC_PWM_SWITCH_FREQUENCY_MIN 50000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
 #define OBLDC_PWM_MIN_DUTY_CYCLE 0.02 // Minimum duty cycle
