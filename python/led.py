@@ -47,6 +47,8 @@ if (len(sys.argv) == 3):
 		str[0] = 0xF1
 	elif (sys.argv[1] == "motorstate"):
 		str[0] = 0xF2
+	elif (sys.argv[1] == "dutycycle"):
+		str[0] = 0xF3
 	else:
 		print "Argument 1 is not valid, use led1 or led2 or motorstate";
 		sys.exit()
@@ -55,6 +57,8 @@ if (len(sys.argv) == 3):
 		str[1] = 0xFF
 	elif (sys.argv[2] == "off"):
 		str[1] = 0x00
+	elif (sys.argv[2] == "val"):
+		str[1] = 0x02		
 	else:
 		print "Argument 2 is not valid, use on or off";
 		sys.exit()
@@ -70,5 +74,9 @@ ser.write (str)
 print "Read answer";
 r = ser.read(8)
 result = [ord(b) for b in r]
+motorstate = result[1]
 delta_t = (result[2]<<8) + (result[3])
-print delta_t
+u_dc = result[4]
+i_dc = result[5] # *21/13
+i_dc_ref = result[6]
+print "state=%d; delta_t=%d; u_dc=%d; i_dc=%d; i_dc_ref=%d" % (motorstate, delta_t, u_dc, i_dc, i_dc_ref)

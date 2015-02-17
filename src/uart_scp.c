@@ -15,6 +15,7 @@ uint8_t rxBuffer[SCP_PACKET_LENGTH];
 uint8_t txBuffer[SCP_PACKET_LENGTH];
 
 extern motor_s motor; // Motor-struct from obldcpwm.c
+extern motor_cmd_s motor_cmd;
 
 uint8_t crc8(uint8_t *data_in, uint8_t number_of_bytes_to_read) {
   uint8_t crc;
@@ -132,7 +133,14 @@ static void rxend(UARTDriver *uartp) {
     	txBuffer[1] = (uint8_t)motor.state;
     	txBuffer[2] = (uint8_t)(motor.delta_t_zc >> 8); // High byte
     	txBuffer[3] = (uint8_t)(motor.delta_t_zc); // Low byte
-
+    	txBuffer[4] = (uint8_t)((motor.u_dc*100)/1630);
+    	txBuffer[5] = (uint8_t)(motor.i_dc / 4);
+    	txBuffer[6] = (uint8_t)(motor.i_dc_ref / 4);
+      break;
+    case SCP_SETDUTYCYCLE:
+    	if(rxBuffer[1]>6) rxBuffer[1] = 6;
+    	motor_cmd.duty_cycle = (int16_t)(rxBuffer[1] << 8) + rxBuffer[2];
+    	txBuffer[0] = SCP_ACK;
       break;
 
     }

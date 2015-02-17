@@ -71,9 +71,9 @@ void boardInit(void) {
 	/* Remap CH1N, CH2N, CH3N and BKIN to unused pins */
 	AFIO->MAPR |= AFIO_MAPR_TIM1_REMAP_PARTIALREMAP;
 	/* Remap USART3 to make PB13 & PB14 available for driver control??? */
-	AFIO->MAPR |= AFIO_MAPR_USART3_REMAP_FULLREMAP;
+	//AFIO->MAPR |= AFIO_MAPR_USART3_REMAP_FULLREMAP;
 	/* Make PA0, PA1, PA2 available for ADC */
 	//AFIO->MAPR |= AFIO_MAPR_TIM2_REMAP_FULLREMAP; // gruene LED blinkt dann nicht mehr
 	/* Is PA0... occupied by USART2? */
-	AFIO->MAPR |= AFIO_MAPR_USART2_REMAP;
+	//AFIO->MAPR |= AFIO_MAPR_USART2_REMAP;
 }

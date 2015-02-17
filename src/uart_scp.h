@@ -39,6 +39,7 @@
 #define SCP_LEDRED		0xF0
 #define SCP_LEDGREEN	0xF1
 #define SCP_MOTORSTATE	0xF2
+#define SCP_SETDUTYCYCLE 0xF3
 
 void uartSendACK(void);
 void uartSCPInit(void);

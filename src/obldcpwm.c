@@ -18,6 +18,7 @@
 extern uint8_t debugbyte;
 
 motor_s motor;	// Stores all motor data
+motor_cmd_s motor_cmd;
 
 //#define ADC_COMMUTATE_NUM_CHANNELS  5
 //#define ADC_COMMUTATE_BUF_DEPTH     8
@@ -50,7 +51,7 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
 
 
 #define ADC_VBAT_CURRENT_NUM_CHANNELS 3
-#define ADC_VBAT_CURRENT_BUF_DEPTH 1
+#define ADC_VBAT_CURRENT_BUF_DEPTH 4
 
 static adcsample_t vbat_current_samples[ADC_VBAT_CURRENT_NUM_CHANNELS * ADC_VBAT_CURRENT_BUF_DEPTH];
 
@@ -72,6 +73,9 @@ void init_motor_struct(motor_s* motor) {
 	motor->pwm_mode			= PWM_MODE_ANTIPHASE; //PWM_MODE_SINGLEPHASE;
 	motor->pwm_t_on			= 0;
 	motor->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
+	motor->u_dc				= 0;
+	motor->i_dc				= 0;
+	motor->i_dc_ref			= 0;
 	motor->angle			= 0;
 	motor->direction		= 0;
 	motor->time				= 0;
@@ -80,6 +84,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->time_next_commutate_cb = 0;
 	motor->delta_t_zc		= 0xFFFF;
 	motor->last_delta_t_zc	= 0xFFFF;
+	motor_cmd.duty_cycle = 1000;
 	//motor->sumx=0; motor->sumx2=0; motor->sumxy=0; motor->sumy=0; motor->sumy2=0;
 	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0   SenseBridgeSign
 	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0		-1
@@ -112,7 +117,7 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	m->state_reluct = 0; // Unknown
 	//m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
 	m->invSenseSign = m->angle % 2;
-	//m->u_dc = get_vbat_sample();
+	get_vbat_sample();
 	bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG);
 }
 
@@ -124,6 +129,19 @@ void reset_adc_commutate_count() {
 	k_cb_commutate = 0;
 }
 
+static const ADCConversionGroup adc_vbat_current_group = {
+		FALSE, // linear mode
+		ADC_VBAT_CURRENT_NUM_CHANNELS,
+		NULL, // no callback and end of conversion
+		NULL,
+		0, // ADC_CR1
+		0, // ADC_CR2
+		0, // ADC_SMPR1
+		ADC_SMPR2_SMP_AN3(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN4(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN5(ADC_SAMPLE_1P5), // ADC_SMPR2
+		ADC_SQR1_NUM_CH(ADC_VBAT_CURRENT_NUM_CHANNELS), // ADC_SQR1
+		0, // ADC_SQR2
+		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN3) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN4) | ADC_SQR3_SQ3_N(ADC_CHANNEL_IN5)   // ADC_SQR3
+};
 
 static PWMConfig genpwmcfg= {
 		PWM_CLOCK_FREQUENCY, /* PWM clock frequency */
@@ -138,7 +156,6 @@ static PWMConfig genpwmcfg= {
 		0,//TIM_CR2_MMS_1, // 010: Update - The update event is selected as trigger output (TRGO). //TIM_CR2_MMS_2, // TIM CR2 register initialization data, OC1REF signal is used as trigger output (TRGO)
 		0 // TIM DIER register initialization data, "should normally be zero"
 };
-
 
 
 
@@ -163,7 +180,7 @@ static void commutatetimercb(GPTDriver *gptp) {
   if(motor.state == OBLDC_STATE_STARTING_SENSE_2) {
 	  //catchcount = 0;
 	  motor.angle = (motor.angle) % 6 + 1;
-	  motor_set_duty_cycle(&motor, 1000);// ACHTUNG!!! 1000 geht gerade noch
+	  motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
 	  set_bldc_pwm(&motor);
 	  //pwmStop(&PWMD1);
 	  palTogglePad(GPIOB, GPIOB_LEDR);
@@ -218,8 +235,10 @@ static void schedule_commutate_cb(int64_t t) {
 			// Schedule next commutatetimercb
 			//gptStartOneShotI(&GPTD3, 50);
 			gptStartOneShotI(&GPTD3, (gptcnt_t)time2fire);
+			adcStartConversionI(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH);
+			//v_bat_current_conversion();
 		}
-	} // Else something went wrong. Stop!
+	} // Else something went terribly wrong. Stop!
 }
 
 void motor_start_timer() {
@@ -405,19 +424,7 @@ static uint8_t halldecode[8];
 
 
 
-static const ADCConversionGroup adc_vbat_current_group = {
-		FALSE, // linear mode
-		ADC_VBAT_CURRENT_NUM_CHANNELS,
-		NULL, // no callback and end of conversion
-		NULL,
-		0, // ADC_CR1
-		0, // ADC_CR2
-		0, // ADC_SMPR1
-		ADC_SMPR2_SMP_AN3(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN4(ADC_SAMPLE_239P5) | ADC_SMPR2_SMP_AN5(ADC_SAMPLE_239P5), // ADC_SMPR2
-		ADC_SQR1_NUM_CH(ADC_VBAT_CURRENT_NUM_CHANNELS), // ADC_SQR1
-		0, // ADC_SQR2
-		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN3) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN4) | ADC_SQR3_SQ5_N(ADC_CHANNEL_IN5)   // ADC_SQR3
-};
+
 /**
  * adc_commutate_group is used for back-emf sensing to determine when the motor shall commutate.
  */
@@ -466,9 +473,19 @@ adcsample_t get_vbat_sample(void) { // value scaled to be 50% of phase voltage s
 	// /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
 	// the voltage divider at v_bat is 1.5 and 10 kOhm
 	// So, the transformation is 115*36 / (15*136)
-	int v_scaled;
-	v_scaled = (int)vbat_current_samples[0] * 4140 / 2040 / 2;
+	int i,v_scaled;
+	int u_raw=0;
+	int i_raw=0;
+	int i_raw_ref=0;
+	for(i=0; i < ADC_VBAT_CURRENT_NUM_CHANNELS*ADC_VBAT_CURRENT_BUF_DEPTH; i+=ADC_VBAT_CURRENT_NUM_CHANNELS) {
+		u_raw += vbat_current_samples[i];
+		i_raw += vbat_current_samples[i+1] - vbat_current_samples[i+2];
+		i_raw_ref += vbat_current_samples[i+2];
+	}
+	v_scaled = u_raw / ADC_VBAT_CURRENT_BUF_DEPTH * 4140 / 2040 / 2;
 	motor.u_dc = v_scaled; // UGLY!
+	motor.i_dc = i_raw / ADC_VBAT_CURRENT_BUF_DEPTH;
+	motor.i_dc_ref = i_raw_ref / ADC_VBAT_CURRENT_BUF_DEPTH;
 	return (adcsample_t)v_scaled;
 }
 

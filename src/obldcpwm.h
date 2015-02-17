@@ -35,6 +35,9 @@ typedef enum {
 	FAULT_OVER_CURRENT
 } obldc_fault_code;
 
+typedef struct {
+	int16_t duty_cycle; // Duty cycle 100%=10000
+} motor_cmd_s;
 
 typedef struct {
 	obldc_state state;
@@ -46,6 +49,7 @@ typedef struct {
 	int angle;
 	int direction;
 	int16_t u_dc;
+	int16_t i_dc, i_dc_ref;
 	uint8_t state_reluct; // 0=unknown
 	int64_t time; // Motor time in usec
 	int64_t time_zc, time_last_zc;
@@ -56,7 +60,7 @@ typedef struct {
 } motor_s;
 
 
-#define TIMER_CB_PERIOD 10000
+#define TIMER_CB_PERIOD 60000
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 50000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
