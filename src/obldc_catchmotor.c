@@ -245,13 +245,25 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  catchcount = 0;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
 		  }
-		  chThdSleepMicroseconds(200);
-		  /*if(motor.state_reluct == 3) {
+		  if(motor.delta_t_zc < 2000 && motor.last_delta_t_zc < 2000) { // TODO: Make definitions for these values
+			  motor.delta_t_zc		= 0xFFFF;
+			  motor.last_delta_t_zc	= 0xFFFF;
+			  motor.state = OBLDC_STATE_RUNNING;
+		  }
+		  chThdSleepMicroseconds(400);
+		  /*if(motor.state_reluct == 3) { // Commutate!
 			  catchcount = 0;
 			  motor.angle = (motor.angle) % 6 + 1;
 			  motor_set_duty_cycle(&motor, 1000);// ACHTUNG!!! 1000 geht gerade noch
 			  set_bldc_pwm(&motor);
 		  }*/
+	  }
+	  if(motor.state == OBLDC_STATE_RUNNING) { // Motor is fast!
+		  //catchcount++;
+		  if( (motor.delta_t_zc > 3000 && motor.last_delta_t_zc > 3000) || (motortime_now() - motor.time_zc > 4000)) { // motor tooo slow!
+			  motor.state = OBLDC_STATE_STARTING_SENSE_2; // TODO: Make definitions for these values
+		  }
+		  chThdSleepMicroseconds(400);
 	  }
 	  if(motor.state == OBLDC_STATE_STARTING_SYNC) { // Ramp up the motor
 		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
