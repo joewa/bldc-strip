@@ -28,7 +28,7 @@ motor_cmd_s motor_cmd;
 
 #define ADC_COMMUTATE_NUM_CHANNELS 1
 #define ADC_COMMUTATE_BUF_DEPTH     50
-#define NREG 20 // Number of samples for a valid regression
+#define NREG 10 // Number of samples for a valid regression
 #define DROPNOISYSAMPLES 1 // "Drop samples with switching noise
 
 typedef struct {
@@ -116,6 +116,7 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	m->pwm_period_ADC = m->pwm_period / ADC_PWM_DIVIDER;
 	m->state_reluct = 0; // Unknown
 	//m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
+	m->sumy=0;
 	m->invSenseSign = m->angle % 2;
 	get_vbat_sample();
 	bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG);
@@ -293,7 +294,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
     	  y_off += buffer[i];  // Sensebridgesign
 	  }
 	  k_sample++;
-	  csamples[i] = buffer[i];
+	  //csamples[i] = buffer[i]; // For debugging
   }
 
   if (motor.invSenseSign) {
@@ -335,6 +336,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   } else {
 	  if(motor.state_reluct == 1) {
 		  motor.state_reluct = 2;
+		  //motor.u_dc2 = (y_on + y_off) / 2;
 		  debugbyte = 85;
 		  motortime_zc(); // Write time of zero crossing
 		  // TODO: Zeitmessung mit TIM3 mit GPT oder PWM-Treiber machen
@@ -356,9 +358,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 
 static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   (void)adcp;
-  //adcsample_t avg_ch1 = (samples1[0] + samples1[1] + samples1[2] + samples1[3] + samples1[4] + samples1[5] + samples1[6] + samples1[7]) / 8;
-  //float voltage = avg_ch1/4095.0*3;
-  //uint16_t* csamples = yreg;
+
   csamples = yreg;
   int i;
   uint32_t k_sample; // Sample in the present commutation cycle
@@ -382,40 +382,22 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
 	  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
-		  sample_cnt_t_on++;
-		  y_on += buffer[i];
-	  }
-	  else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
-		  sample_cnt_t_off++;
-    	  y_off += buffer[i];  // Sensebridgesign
-	  }
-
-		  // END; THE NEW SIMPLE STUFF
-
-			 //|| (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC) ) {// Samples during t_off
-		  //BEGIN COMMENT
-		  /*
+		  //sample_cnt_t_on++;
+		  //y_on += buffer[i];
+	  //}
 		  if (isBufferFull(ybuf_ptr)) {
-			  bufferRead(xbuf_ptr, x_old); bufferRead(ybuf_ptr, y_old);
+			  bufferRead(ybuf_ptr, y_old);
 			  // Decrement obsolete buffer values from sums
-		      motor.sumx -= x_old;
-		      motor.sumx2 -= (int64_t)x_old * (int64_t)x_old;
-		      motor.sumxy -= (int64_t)x_old * (int64_t)y_old;
 		      motor.sumy -= y_old;
-		      motor.sumy2 -= (int64_t)y_old * (int64_t)y_old;
 		  }
 		  if (motor.invSenseSign)
-			  y = -(buffer[i] - motor.u_dc);  // Sensebridgesign
+			  y_on = -(buffer[i] - motor.u_dc);  // Sensebridgesign
 		  else
-			  y = buffer[i] - motor.u_dc;
+			  y_on = buffer[i] - motor.u_dc;
 		  //bufferWrite(ybuf_ptr, buffer[i]);
-		  bufferWrite(ybuf_ptr, y);
-		  bufferWrite(xbuf_ptr, k_sample);
-	      motor.sumx += k_sample;
-	      motor.sumx2 += (int64_t)k_sample * (int64_t)k_sample;
-	      motor.sumxy += (int64_t)k_sample * (int64_t)y;
-	      motor.sumy += y;
-	      motor.sumy2 += (int64_t)y * (int64_t)y;*/ // END COMMENT
+		  bufferWrite(ybuf_ptr, y_on);
+	      motor.sumy += y_on;
+	  }
 		  /*
 		   * Keep it simple: Chibios is blocked while doing all the stuff above.
 		   * Consider simple zero crossing detection instead!
@@ -424,53 +406,15 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 		   * Schedule a general purpose timer and that is properly referenced
 		   */
 	  k_sample++;
-	  csamples[i] = buffer[i];
+	  //csamples[i] = buffer[i];
   }
 
-  if (motor.invSenseSign) {
-	  //y_on = -(buffer[i] - motor.u_dc);  // Sensebridgesign
-	  y_on = -(y_on / sample_cnt_t_on - motor.u_dc);
-	  y_off = -(y_off / sample_cnt_t_off - motor.u_dc);
-  }
-  else {
-	  //y_on = buffer[i] - motor.u_dc;
-	  y_on = y_on / sample_cnt_t_on - motor.u_dc;
-	  y_off = y_off / sample_cnt_t_off - motor.u_dc;
-  }
-  /*
-   * Sensorless-Startup-Method:
-   * 1. Voltage is applied to the motor; i.e. the motor is in synchronous position
-   * 2. The angle is incremented by 2, e.g. from 1 to 3
-   * 3. The following states will be detected sequentially:
-   * 	0.: y_on > y_off + margin; motor is before maximum torque position --> go to state 1
-   * 	1.: y_on and y_off are within margin; Motor is at maximum torque position --> go to state 2
-   * 	2.: y_on+margin < y_off; motor has passed the maximum torque position
-   * 4. Now immediately increment the angle by 1 and repeat...
-   */
-  if(y_on+300 < y_off) {// Detect zero crossing here
-	  if(motor.state_reluct == 2) {
-		  motor.state_reluct = 3;
-		  debugbyte = 0;
-		  adcStopConversionI(&ADCD1); // OK, commutate!
-		  schedule_commutate_cb(motortime_now() + 50);
-	  }
-	  //adcStopConversionI(&ADCD1);
+  if(k_cb_commutate > 1 && isBufferFull(ybuf_ptr) && motor.sumy < -500 ) {
+	  motortime_zc();
+	  adcStopConversionI(&ADCD1); // OK, commutate!
 	  //pwmStop(&PWMD1);
-	  //chSysUnlockFromISR();// HERE breakpoint
-	  //return;
-  } else if(y_on > y_off + 300) {
-	  if(motor.state_reluct == 0) {
-		  motor.state_reluct = 1;
-		  debugbyte = 255;
-	  }
-  } else {
-	  if(motor.state_reluct == 1) {
-		  motor.state_reluct = 2;
-		  debugbyte = 85;
-		  motortime_zc();
-		  // TODO: Write time of zero crossing here
-		  // TODO: Zeitmessung mit TIM3 mit GPT oder PWM-Treiber machen
-	  }
+	  y_off=0;
+	  schedule_commutate_cb( motortime_now() + (motor.delta_t_zc + motor.last_delta_t_zc) / 4 );
   }
 
 
@@ -601,6 +545,8 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 	}
 	else if (m->state == OBLDC_STATE_OFF || m->state == OBLDC_STATE_CATCHING) { // PWM OFF!
 		angle = 0;
+	}
+	else if(m->state == OBLDC_STATE_STARTING_SENSE_1) {
 	}
 	else {
 		angle = 0;

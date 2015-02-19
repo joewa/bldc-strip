@@ -48,13 +48,14 @@ typedef struct {
 	int pwm_period_ADC;
 	int angle;
 	int direction;
-	int16_t u_dc;
+	int16_t u_dc, u_dc2;
 	int16_t i_dc, i_dc_ref;
 	uint8_t state_reluct; // 0=unknown
 	int64_t time; // Motor time in usec
 	int64_t time_zc, time_last_zc;
 	int64_t time_next_commutate_cb;
 	uint16_t delta_t_zc, last_delta_t_zc;
+	int32_t sumy;
 	//int64_t sumx, sumx2, sumxy, sumy, sumy2;
 	uint8_t invSenseSign;// True when voltage must be inverted
 } motor_s;
