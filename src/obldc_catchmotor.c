@@ -213,6 +213,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   int acceleration = 3;
   int speed = 50;  // initial speed
   int delta_t = 50;
+  int64_t temp=0;
 
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
   init_motor_struct(&motor);
@@ -237,9 +238,11 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  set_bldc_pwm(&motor); // Start running with back EMF detection
 	  }
 	  if(motor.state == OBLDC_STATE_STARTING_SENSE_2) { // Ramp up the motor
-		  //catchcount++;
-		  if(motortime_now() - motor.time_zc > 500000) {
-		  //if(catchcount > 1000) { // Timeout!
+		  catchcount++;
+		  if(motor.time_zc != temp) {
+			  catchcount=0; temp=motor.time_zc;
+		  }
+		  if(catchcount > 500) { // Timeout!
 			  pwmStop(&PWMD1);
 			  adcStopConversion(&ADCD1);
 			  catchcount = 0;
@@ -247,10 +250,10 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
 		  }
-		  if(motor.delta_t_zc < 2000 && motor.last_delta_t_zc < 2000) { // TODO: Make definitions for these values
+		  if(motor.delta_t_zc < 1500 && motor.last_delta_t_zc < 1500) { // TODO: Make definitions for these values
 			  motor.state = OBLDC_STATE_RUNNING;
 		  }
-		  chThdSleepMicroseconds(400);
+		  chThdSleepMicroseconds(500);
 		  /*if(motor.state_reluct == 3) { // Commutate!
 			  catchcount = 0;
 			  motor.angle = (motor.angle) % 6 + 1;
@@ -260,7 +263,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  }
 	  if(motor.state == OBLDC_STATE_RUNNING) { // Motor is fast!
 		  //catchcount++;
-		  if( (motor.delta_t_zc > 3000 && motor.last_delta_t_zc > 3000) || (motortime_now() - motor.time_zc > 4000)) { // motor tooo slow!
+		  if( (motor.delta_t_zc > 2500 && motor.last_delta_t_zc > 2500) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow!
 			  motor.delta_t_zc		= 0xFFFF;
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_2; // TODO: Make definitions for these values

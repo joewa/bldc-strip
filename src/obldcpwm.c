@@ -28,7 +28,7 @@ motor_cmd_s motor_cmd;
 
 #define ADC_COMMUTATE_NUM_CHANNELS 1
 #define ADC_COMMUTATE_BUF_DEPTH     50
-#define NREG 10 // Number of samples for a valid regression
+#define NREG 4 // Number of samples for a valid regression
 #define DROPNOISYSAMPLES 1 // "Drop samples with switching noise
 
 typedef struct {
@@ -164,9 +164,9 @@ inline int64_t motortime_now() {
 	return (motor.time + gptGetCounterX(&GPTD4));
 }
 
-static inline void motortime_zc() {
+static inline void motortime_zc(int64_t t) {
 	motor.time_last_zc = motor.time_zc;
-	motor.time_zc = motortime_now();
+	motor.time_zc = t;//motortime_now();
 	motor.last_delta_t_zc = motor.delta_t_zc;
 	motor.delta_t_zc = motor.time_zc - motor.time_last_zc; // TODO: state machine dass kein ueberlauf auftreten kann
 }
@@ -222,22 +222,18 @@ static const GPTConfig gptcfg3 = {
   0
 };
 
-static void schedule_commutate_cb(int64_t t) {
+static void schedule_commutate_cb(gptcnt_t t) {
 	int64_t gpt_time_now = motortime_now();
-	int64_t time2fire;
-	//palTogglePad(GPIOB, GPIOB_LEDR);
-	//gptStart(&GPTD4,&gptcommutatecfg);
-	if(t > gpt_time_now + 20) { // next event is in the future
-		motor.time_next_commutate_cb = t;
-		//gptStartOneShotI(&GPTD3, 50);
-		time2fire = motor.time_next_commutate_cb - gpt_time_now;
+	gptcnt_t time2fire;
+
+	if(t > gpt_time_now + 10) { // next event is in the future
+		motor.time_next_commutate_cb = motor.time_zc + t;//motor.time_next_commutate_cb = t;
+		time2fire = t;//time2fire = motor.time_next_commutate_cb - gpt_time_now;
 		//TODO: Hier ist der Wurm drin
 		if(time2fire < TIMER_CB_PERIOD) {
 			// Schedule next commutatetimercb
-			//gptStartOneShotI(&GPTD3, 50);
 			gptStartOneShotI(&GPTD3, (gptcnt_t)time2fire);
 			adcStartConversionI(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH);
-			//v_bat_current_conversion();
 		}
 	} // TODO: Else something went terribly wrong. Stop!
 }
@@ -247,8 +243,8 @@ void motor_start_timer() {
 	motor.time_zc			= 0;
 	motor.time_last_zc		= 0;
 	motor.time_next_commutate_cb = 0;
-	gptStart(&GPTD4, &gptcfg3);
-	gptStartContinuous(&GPTD4, TIMER_CB_PERIOD);
+	//gptStart(&GPTD4, &gptcfg3);
+	//gptStartContinuous(&GPTD4, TIMER_CB_PERIOD);
 	//pwmEnableChannel(&PWMD3, 0, 1000); // to start the counter
 	gptStart(&GPTD3, &gptcommutatecfg);
 	//gptStartOneShot(&GPTD4, 40000);
@@ -274,7 +270,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   (void)adcp;
   csamples = yreg;
   int i;
-  uint32_t k_sample; // Sample in the present commutation cycle
+  uint32_t k_sample, k_zc; // Sample in the present commutation cycle
   uint16_t k_pwm_period;//Indicates if the pwm sample occurred at pwm-on
 
   chSysLockFromISR();
@@ -319,10 +315,11 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
    */
   if(y_on+300 < y_off) {// Detect zero crossing here
 	  if(motor.state_reluct == 2) {
+		  motortime_zc(motor.time_next_commutate_cb + k_sample);// gehoert hier nicht hin
 		  motor.state_reluct = 3;
 		  debugbyte = 0;
 		  adcStopConversionI(&ADCD1); // OK, commutate!
-		  schedule_commutate_cb(motortime_now() + 50);
+		  schedule_commutate_cb(50);
 	  }
 	  //adcStopConversionI(&ADCD1);
 	  //pwmStop(&PWMD1);
@@ -338,7 +335,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  motor.state_reluct = 2;
 		  //motor.u_dc2 = (y_on + y_off) / 2;
 		  debugbyte = 85;
-		  motortime_zc(); // Write time of zero crossing
+		  //motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
 		  // TODO: Zeitmessung mit TIM3 mit GPT oder PWM-Treiber machen
 	  }
   }
@@ -377,6 +374,8 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
   //k_start = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   //k_end = k_start + (ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2;
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
+  //motor.sumy = 0; // ENTFERNEN!! Nur zum probieren!
+  if(k_cb_commutate > 1)
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
   //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
 	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
@@ -398,6 +397,18 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 		  bufferWrite(ybuf_ptr, y_on);
 	      motor.sumy += y_on;
 	  }
+	  if( motor.sumy < -50 && isBufferFull(ybuf_ptr)) {// Detect zero crossing here
+		  //if(motor.state_reluct == 2 || motor.state_reluct == 1) {
+			  motor.state_reluct = 3;
+			  //motortime_zc();
+			  adcStopConversionI(&ADCD1); // OK, commutate!
+			  //pwmStop(&PWMD1);
+			  motortime_zc(motor.time_next_commutate_cb + k_sample);
+
+			  y_off=0;
+			  schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) / 3 );
+			  return;
+	  }
 		  /*
 		   * Keep it simple: Chibios is blocked while doing all the stuff above.
 		   * Consider simple zero crossing detection instead!
@@ -408,16 +419,20 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 	  k_sample++;
 	  //csamples[i] = buffer[i];
   }
-
-  if(k_cb_commutate > 1 && isBufferFull(ybuf_ptr) && motor.sumy < -500 ) {
-	  motortime_zc();
-	  adcStopConversionI(&ADCD1); // OK, commutate!
-	  //pwmStop(&PWMD1);
-	  y_off=0;
-	  schedule_commutate_cb( motortime_now() + (motor.delta_t_zc + motor.last_delta_t_zc) / 4 );
+  /*
+  if(k_cb_commutate > 1) {
+	  if( motor.sumy < -50 ) {// Detect zero crossing here
+		  //if(motor.state_reluct == 2 || motor.state_reluct == 1) {
+			  motor.state_reluct = 3;
+			  motortime_zc();
+			  adcStopConversionI(&ADCD1); // OK, commutate!
+			  //pwmStop(&PWMD1);
+			  y_off=0;
+			  schedule_commutate_cb( motortime_now() + (motor.delta_t_zc + motor.last_delta_t_zc) / 4 );
+			  return;
+		  }
   }
-
-
+  */
   // Check for timeout
   if(k_sample > 10000000) {//(k_sample > 1000000) {  // TIMEOUT
 	  k_sample++;

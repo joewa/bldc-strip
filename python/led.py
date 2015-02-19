@@ -58,7 +58,7 @@ if (len(sys.argv) == 3):
 	elif (sys.argv[2] == "off"):
 		str[1] = 0x00
 	elif (sys.argv[2] == "val"):
-		str[1] = 0x02		
+		str[1] = 0x05		
 	else:
 		print "Argument 2 is not valid, use on or off";
 		sys.exit()
