@@ -10,25 +10,30 @@ duty_cycle = 0.6;
 t_on = duty_cycle * 1/f_PWM
 samples_when_on = t_on * f_single
 
+disp('Schaltzeiten')
+PWM_CLOCK_FREQUENCY = 28e6;
+PWM_DEFAULT_FREQUENCY = 100000; % [40e3, 50e3, 62500, 100e3]	choose one of these base frequencies [Hz]
+PWM_MINIMUM_FREQUENCY = 40000;
 
+ADC_COMMUTATE_FREQUENCY	= 1e6;%		// [Hz]
+ADC_PWM_DIVIDER = (PWM_CLOCK_FREQUENCY / ADC_COMMUTATE_FREQUENCY);
+ADC_PWM_PERIOD = (ADC_COMMUTATE_FREQUENCY / PWM_DEFAULT_FREQUENCY);
+PWM_MAXIMUM_PERIOD = (ADC_PWM_DIVIDER * ADC_COMMUTATE_FREQUENCY / PWM_MINIMUM_FREQUENCY);
+
+d_percent = (1:49) + 49;
+pwm_period = fix( ((ADC_PWM_PERIOD * 2500) ./ ((100 .- d_percent) .* d_percent))) .* ADC_PWM_DIVIDER;
+
+for i=1:length(pwm_period)
+  if pwm_period(i) > PWM_MAXIMUM_PERIOD
+    pwm_period(i) = PWM_MAXIMUM_PERIOD;
+  endif
+endfor
+
+t_on = d_percent ./ 100 .* pwm_period;
+t_off = pwm_period - t_on;
+plot(d_percent, pwm_period, d_percent, t_off)
+% plot(d_percent, t_off)
 % Check max samples for linear fit;
-x = 0;
-sumx2 = 0;
-sumy = 0;
-sumy2 = 0;
-NREG = 20;
-while sumy * sumx2 < 2^63
-  x = x + 1;
-  sumx2 = sumx2 + x^2;
-  if x <= NREG
-    sumy = sumy + 1000;
-    sumy2 = sumy2 + 1000^2;
-  end
-end
-disp('Maximum number of samples')
-x
-sumy
-sumy2
 
 
 

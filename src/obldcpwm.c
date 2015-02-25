@@ -43,12 +43,19 @@ commutate_Buffer xbuf, ybuf;
 
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
 
+/*
+ * Ganzzahlige Teiler von ADC_COMMUTATE_FREQUENCY=1e6:
+ * 25, 20, 16, 10, 8, 5
+ */
+
 #define PWM_CLOCK_FREQUENCY			28e6 //2e6 //14e6 	// [Hz]
-#define PWM_DEFAULT_FREQUENCY		100e3 //160e3 //100e3	// [Hz]
+#define PWM_DEFAULT_FREQUENCY		100000 // [40e3, 50e3, 62500, 100e3]	choose one of these base frequencies [Hz]
+#define PWM_MINIMUM_FREQUENCY		40000
 
 #define ADC_COMMUTATE_FREQUENCY		1e6		// [Hz]
 #define ADC_PWM_DIVIDER				(PWM_CLOCK_FREQUENCY / ADC_COMMUTATE_FREQUENCY)
-
+#define ADC_PWM_PERIOD 				(ADC_COMMUTATE_FREQUENCY / PWM_DEFAULT_FREQUENCY)
+#define PWM_MAXIMUM_PERIOD			(ADC_PWM_DIVIDER * ADC_COMMUTATE_FREQUENCY / PWM_MINIMUM_FREQUENCY)
 
 #define ADC_VBAT_CURRENT_NUM_CHANNELS 3
 #define ADC_VBAT_CURRENT_BUF_DEPTH 4
@@ -96,8 +103,10 @@ void init_motor_struct(motor_s* motor) {
 }
 
 void motor_set_duty_cycle(motor_s* m, int d) {
+	int d_percent = (5000 + d / 2) / 100;
 	if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
 		motor.pwm_mode = PWM_MODE_SINGLEPHASE;
+		motor.pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
 		// No zero crossing occurred yet
 		motor.time_zc			= 0;
 		motor.time_last_zc		= 0;
@@ -110,8 +119,15 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	}
 	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
 		m->pwm_t_on = m->pwm_period * d / 10000;
-	else
+	else {//PWM_MODE_ANTIPHASE
+		if(d_percent > 0 && d_percent < 100)// Adaptive PWM period. TODO: Test this!
+			motor.pwm_period = ADC_PWM_DIVIDER * (int)((ADC_PWM_PERIOD * 2500) / ((100 - d_percent) * d_percent));
+		else
+			motor.pwm_period = PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY;
+		if(motor.pwm_period > PWM_MAXIMUM_PERIOD)
+			motor.pwm_period = PWM_MAXIMUM_PERIOD;
 		m->pwm_t_on = m->pwm_period * (5000 + d / 2) / 10000;
+	}
 	m->pwm_t_on_ADC = m->pwm_t_on / ADC_PWM_DIVIDER;
 	m->pwm_period_ADC = m->pwm_period / ADC_PWM_DIVIDER;
 	m->state_reluct = 0; // Unknown
@@ -277,6 +293,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   sample_cnt_t_on = 0; sample_cnt_t_off = 0; y_on = 0; y_off = 0;
 
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
+  //if(k_cb_commutate > 1)
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
   //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
 	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
@@ -315,11 +332,13 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
    */
   if(y_on+300 < y_off) {// Detect zero crossing here
 	  if(motor.state_reluct == 2) {
-		  motortime_zc(motor.time_next_commutate_cb + k_sample);// gehoert hier nicht hin
+		  //motortime_zc(motor.time_next_commutate_cb + k_sample);// gehoert hier nicht hin
 		  motor.state_reluct = 3;
 		  debugbyte = 0;
 		  adcStopConversionI(&ADCD1); // OK, commutate!
 		  schedule_commutate_cb(50);
+		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
+		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
 	  }
 	  //adcStopConversionI(&ADCD1);
 	  //pwmStop(&PWMD1);
@@ -335,7 +354,8 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  motor.state_reluct = 2;
 		  //motor.u_dc2 = (y_on + y_off) / 2;
 		  debugbyte = 85;
-		  //motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
+		  k_zc = k_sample;
+		  motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
 		  // TODO: Zeitmessung mit TIM3 mit GPT oder PWM-Treiber machen
 	  }
   }
@@ -406,7 +426,8 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 			  motortime_zc(motor.time_next_commutate_cb + k_sample);
 
 			  y_off=0;
-			  schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) / 3 );
+			  //schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) * 2 / 5 );
+			  schedule_commutate_cb( (motor.delta_t_zc) * 8 / 9);
 			  return;
 	  }
 		  /*
@@ -639,6 +660,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 
     	if (m->state == OBLDC_STATE_RUNNING || m->state == OBLDC_STATE_STARTING_SENSE_2) {
     		k_cb_commutate = 0;
+    		genpwmcfg.period = period;
     		//BEGIN TEST
     		/* Test configuration: sample the PWM on the active leg
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_CONT; // ADC_CR2: use ext event | select TIM1_CC1 event
@@ -656,6 +678,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		} // PWM_MODE_SINGLEPHASE not supported in STATE_RUNNING
     		//ADC1->CR2 = ADC1->CR2 | ADC_CR2_SWSTART;  // Software trigger ADC conversion (NOT WORKING YET)
     	} else if (m->state == OBLDC_STATE_STARTING_SYNC || m->state == OBLDC_STATE_STARTING_SENSE_1) {
+    		genpwmcfg.period = PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY;
     		//inv_duty_cycle = 10000-duty_cycle;
     		if (m->pwm_mode == PWM_MODE_ANTIPHASE) {
     			pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation

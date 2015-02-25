@@ -40,7 +40,7 @@ def	crc8(data_in):
 str	=  bytearray([0x00,0x00,0x00,0x00,0x00,0x00,0x00])
 r	=  bytearray([0x00,0x00,0x00,0x00,0x00,0x00,0x00])
 
-if (len(sys.argv) == 3):
+if (len(sys.argv) >= 3):
 	if (sys.argv[1] == "led1"):
 		str[0] = 0xF0
 	elif (sys.argv[1] == "led2"):
@@ -58,7 +58,12 @@ if (len(sys.argv) == 3):
 	elif (sys.argv[2] == "off"):
 		str[1] = 0x00
 	elif (sys.argv[2] == "val"):
-		str[1] = 0x05		
+		if(len(sys.argv) == 4):
+			str[1] = int(int(sys.argv[3])/256)
+			str[2] = int(int(sys.argv[3])%256)
+		else:
+			print "Not correct number of arguments. Provide 3 arguments"
+			sys.exit()				
 	else:
 		print "Argument 2 is not valid, use on or off";
 		sys.exit()
