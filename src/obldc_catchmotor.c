@@ -216,7 +216,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   int64_t temp=0;
 
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
-  init_motor_struct(&motor);
+  //init_motor_struct(&motor);
   motor.angle = 1;
   //motor.state = OBLDC_STATE_STARTING_SYNC;
   motor.state = OBLDC_STATE_STARTING_SENSE_1;
@@ -250,7 +250,8 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
 		  }
-		  if(motor.delta_t_zc < 2000 && motor.last_delta_t_zc < 2000) { // TODO: Make definitions for these values
+		  if(motor.delta_t_zc < 1100 && motor.last_delta_t_zc < 1100) { // TODO: Make definitions for these values
+			  catchcount=0;
 			  motor.state = OBLDC_STATE_RUNNING;
 		  }
 		  chThdSleepMicroseconds(500);
@@ -263,13 +264,14 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  }
 	  if(motor.state == OBLDC_STATE_RUNNING) { // Motor is fast!
 		  //catchcount++;
-		  if( (motor.delta_t_zc > 3000 && motor.last_delta_t_zc > 3000) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow!
+		  if( (motor.delta_t_zc > 1200 && motor.last_delta_t_zc > 1200) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow!
 			  motor.delta_t_zc		= 0xFFFF;
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!
+			  //motor.angle = (motor.angle - 2) % 6 + 1;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_2; // TODO: Make definitions for these values
 		  }
-		  chThdSleepMicroseconds(400);
+		  chThdSleepMicroseconds(500);
 	  }
 	  if(motor.state == OBLDC_STATE_STARTING_SYNC) { // Ramp up the motor
 		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation

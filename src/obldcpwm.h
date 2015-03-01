@@ -48,8 +48,8 @@ typedef struct {
 	int pwm_period_ADC;
 	int angle;
 	int direction;
-	int16_t u_dc, u_dc2;
-	int16_t i_dc, i_dc_ref;
+	int16_t u_dc, u_dc2, u_dc_filt;
+	int16_t i_dc, i_dc_ref, i_dc_filt, i_dc_sum;
 	uint8_t state_reluct; // 0=unknown
 	int64_t time; // Motor time in usec
 	int64_t time_zc, time_last_zc;
@@ -85,6 +85,7 @@ void init_motor_struct(motor_s* motor);
 
 void v_bat_current_conversion(void);
 adcsample_t get_vbat_sample(void);
+void eval_vbat_idc(void);
 
 
 #endif /* OBLDCPWM_H_ */

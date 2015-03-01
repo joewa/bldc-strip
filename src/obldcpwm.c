@@ -28,7 +28,7 @@ motor_cmd_s motor_cmd;
 
 #define ADC_COMMUTATE_NUM_CHANNELS 1
 #define ADC_COMMUTATE_BUF_DEPTH     50
-#define NREG 4 // Number of samples for a valid regression
+#define NREG 8 // Number of samples for a valid regression
 #define DROPNOISYSAMPLES 1 // "Drop samples with switching noise
 
 typedef struct {
@@ -38,7 +38,7 @@ typedef struct {
   int16_t elems[NREG+1];
 } commutate_Buffer;
 
-commutate_Buffer xbuf, ybuf;
+commutate_Buffer ibuf, ubuf, ybuf;
 
 
 static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];
@@ -59,6 +59,9 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
 
 #define ADC_VBAT_CURRENT_NUM_CHANNELS 3
 #define ADC_VBAT_CURRENT_BUF_DEPTH 4
+#define ADC_VBAT_CURRENT_EXTTRIG_NUM_CHANNELS 2
+#define ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH 12
+
 
 static adcsample_t vbat_current_samples[ADC_VBAT_CURRENT_NUM_CHANNELS * ADC_VBAT_CURRENT_BUF_DEPTH];
 
@@ -83,6 +86,9 @@ void init_motor_struct(motor_s* motor) {
 	motor->u_dc				= 0;
 	motor->i_dc				= 0;
 	motor->i_dc_ref			= 0;
+	motor->u_dc_filt		= 0;
+	motor->i_dc_filt		= 0;
+	motor->i_dc_sum			= 0;
 	motor->angle			= 0;
 	motor->direction		= 0;
 	motor->time				= 0;
@@ -92,6 +98,9 @@ void init_motor_struct(motor_s* motor) {
 	motor->delta_t_zc		= 0xFFFF;
 	motor->last_delta_t_zc	= 0xFFFF;
 	motor_cmd.duty_cycle = 1000;
+
+	bufferInitStatic(ubuf, 6);
+	bufferInitStatic(ibuf, 6);
 	//motor->sumx=0; motor->sumx2=0; motor->sumxy=0; motor->sumy=0; motor->sumy2=0;
 	/*table_angle2leg[0]=0; table_angle2leg2[0]=0; // 0,  0,  0,  0   SenseBridgeSign
 	table_angle2leg[1]=0; table_angle2leg2[0]=1; // 1,  1, -1,  0		-1
@@ -104,6 +113,7 @@ void init_motor_struct(motor_s* motor) {
 
 void motor_set_duty_cycle(motor_s* m, int d) {
 	int d_percent = (5000 + d / 2) / 100;
+	//TODO: Limitation of duty cycle to prevent over current using motor speed (and resistance)
 	if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
 		motor.pwm_mode = PWM_MODE_SINGLEPHASE;
 		motor.pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
@@ -120,6 +130,7 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
 		m->pwm_t_on = m->pwm_period * d / 10000;
 	else {//PWM_MODE_ANTIPHASE
+		eval_vbat_idc(); // Evaluate from last cycle. New external triggered!
 		if(d_percent > 0 && d_percent < 100)// Adaptive PWM period. TODO: Test this!
 			motor.pwm_period = ADC_PWM_DIVIDER * (int)((ADC_PWM_PERIOD * 2500) / ((100 - d_percent) * d_percent));
 		else
@@ -134,8 +145,8 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	//m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
 	m->sumy=0;
 	m->invSenseSign = m->angle % 2;
-	get_vbat_sample();
-	bufferInitStatic(xbuf, NREG); bufferInitStatic(ybuf, NREG);
+	//get_vbat_sample(); // not external triggered
+	bufferInitStatic(ybuf, NREG);
 }
 
 // TODO: void motor_set_period(motor_s* m, int period)
@@ -145,6 +156,7 @@ uint32_t k_cb_commutate; // Counts how often the ADC callback was called
 void reset_adc_commutate_count() {
 	k_cb_commutate = 0;
 }
+
 
 static const ADCConversionGroup adc_vbat_current_group = {
 		FALSE, // linear mode
@@ -158,6 +170,20 @@ static const ADCConversionGroup adc_vbat_current_group = {
 		ADC_SQR1_NUM_CH(ADC_VBAT_CURRENT_NUM_CHANNELS), // ADC_SQR1
 		0, // ADC_SQR2
 		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN3) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN4) | ADC_SQR3_SQ3_N(ADC_CHANNEL_IN5)   // ADC_SQR3
+};
+
+static ADCConversionGroup adc_vbat_current_exttrig_group = {
+		FALSE, // linear mode
+		ADC_VBAT_CURRENT_EXTTRIG_NUM_CHANNELS,
+		NULL, // no callback and end of conversion
+		NULL,
+		0, // ADC_CR1
+		0, // ADC_CR2
+		0, // ADC_SMPR1
+		ADC_SMPR2_SMP_AN3(ADC_SAMPLE_1P5) | ADC_SMPR2_SMP_AN4(ADC_SAMPLE_1P5), // ADC_SMPR2
+		ADC_SQR1_NUM_CH(ADC_VBAT_CURRENT_EXTTRIG_NUM_CHANNELS), // ADC_SQR1
+		0, // ADC_SQR2
+		ADC_SQR3_SQ1_N(ADC_CHANNEL_IN3) | ADC_SQR3_SQ2_N(ADC_CHANNEL_IN4)   // ADC_SQR3
 };
 
 static PWMConfig genpwmcfg= {
@@ -249,7 +275,9 @@ static void schedule_commutate_cb(gptcnt_t t) {
 		if(time2fire < TIMER_CB_PERIOD) {
 			// Schedule next commutatetimercb
 			gptStartOneShotI(&GPTD3, (gptcnt_t)time2fire);
-			adcStartConversionI(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH);
+			//adcStartConversionI(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH); // Now, not triggered
+			//adcStartConversionI(&ADCD1, &adc_vbat_current_exttrig_group, commutatesamples, ADC_COMMUTATE_BUF_DEPTH / 2);
+			adcStartConversionI(&ADCD1, &adc_vbat_current_exttrig_group, commutatesamples, ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH); // Now, not triggered
 		}
 	} // TODO: Else something went terribly wrong. Stop!
 }
@@ -390,7 +418,7 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
   sample_cnt_t_on = 0; sample_cnt_t_off = 0; y_on = 0; y_off = 0;
   //u_dc_int = get_vbat_sample();
 
-  xbuf_ptr = &xbuf; ybuf_ptr = &ybuf;
+  ybuf_ptr = &ybuf;
   //k_start = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   //k_end = k_start + (ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2;
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
@@ -427,33 +455,12 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 
 			  y_off=0;
 			  //schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) * 2 / 5 );
-			  schedule_commutate_cb( (motor.delta_t_zc) * 8 / 9);
+			  schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) / 4 - 10);
 			  return;
 	  }
-		  /*
-		   * Keep it simple: Chibios is blocked while doing all the stuff above.
-		   * Consider simple zero crossing detection instead!
-		   * Goenne dir ein paar confirmation-cycles. Nimm den tollen Ringpuffer dafuer
-		   * Next step TODO:
-		   * Schedule a general purpose timer and that is properly referenced
-		   */
 	  k_sample++;
 	  //csamples[i] = buffer[i];
   }
-  /*
-  if(k_cb_commutate > 1) {
-	  if( motor.sumy < -50 ) {// Detect zero crossing here
-		  //if(motor.state_reluct == 2 || motor.state_reluct == 1) {
-			  motor.state_reluct = 3;
-			  motortime_zc();
-			  adcStopConversionI(&ADCD1); // OK, commutate!
-			  //pwmStop(&PWMD1);
-			  y_off=0;
-			  schedule_commutate_cb( motortime_now() + (motor.delta_t_zc + motor.last_delta_t_zc) / 4 );
-			  return;
-		  }
-  }
-  */
   // Check for timeout
   if(k_sample > 10000000) {//(k_sample > 1000000) {  // TIMEOUT
 	  k_sample++;
@@ -461,18 +468,6 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 	  chSysUnlockFromISR();
 	  return;
   }
-
-/*
-  reg_den = NREG * motor.sumx2  -  motor.sumx * motor.sumx;
-  if( isBufferFull(ybuf_ptr) && (reg_den != 0) ) {
-	  m_reg = (NREG * motor.sumxy  -  motor.sumx * motor.sumy) / reg_den;
-	  b_reg = (motor.sumy * motor.sumx2  -  motor.sumx * motor.sumxy) / reg_den; // TODO: PUT BREAKPOINT HERE and check m_reg (vs motor speed)
-	  if( m_reg < 0 ) {
-		  k_zc = -b_reg / m_reg;
-		  //if(k_zc < k_sample)
-	  }
-  }
-*/
 
   k_cb_commutate++; // k_cb_ADC++; PUT BREAKPOINT HERE
   chSysUnlockFromISR();
@@ -528,6 +523,7 @@ static ADCConversionGroup adc_commutate_group = {
 
 
 void v_bat_current_conversion(void) {
+	init_motor_struct(&motor); // v_bat_current_conversion wird nur aus main aufgerufen TODO: Eigene Funktion machen!
 	adcStartConversion(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH);
 }
 
@@ -556,22 +552,65 @@ adcsample_t get_vbat_sample(void) { // value scaled to be 50% of phase voltage s
 }
 
 
+void eval_vbat_idc(void) { // value scaled to be 50% of phase voltage sample TODO MUSS NOCH GETESTET WERDEN
+	// /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
+	// the voltage divider at v_bat is 1.5 and 10 kOhm
+	// So, the transformation is 115*36 / (15*136)
+	int i;
+	int u_raw_on=0;
+	int u_raw_off=0;
+	int i_raw_on=0;
+	int i_raw_off=0;
+	int16_t i_old;
+    commutate_Buffer* ibuf_ptr;
+	ibuf_ptr = &ibuf;
+
+	sample_cnt_t_on = 0; sample_cnt_t_off = 0;
+	for (i=0; i<(ADC_VBAT_CURRENT_EXTTRIG_NUM_CHANNELS*ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH); i+=ADC_VBAT_CURRENT_EXTTRIG_NUM_CHANNELS ) {// halbe puffertiefe
+		if ( i > DROPNOISYSAMPLES && i < motor.pwm_t_on_ADC) { // Samples during t_on!!!
+			sample_cnt_t_on++;
+			u_raw_on += commutatesamples[i];
+			i_raw_on += commutatesamples[i+1] - motor.i_dc_ref;
+		}
+		else if (i > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && i < motor.pwm_period_ADC)  {// Samples during t_off
+		    sample_cnt_t_off++;
+			u_raw_off += commutatesamples[i];
+			i_raw_off += commutatesamples[i+1] - motor.i_dc_ref;
+		}
+		  //csamples[i] = buffer[i]; // For debugging
+	}
+	motor.u_dc = u_raw_on / sample_cnt_t_on * 4140 / 2040 / 2;
+	motor.i_dc = i_raw_on / sample_cnt_t_on;
+
+	if (isBufferFull(ibuf_ptr)) {
+		bufferRead(ibuf_ptr, i_old);
+		// Decrement obsolete buffer values from sums
+		motor.i_dc_sum -= i_old;
+	}
+	bufferWrite(ibuf_ptr, motor.i_dc);
+	motor.i_dc_sum += motor.i_dc;
+	motor.i_dc_filt = motor.i_dc_sum / 6;
+}
+
 
 /*
  * Generic PWM for BLDC motor operation.
  * duty_cycle in percent * 100
  * Period in microseconds
  */
+static const uint8_t pin_leg_enable[3] = {
+		GPIOB_U_NDTS, GPIOB_V_NDTS, GPIOB_W_NDTS
+};
 void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
 	int angle, t_on, period, inv_duty_cycle;
-	uint8_t legp, legn; // Positive and negative PWM leg
+	uint8_t legp, legn, legoff; // Positive and negative PWM leg
 	angle 	= m->angle;
 	t_on	= m->pwm_t_on;
 	period	= m->pwm_period;
 
 	adcStopConversion(&ADCD1);
-	palClearPad(GPIOB, GPIOB_U_NDTS); palClearPad(GPIOB, GPIOB_V_NDTS); palClearPad(GPIOB, GPIOB_W_NDTS);
-	pwmStop(&PWMD1);
+	//palClearPad(GPIOB, GPIOB_U_NDTS); palClearPad(GPIOB, GPIOB_V_NDTS); palClearPad(GPIOB, GPIOB_W_NDTS);
+	//pwmStop(&PWMD1);
 
 	if (m->state == OBLDC_STATE_RUNNING) {
 		adc_commutate_group.end_cb = adc_commutate_fast_cb;
@@ -599,56 +638,40 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	palClearPad(GPIOB, GPIOB_V_NDTS);
     	//pwmEnableChannel(&PWMD1, 2, PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 10000));
     	palClearPad(GPIOB, GPIOB_W_NDTS);
+    	pwmStop(&PWMD1);
     } else {
     	if (angle == 1) { // sample W_VOLTAGE, triggered by U_PWM
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_CONT; // ADC_CR2: select TIM1_CC1 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN2); // W_VOLTAGE
-    		legp = 0; legn = 1;
-    		palSetPad(GPIOB, GPIOB_U_NDTS);
-    		palSetPad(GPIOB, GPIOB_V_NDTS);
-    		palClearPad(GPIOB, GPIOB_W_NDTS);
+    		legp = 0; legn = 1; legoff=2;
     	} else if (angle == 2) { // sample U_VOLTAGE, triggered by W_PWM
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_1 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC3 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0); // U_VOLTAGE
-    		legp = 2; legn = 1;
-    		palClearPad(GPIOB, GPIOB_U_NDTS);
-    		palSetPad(GPIOB, GPIOB_V_NDTS);
-    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    		legp = 2; legn = 1; legoff=0;
     	} else if (angle == 3) { // sample V_VOLTAGE, triggered by W_PWM
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_1 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC3 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN1); // V_VOLTAGE
-    		legp = 2; legn = 0;
-    		palSetPad(GPIOB, GPIOB_U_NDTS);
-    		palClearPad(GPIOB, GPIOB_V_NDTS);
-    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    		legp = 2; legn = 0; legoff=1;
     	} else if (angle == 4) { // sample W_VOLTAGE, triggered by V_PWM
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_0 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC2 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN2(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN2); // W_VOLTAGE
-    		legp = 1; legn = 0;
-    		palSetPad(GPIOB, GPIOB_U_NDTS);
-    		palSetPad(GPIOB, GPIOB_V_NDTS);
-    		palClearPad(GPIOB, GPIOB_W_NDTS);
+    		legp = 1; legn = 0; legoff=2;
     	} else if (angle == 5) { // sample U_VOLTAGE, triggered by V_PWM
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_EXTSEL_0 | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC2 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN0(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0); // U_VOLTAGE
-    		legp = 1; legn = 2;
-    		palClearPad(GPIOB, GPIOB_U_NDTS);
-    		palSetPad(GPIOB, GPIOB_V_NDTS);
-    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    		legp = 1; legn = 2; legoff=0;
     	} else if (angle == 6) { // sample V_VOLTAGE, triggered by U_PWM
     		adc_commutate_group.cr2 = ADC_CR2_EXTTRIG | ADC_CR2_CONT; //ADC_CR2: select TIM1_CC1 event
     		adc_commutate_group.smpr2 = ADC_SMPR2_SMP_AN1(ADC_SAMPLE_1P5);
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN1); // V_VOLTAGE
-    		legp = 0; legn = 2;
-    		palSetPad(GPIOB, GPIOB_U_NDTS);
-    		palClearPad(GPIOB, GPIOB_V_NDTS);
-    		palSetPad(GPIOB, GPIOB_W_NDTS);
+    		legp = 0; legn = 2; legoff=1;
     	}
+    	adc_vbat_current_exttrig_group.cr2 = adc_commutate_group.cr2;
 
     	//adcStart(&ADCD1, &adc_commutate_group);
     	int i,x;
@@ -658,6 +681,8 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	else
     		genpwmcfg.channels[legn].mode = PWM_OUTPUT_ACTIVE_HIGH;
 
+    	palClearPad(GPIOB, GPIOB_U_NDTS); palClearPad(GPIOB, GPIOB_V_NDTS); palClearPad(GPIOB, GPIOB_W_NDTS);
+    	pwmStop(&PWMD1);
     	if (m->state == OBLDC_STATE_RUNNING || m->state == OBLDC_STATE_STARTING_SENSE_2) {
     		k_cb_commutate = 0;
     		genpwmcfg.period = period;
@@ -692,6 +717,8 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	} else {
     		//pwmEnableChannel(&PWMD1, table_angle2leg[angle], PWM_PERCENTAGE_TO_WIDTH(&PWMD1, 0));
     	}
+    	palSetPad(GPIOB, pin_leg_enable[legp]);
+    	palSetPad(GPIOB, pin_leg_enable[legn]);
     }
 }
 

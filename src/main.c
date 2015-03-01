@@ -18,9 +18,9 @@ int main(void) {
 	motor_start_timer();
 	startmyadc();
 	v_bat_current_conversion();
-    chThdSleepMicroseconds(50);
+    chThdSleepMicroseconds(500);
     temp = get_vbat_sample();//UGLY!!
-    chThdSleepMicroseconds(50);
+    chThdSleepMicroseconds(500);
 	temp = catchmotor_setup();
 	startRampMotorThread();
 	// Just idle on the main loop
