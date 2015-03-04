@@ -15,6 +15,7 @@
 #include "obldcpwm.h"
 
 extern motor_s motor; // Motor-struct from obldcpwm.c
+extern motor_cmd_s motor_cmd;// Motor-cmd from obldcpwm.c
 
 static uint8_t halldecode[8];
 
@@ -214,6 +215,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   int speed = 50;  // initial speed
   int delta_t = 50;
   int64_t temp=0;
+  int last_angle4, act_angle;
 
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
   //init_motor_struct(&motor);
@@ -224,25 +226,76 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   //set_bldc_pwm(&motor);
   while (TRUE) {
 	  if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
+
+		  // Rotorlageerkennung
+		  chThdSleepMilliseconds(1);
+		  motor.state = OBLDC_STATE_SENSE_INJECT;
+		  motor.pwm_mode = PWM_MODE_ANTIPHASE;
+		  motor.state_inject = 0;
+		  motor.angle = 1;
+		  motor_set_duty_cycle(&motor, 0);
+		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
+		  chThdSleepMicroseconds(500);
+		  last_angle4 = motor.angle4;
+		  //decode_inject_pattern();
+		  if(motor.angle4 != 0) {// 50% chance dass dass klappt
+			  //motor.angle = ((motor.angle4 - 1 + 6)%12) / 4 + 1;
+			  motor.angle = ((motor.angle4 - 1 + 6)%12) / 4 + 1;
+			  catchcount = 0;
+			  act_angle = motor.angle;
+			  //motor.state = OBLDC_STATE_RUNNING_SLOW;
+			  motor.state_ramp = 0;
+			  motor.state = OBLDC_STATE_RUNNING_SLOW;
+			  motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);//motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
+			  set_bldc_pwm(&motor); // Start running with back EMF detection
+		  } else {
+			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
+		  }
+
+		  //motor.state = OBLDC_STATE_STARTING_SENSE_1;
+
+		  /*
+		  // Einfach und funzt!
 		  motor.pwm_mode = PWM_MODE_SINGLEPHASE;
 		  motor.angle = 1;
 		  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 		  set_bldc_pwm(&motor); // Position the motor to sync angle
 		  chThdSleepMilliseconds(1000);
 		  catchcount = 0;
-		  motor.time_zc = motortime_now();
-		  motor.state = OBLDC_STATE_STARTING_SENSE_2;
+		  motor.state = OBLDC_STATE_RUNNING_SLOW;
 		  motor.pwm_mode = PWM_MODE_ANTIPHASE;
 		  motor.angle = 3;
 		  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 		  set_bldc_pwm(&motor); // Start running with back EMF detection
+		  */
 	  }
-	  if(motor.state == OBLDC_STATE_STARTING_SENSE_2) { // Ramp up the motor
+	  if(motor.state == OBLDC_STATE_SENSE_INJECT) {
+		  /*
+		  chThdSleepMicroseconds(500);
+		  motor.angle = 1;
+		  motor_set_duty_cycle(&motor, 0);
+		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
+		  chThdSleepMicroseconds(500);
+		  if(motor.angle4 < last_angle4) {
+			  motor.angle = (motor.angle) % 6 + 1;
+			  motor.angle = (motor.angle) % 6 + 1;
+			  motor.angle = (motor.angle) % 6 + 1;
+			  motor.state = OBLDC_STATE_RUNNING_SLOW;
+		  } else if(motor.angle4 > last_angle4) {
+			  motor.state = OBLDC_STATE_RUNNING_SLOW;
+		  }
+		  motor.angle = act_angle;
+		  //motor.state = OBLDC_STATE_RUNNING_SLOW;
+		  motor_set_duty_cycle(&motor, 600);//motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
+		  set_bldc_pwm(&motor); // Start running with back EMF detection
+		  */
+	  }
+	  if(motor.state == OBLDC_STATE_RUNNING_SLOW) { // Ramp up the motor
 		  catchcount++;
 		  if(motor.time_zc != temp) {
 			  catchcount=0; temp=motor.time_zc;
 		  }
-		  if(catchcount > 500) { // Timeout!
+		  if(catchcount > 200) { // Timeout!
 			  pwmStop(&PWMD1);
 			  adcStopConversion(&ADCD1);
 			  catchcount = 0;
@@ -269,7 +322,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!
 			  //motor.angle = (motor.angle - 2) % 6 + 1;
-			  motor.state = OBLDC_STATE_STARTING_SENSE_2; // TODO: Make definitions for these values
+			  motor.state = OBLDC_STATE_RUNNING_SLOW; // TODO: Make definitions for these values
 		  }
 		  chThdSleepMicroseconds(500);
 	  }

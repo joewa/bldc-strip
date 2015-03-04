@@ -17,8 +17,10 @@ typedef enum {
 	OBLDC_STATE_OFF = 0,
 	OBLDC_STATE_STARTING_SYNC,
 	OBLDC_STATE_STARTING_SENSE_1,
-	OBLDC_STATE_STARTING_SENSE_2,
 	OBLDC_STATE_CATCHING,
+	OBLDC_STATE_SENSE_INJECT,
+	OBLDC_STATE_RUNNING_INJECT,
+	OBLDC_STATE_RUNNING_SLOW,
 	OBLDC_STATE_RUNNING
 } obldc_state;
 
@@ -46,8 +48,10 @@ typedef struct {
 	int pwm_period;		// in timer clock ticks
 	int pwm_t_on_ADC;	// in ADC clock ticks
 	int pwm_period_ADC;
-	int angle;
+	int angle, angle4;
 	int direction;
+	uint8_t sense_inject_pattern[3];
+	uint8_t state_inject, state_ramp;
 	int16_t u_dc, u_dc2, u_dc_filt;
 	int16_t i_dc, i_dc_ref, i_dc_filt, i_dc_sum;
 	uint8_t state_reluct; // 0=unknown
@@ -82,7 +86,7 @@ void motor_set_duty_cycle(motor_s* m, int d);
 void set_bldc_pwm_adc(int angle, int duty_cycle, int period);
 void startcatchmodePWM(void);
 void init_motor_struct(motor_s* motor);
-
+void decode_inject_pattern(void);
 void v_bat_current_conversion(void);
 adcsample_t get_vbat_sample(void);
 void eval_vbat_idc(void);

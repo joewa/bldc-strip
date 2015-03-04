@@ -137,7 +137,8 @@ static void rxend(UARTDriver *uartp) {
     	if (motor.u_dc2<0) motor.u_dc2 = -motor.u_dc2;
     	//txBuffer[5] = (uint8_t)(motor.u_dc2);//((motor.u_dc*100)/1630);
     	txBuffer[5] = (uint8_t)(motor.i_dc_filt / 4);
-    	txBuffer[6] = (uint8_t)(motor.i_dc_ref / 4);
+    	//txBuffer[6] = (uint8_t)(motor.i_dc_ref / 4);
+    	txBuffer[6] = (uint8_t)(motor.angle4);
       break;
     case SCP_SETDUTYCYCLE:
     	//if(rxBuffer[1]>7) rxBuffer[1] = 7;
