@@ -319,40 +319,40 @@ void decode_inject_pattern(void) {
 	u = motor.sense_inject_pattern[0]; v = motor.sense_inject_pattern[1]; w = motor.sense_inject_pattern[2];
 	if(u == 2) {
 		if(v == 1) {
-			if(w == 3) motor.angle4 = 2; else motor.angle4 = 0; // D
+			if(w == 3) motor.angle4 = 1; else motor.angle4 = 0; // D
 		} else if(v == 3) {
-			if(w == 1) motor.angle4 = 8; else motor.angle4 = 0; // Q
+			if(w == 1) motor.angle4 = 7; else motor.angle4 = 0; // Q
 		}
 	} else if(v == 2) {
 		if(u == 1) {
-			if(w == 3) motor.angle4 = 4; else motor.angle4 = 0; // Q
+			if(w == 3) motor.angle4 = 3; else motor.angle4 = 0; // Q
 		} else if(u == 3) {
-			if(w == 1) motor.angle4 = 10; else motor.angle4 = 0;// D
+			if(w == 1) motor.angle4 = 9; else motor.angle4 = 0;// D
 		}
 	} else if(w == 2) {
 		if(v == 1) {
-			if(u == 3) motor.angle4 = 12; else motor.angle4 = 0;// Q
+			if(u == 3) motor.angle4 = 11; else motor.angle4 = 0;// Q
 		} else if(v == 3) {
-			if(u == 1) motor.angle4 = 6; else motor.angle4 = 0; // D
+			if(u == 1) motor.angle4 = 5; else motor.angle4 = 0; // D
 		}
 	} else if(u == 1) {
 		if(v == 1) {
-			if(w == 3) motor.angle4 = 3; else motor.angle4 = 0;
+			if(w == 3) motor.angle4 = 2; else motor.angle4 = 0;
 		} else if(v == 3) {
 			if(w == 1) {
-				motor.angle4 = 7;
+				motor.angle4 = 6;
 			} else if(w == 3) {
-				motor.angle4 = 5;
+				motor.angle4 = 4;
 			} else motor.angle4 = 0;
 		}
 	} else if(u == 3) {
 		if(v == 3) {
-			if(w == 1) motor.angle4 = 9; else motor.angle4 = 0;
+			if(w == 1) motor.angle4 = 8; else motor.angle4 = 0;
 		} else if(v == 1) {
 			if(w == 1) {
-				motor.angle4 = 11;
+				motor.angle4 = 10;
 			} else if(w == 3) {
-				motor.angle4 = 1;
+				motor.angle4 = 12;
 			} else motor.angle4 = 0;
 		}
 	}
@@ -414,11 +414,48 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 		  gptStartOneShotI(&GPTD3, 50);
 	  }
 	  else {
+		  adcStopConversion(&ADCD1);
+		  pwmStop(&PWMD1);
+
 		  decode_inject_pattern();
 		  motor.angle = (motor.angle) % 6 + 1; // restore initial rotor position
 		  motor.angle = (motor.angle) % 6 + 1;
 		  motor.angle4 = (motor.angle4 - 1 + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
-		  k_cb_commutate++; // PUT BREAKPOINT HERE to watch sense_inject_pattern
+		  if(motor.angle4 != 0) {// Winkel ist gültig; 50% chance dass das klappt
+			  if(motor.state_ramp == 0) { // Injection was called for the first time and the result may be wrong
+				  // The correct equation is motor.angle = ((motor.angle4 + 5) / 4) % 3 + 2; but motor.angle is incremented by 1 in schedule_commutate_cb
+				  motor.angle = ((motor.angle4 + 5) / 4) % 3 + 1;
+				  motor.state = OBLDC_STATE_RUNNING_SLOW;
+				  schedule_commutate_cb(50);
+			  } else {// Injection was called for the second time and we can check weather the first guess was good or bad
+				  /*
+				   * TODO zur Sicherheit den sense_inject_pattern auf 2 setzen bei dem in commutate_cb gemessen wurde und decode_inject_pattern aufrufen,
+				   * denn der muss jetzt nicht zwangsläufig wieder gemessen worden sein und dann funzt die folgende Abfrage nicht.
+				   */
+				  if( (motor.angle4 - 1) % 4 != 0 ) { // good
+					  motor.state = OBLDC_STATE_RUNNING_SLOW;
+					  schedule_commutate_cb(50);
+				  } else {
+					  //motor.state_ramp = 0; // im nächsten Durchgang nochmal prüfen
+					  motor.angle = (motor.angle) % 6 + 1;
+					  motor.state = OBLDC_STATE_RUNNING_SLOW;
+					  schedule_commutate_cb(50);
+				  }
+				  /*
+				   * if good
+				  motor.state = OBLDC_STATE_RUNNING_SLOW;
+				  schedule_commutate_cb(50);
+				  * if bad
+				  motor.angle = (motor.angle) % 6 + 1;
+				  motor.state = OBLDC_STATE_RUNNING_SLOW;
+				  schedule_commutate_cb(50);
+				  *
+				  */
+
+			  }
+		  } else {
+			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
+		  }
 	  }
   }//if(k_cb_commutate > 1)
 
@@ -481,6 +518,7 @@ static void adc_commutate_run_inject_cb(ADCDriver *adcp, adcsample_t *buffer, si
 		  debugbyte = 255;
 	  }
   } else {
+
 		  motor.state = OBLDC_STATE_SENSE_INJECT;
 		  adcStopConversionI(&ADCD1);
 		  /*
@@ -503,7 +541,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   sample_cnt_t_on = 0; sample_cnt_t_off = 0; y_on = 0; y_off = 0;
 
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
-  //if(k_cb_commutate > 1)
+  if(k_cb_commutate > 1) {
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
   //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
 	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
@@ -547,10 +585,10 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  debugbyte = 0;
 		  adcStopConversionI(&ADCD1); // OK, commutate!
 		  schedule_commutate_cb(50);
-		  if(motor.state_ramp < 4) {
+		  /*if(motor.state_ramp < 4) {
 			  motor.state_ramp++;
 			  motor.angle = (motor.angle) % 6 + 1; // commutate 2 steps at once
-		  }
+		  }*/
 		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
 	  }
@@ -565,6 +603,35 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  }
   } else {
 	  if(motor.state_reluct == 1) {
+		  if(motor.state_ramp < 1) {
+			  motor.state_ramp++;
+			  adcStopConversionI(&ADCD1);
+			  pwmStop(&PWMD1);
+			  motor.state = OBLDC_STATE_SENSE_INJECT;
+			  motor.state_inject = 0;
+			  motor.angle = (motor.angle) % 6 + 1;
+			  motor.angle = (motor.angle) % 6 + 1;
+			  motor.angle = (motor.angle) % 6 + 1;
+			  motor.angle = (motor.angle) % 6 + 1;
+			  schedule_commutate_cb(50);
+
+			  /*
+			   * TODO trigger injection sequence here, but only at the two other phases to check if angle4 refers to a D- or a Q-Axis position
+			   */
+
+
+			  /*
+			  // Jetzt injection-messung machen:
+			  // ...
+			  if (...) {
+				  //   wenn der winkel Richtig ist, dann alles gut und motor.angle um 1 erhöhen
+			  } else {
+			  	  //   wenn der winkel falsch ist, dann motor.angle = (motor.angle4 + 5) / 4 + 2;
+			  	  motor.angle = motor.angle + 1;
+			  }
+			  */
+		  }
+
 		  motor.state_reluct = 2;
 		  //motor.u_dc2 = (y_on + y_off) / 2;
 		  debugbyte = 85;
@@ -574,13 +641,14 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  }
   }
 
-  // Check for timeout
+  /*// Check for timeout
   if(k_sample > 10000000) {//(k_sample > 1000000) {  // TIMEOUT
 	  k_sample++;
 	  adcStopConversionI(&ADCD1); // HERE breakpoint
 	  chSysUnlockFromISR();
 	  return;
-  }
+  }*/
+  }//if(k_cb_commutate > 1)
 
   k_cb_commutate++; // k_cb_ADC++; PUT BREAKPOINT HERE
   chSysUnlockFromISR();
