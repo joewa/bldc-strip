@@ -97,6 +97,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->time_next_commutate_cb = 0;
 	motor->delta_t_zc		= 0xFFFF;
 	motor->last_delta_t_zc	= 0xFFFF;
+	motor->noinject = 0;
 	motor_cmd.duty_cycle = 0; //1000;
 
 	bufferInitStatic(ubuf, 6);
@@ -231,7 +232,8 @@ static void commutatetimercb(GPTDriver *gptp) {
   else if(motor.state = OBLDC_STATE_SENSE_INJECT) {
 	  motor.angle = (motor.angle) % 6 + 1;
 	  motor.angle = (motor.angle) % 6 + 1;
-	  motor_set_duty_cycle(&motor, 0);// ACHTUNG!!! 1000 geht gerade noch
+	  motor_set_duty_cycle(&motor, 0);
+	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);
 	  set_bldc_pwm(&motor);
   }
   //chSysUnlockFromISR();
@@ -270,20 +272,17 @@ static const GPTConfig gptcfg3 = {
   0
 };
 
-static void schedule_commutate_cb(gptcnt_t t) {
-	int64_t gpt_time_now = motortime_now();
-	gptcnt_t time2fire;
-
-	//if(t > gpt_time_now + 10) { // next event is in the future
-		motor.time_next_commutate_cb = motor.time_zc + t;//motor.time_next_commutate_cb = t;
-		time2fire = t;//time2fire = motor.time_next_commutate_cb - gpt_time_now;
-		//TODO: Hier ist der Wurm drin
-		if(time2fire < TIMER_CB_PERIOD) {
+static inline void schedule_commutate_cb(gptcnt_t time2fire) {
+		motor.time_next_commutate_cb = motor.time_zc + time2fire;//motor.time_next_commutate_cb = t;
+		//if(time2fire < TIMER_CB_PERIOD) {
 			// Schedule next commutatetimercb
-			gptStartOneShotI(&GPTD3, (gptcnt_t)time2fire);
+			gptStartOneShotI(&GPTD3, time2fire);
 			//adcStartConversionI(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH); // Now, not triggered
-			adcStartConversionI(&ADCD1, &adc_vbat_current_exttrig_group, commutatesamples, ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH); // Now, not triggered
-		}
+			// TODO: call this only when running whithout injection
+			if(motor.state == OBLDC_STATE_RUNNING) {
+				adcStartConversionI(&ADCD1, &adc_vbat_current_exttrig_group, commutatesamples, ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH); // triggered
+			}
+		//}
 	//} // TODO: Else something went terribly wrong. Stop!
 }
 
@@ -375,7 +374,7 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   if(k_cb_commutate > 1) {
 	  adcStopConversionI(&ADCD1);
-	  pwmStop(&PWMD1);
+	  //pwmStop(&PWMD1);
 	  for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
 		  k_pwm_period = k_sample % motor.pwm_period_ADC;
 		  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
@@ -411,36 +410,35 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 	  motor.state_inject++;
 
 	  if(motor.state_inject < 3) {
-		  gptStartOneShotI(&GPTD3, 50);
+		  gptStartOneShotI(&GPTD3, 8);
 	  }
 	  else {
-		  adcStopConversion(&ADCD1);
-		  pwmStop(&PWMD1);
-
 		  decode_inject_pattern();
-		  motor.angle = (motor.angle) % 6 + 1; // restore initial rotor position
-		  motor.angle = (motor.angle) % 6 + 1;
+		  motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position
+		  //motor.angle = (motor.angle) % 6 + 1;
 		  motor.angle4 = (motor.angle4 - 1 + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
 		  if(motor.angle4 != 0) {// Winkel ist gültig; 50% chance dass das klappt
 			  if(motor.state_ramp == 0) { // Injection was called for the first time and the result may be wrong
 				  // The correct equation is motor.angle = ((motor.angle4 + 5) / 4) % 3 + 2; but motor.angle is incremented by 1 in schedule_commutate_cb
 				  motor.angle = ((motor.angle4 + 5) / 4) % 3 + 1;
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
-				  schedule_commutate_cb(50);
-			  } else {// Injection was called for the second time and we can check weather the first guess was good or bad
-				  /*
-				   * TODO zur Sicherheit den sense_inject_pattern auf 2 setzen bei dem in commutate_cb gemessen wurde und decode_inject_pattern aufrufen,
-				   * denn der muss jetzt nicht zwangsläufig wieder gemessen worden sein und dann funzt die folgende Abfrage nicht.
-				   */
-				  if( (motor.angle4 - 1) % 4 != 0 ) { // good
-					  motor.state = OBLDC_STATE_RUNNING_SLOW;
-					  schedule_commutate_cb(50);
-				  } else {
+				  //schedule_commutate_cb(5);
+				  gptStartOneShotI(&GPTD3, 8);
+			  } else if(motor.state_ramp <= 1){// Injection was called for the second time and we can check weather the first guess was good or bad
+				  if( (motor.angle4 - 1) % 4 != 0 ) { // good, angle is at Q-axis
+					  //motor.state = OBLDC_STATE_RUNNING_SLOW;
+					  //schedule_commutate_cb(5);
+					  //gptStartOneShotI(&GPTD3, 8);
+				  } else { // bad, angle is at D-axis
 					  //motor.state_ramp = 0; // im nächsten Durchgang nochmal prüfen
 					  motor.angle = (motor.angle) % 6 + 1;
-					  motor.state = OBLDC_STATE_RUNNING_SLOW;
-					  schedule_commutate_cb(50);
+					  //motor.state = OBLDC_STATE_RUNNING_SLOW;
+					  //schedule_commutate_cb(5);
+					  //gptStartOneShotI(&GPTD3, 8);
 				  }
+				  motor.state = OBLDC_STATE_RUNNING_SLOW;
+				  //schedule_commutate_cb(5);
+				  gptStartOneShotI(&GPTD3, 8);
 				  /*
 				   * if good
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
@@ -452,6 +450,13 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  *
 				  */
 
+			  } else { // motor.state_ramp > 1 : Injection, do tracking
+				  // TODO implement proper tracking code here
+				  if( (motor.angle4 - 1) % 4 == 0 ) {
+					  motor.angle = (motor.angle + 5) % 6 + 1;
+				  }
+				  motor.state = OBLDC_STATE_RUNNING_SLOW;
+				  gptStartOneShotI(&GPTD3, 8);
 			  }
 		  } else {
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
@@ -463,72 +468,6 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
   chSysUnlockFromISR();
 }
 
-static void adc_commutate_run_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
-  (void)adcp;
-  csamples = yreg;
-  int i;
-  uint32_t k_sample, k_zc; // Sample in the present commutation cycle
-  uint16_t k_pwm_period;//Indicates if the pwm sample occurred at pwm-on
-
-  chSysLockFromISR();
-  sample_cnt_t_on = 0; sample_cnt_t_off = 0; y_on = 0; y_off = 0;
-
-  k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
-  //if(k_cb_commutate > 1)
-  for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
-  //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
-	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
-	  k_pwm_period = k_sample % motor.pwm_period_ADC;
-	  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
-		  sample_cnt_t_on++;
-		  y_on += buffer[i];
-	  }
-	  else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
-		  sample_cnt_t_off++;
-    	  y_off += buffer[i];  // Sensebridgesign
-	  }
-	  k_sample++;
-	  //csamples[i] = buffer[i]; // For debugging
-  }
-
-  if (motor.invSenseSign) {
-	  //y_on = -(buffer[i] - motor.u_dc);  // Sensebridgesign
-	  y_on = -(y_on / sample_cnt_t_on - motor.u_dc);
-	  y_off = -(y_off / sample_cnt_t_off - motor.u_dc);
-  }
-  else {
-	  //y_on = buffer[i] - motor.u_dc;
-	  y_on = y_on / sample_cnt_t_on - motor.u_dc;
-	  y_off = y_off / sample_cnt_t_off - motor.u_dc;
-  }
-  /*
-   * Very Low-Speed-Sensorless-Commutation-Method:
-   *
-   */
-  if(y_on+300 < y_off) {// Detect zero crossing here
-		  adcStopConversionI(&ADCD1); // OK, commutate!
-		  schedule_commutate_cb(50);
-	  //adcStopConversionI(&ADCD1);
-	  //pwmStop(&PWMD1);
-	  //chSysUnlockFromISR();// HERE breakpoint
-	  //return;
-  } else if(y_on > y_off + 300) {
-	  if(motor.state_reluct == 0) {
-		  motor.state_reluct = 1;
-		  debugbyte = 255;
-	  }
-  } else {
-
-		  motor.state = OBLDC_STATE_SENSE_INJECT;
-		  adcStopConversionI(&ADCD1);
-		  /*
-		   * TODO trigger injection sequence here, but only at the two other phases to check if angle4 refers to a D- or a Q-Axis position
-		   */
-		  motor.state = OBLDC_STATE_RUNNING_INJECT;
-  }
-  k_cb_commutate++; // k_cb_ADC++; PUT BREAKPOINT HERE
-  chSysUnlockFromISR();
-}
 
 static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   (void)adcp;
@@ -541,10 +480,8 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
   sample_cnt_t_on = 0; sample_cnt_t_off = 0; y_on = 0; y_off = 0;
 
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
-  if(k_cb_commutate > 1) {
+  if(k_cb_commutate > 1) { // evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
-  //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
-	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
 	  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
 		  sample_cnt_t_on++;
@@ -582,43 +519,38 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  if(motor.state_reluct == 2) {
 		  //motortime_zc(motor.time_next_commutate_cb + k_sample);// gehoert hier nicht hin
 		  motor.state_reluct = 3;
-		  debugbyte = 0;
 		  adcStopConversionI(&ADCD1); // OK, commutate!
+		  if(motor.noinject == 0) { //if(motor.state_ramp < 2) {
+			  if(motor.state_ramp < 2) motor.state_ramp++;
+			  //trigger injection sequence at the two other phases to check if angle4 refers to a D- or a Q-Axis position
+			  motor.state = OBLDC_STATE_SENSE_INJECT;
+			  motor.sense_inject_pattern[0] = 2;// Keep zero crossing at the the actual phase
+			  motor.state_inject = 1; // Skip actual phase
+		  }
 		  schedule_commutate_cb(50);
-		  /*if(motor.state_ramp < 4) {
-			  motor.state_ramp++;
-			  motor.angle = (motor.angle) % 6 + 1; // commutate 2 steps at once
-		  }*/
-		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
+		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 	  }
-	  //adcStopConversionI(&ADCD1);
-	  //pwmStop(&PWMD1);
-	  //chSysUnlockFromISR();// HERE breakpoint
-	  //return;
   } else if(y_on > y_off + 300) {
 	  if(motor.state_reluct == 0) {
 		  motor.state_reluct = 1;
-		  debugbyte = 255;
 	  }
-  } else {
+  } else {// Found zero crossing
 	  if(motor.state_reluct == 1) {
 		  if(motor.state_ramp < 1) {
-			  motor.state_ramp++;
+			  motor.state_ramp++; // Call this sequence only once
 			  adcStopConversionI(&ADCD1);
 			  pwmStop(&PWMD1);
+			  //trigger injection sequence at the two other phases to check if angle4 refers to a D- or a Q-Axis position
 			  motor.state = OBLDC_STATE_SENSE_INJECT;
-			  motor.state_inject = 0;
-			  motor.angle = (motor.angle) % 6 + 1;
-			  motor.angle = (motor.angle) % 6 + 1;
-			  motor.angle = (motor.angle) % 6 + 1;
-			  motor.angle = (motor.angle) % 6 + 1;
-			  schedule_commutate_cb(50);
-
-			  /*
-			   * TODO trigger injection sequence here, but only at the two other phases to check if angle4 refers to a D- or a Q-Axis position
-			   */
-
+			  motor.sense_inject_pattern[0] = 2;// Keep zero crossing at the the actual phase
+			  motor.state_inject = 1; // Skip actual phase
+			  //motor.angle = (motor.angle) % 6 + 1;
+			  //motor.angle = (motor.angle) % 6 + 1;
+			  //motor.angle = (motor.angle) % 6 + 1;
+			  //motor.angle = (motor.angle) % 6 + 1;
+			  gptStartOneShotI(&GPTD3, 8);
+			  //schedule_commutate_cb(50);
 
 			  /*
 			  // Jetzt injection-messung machen:
@@ -641,13 +573,6 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  }
   }
 
-  /*// Check for timeout
-  if(k_sample > 10000000) {//(k_sample > 1000000) {  // TIMEOUT
-	  k_sample++;
-	  adcStopConversionI(&ADCD1); // HERE breakpoint
-	  chSysUnlockFromISR();
-	  return;
-  }*/
   }//if(k_cb_commutate > 1)
 
   k_cb_commutate++; // k_cb_ADC++; PUT BREAKPOINT HERE
@@ -677,15 +602,10 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
   //k_end = k_start + (ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2;
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   //motor.sumy = 0; // ENTFERNEN!! Nur zum probieren!
-  if(k_cb_commutate > 1)
+  if(k_cb_commutate > 1) // evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
-  //for (k_sample = k_start; k_sample < k_end; k_sample++ ) {// halbe puffertiefe
-	  // TODO: evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
 	  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
-		  //sample_cnt_t_on++;
-		  //y_on += buffer[i];
-	  //}
 		  if (isBufferFull(ybuf_ptr)) {
 			  bufferRead(ybuf_ptr, y_old);
 			  // Decrement obsolete buffer values from sums

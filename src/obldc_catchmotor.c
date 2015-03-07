@@ -238,18 +238,6 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
 		  //motor.state_ramp = 0;
 		  chThdSleepMicroseconds(1000);
-		  //last_angle4 = motor.angle4;
-
-		  /*if(motor.angle4 != 0) {// 50% chance dass dass klappt
-			  motor.angle = ((motor.angle4 + 5) / 4) % 3 + 2;
-			  motor.state = OBLDC_STATE_RUNNING_SLOW;
-			  motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);//motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
-			  set_bldc_pwm(&motor); // Start running with back EMF detection
-		  } else {
-			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
-		  }*/
-		  //motor.state = OBLDC_STATE_STARTING_SENSE_1;
-
 
 		  /*
 		  // Einfach und funzt!
@@ -268,30 +256,14 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  }
 	  if(motor.state == OBLDC_STATE_SENSE_INJECT) {
 		  chThdSleepMicroseconds(500);
-		  /*
-		  chThdSleepMicroseconds(500);
-		  motor.angle = 1;
-		  motor_set_duty_cycle(&motor, 0);
-		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
-		  chThdSleepMicroseconds(500);
-		  if(motor.angle4 < last_angle4) {
-			  motor.angle = (motor.angle) % 6 + 1;
-			  motor.angle = (motor.angle) % 6 + 1;
-			  motor.angle = (motor.angle) % 6 + 1;
-			  motor.state = OBLDC_STATE_RUNNING_SLOW;
-		  } else if(motor.angle4 > last_angle4) {
-			  motor.state = OBLDC_STATE_RUNNING_SLOW;
-		  }
-		  motor.angle = act_angle;
-		  //motor.state = OBLDC_STATE_RUNNING_SLOW;
-		  motor_set_duty_cycle(&motor, 600);//motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
-		  set_bldc_pwm(&motor); // Start running with back EMF detection
-		  */
 	  }
 	  if(motor.state == OBLDC_STATE_RUNNING_SLOW) { // Ramp up the motor
 		  catchcount++;
 		  if(motor.time_zc != temp) {
-			  catchcount=0; temp=motor.time_zc;
+			  catchcount = 0; temp = motor.time_zc;
+		  }
+		  if(catchcount > 8) {
+			  motor.noinject = 0;
 		  }
 		  if(catchcount > 200) { // Timeout!
 			  pwmStop(&PWMD1);
@@ -301,17 +273,14 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
 		  }
+		  if(motor.delta_t_zc < 3000 && motor.last_delta_t_zc < 3000) { // TODO: Make definitions for these values
+			  motor.noinject = 1;
+		  }
 		  if(motor.delta_t_zc < 1100 && motor.last_delta_t_zc < 1100) { // TODO: Make definitions for these values
 			  catchcount=0;
 			  motor.state = OBLDC_STATE_RUNNING;
 		  }
 		  chThdSleepMicroseconds(500);
-		  /*if(motor.state_reluct == 3) { // Commutate!
-			  catchcount = 0;
-			  motor.angle = (motor.angle) % 6 + 1;
-			  motor_set_duty_cycle(&motor, 1000);// ACHTUNG!!! 1000 geht gerade noch
-			  set_bldc_pwm(&motor);
-		  }*/
 	  }
 	  if(motor.state == OBLDC_STATE_RUNNING) { // Motor is fast!
 		  //catchcount++;

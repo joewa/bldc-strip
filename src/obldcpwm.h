@@ -19,7 +19,7 @@ typedef enum {
 	OBLDC_STATE_STARTING_SENSE_1,
 	OBLDC_STATE_CATCHING,
 	OBLDC_STATE_SENSE_INJECT,
-	OBLDC_STATE_RUNNING_INJECT,
+	//OBLDC_STATE_RUNNING_INJECT,
 	OBLDC_STATE_RUNNING_SLOW,
 	OBLDC_STATE_RUNNING
 } obldc_state;
@@ -51,7 +51,7 @@ typedef struct {
 	int angle, angle4;
 	int direction;
 	uint8_t sense_inject_pattern[3];
-	uint8_t state_inject, state_ramp;
+	uint8_t state_inject, state_ramp, noinject;
 	int16_t u_dc, u_dc2, u_dc_filt;
 	int16_t i_dc, i_dc_ref, i_dc_filt, i_dc_sum;
 	uint8_t state_reluct; // 0=unknown
