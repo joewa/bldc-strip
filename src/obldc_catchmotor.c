@@ -151,7 +151,7 @@ int catchcycle(motor_s* m, int voltage_u, int voltage_v, int voltage_w, uint8_t 
 		// neue adc-messung starten
 		//catchconversion();
 	}
-	motor.direction = direction;
+	motor.dir = direction;
 	motor.angle = hall_decoded;
 	return direction;
 }
@@ -238,18 +238,19 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
 		  //motor.state_ramp = 0;
 		  chThdSleepMicroseconds(1000);
+		  //motor.noinject = 1;
 
 		  /*
 		  // Einfach und funzt!
 		  motor.pwm_mode = PWM_MODE_SINGLEPHASE;
-		  motor.angle = 1;
+		  motor.angle = 3;
 		  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 		  set_bldc_pwm(&motor); // Position the motor to sync angle
 		  chThdSleepMilliseconds(1000);
 		  catchcount = 0;
 		  motor.state = OBLDC_STATE_RUNNING_SLOW;
 		  motor.pwm_mode = PWM_MODE_ANTIPHASE;
-		  motor.angle = 3;
+		  motor.angle = 1;
 		  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
 		  set_bldc_pwm(&motor); // Start running with back EMF detection
 		  */
@@ -288,7 +289,6 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.delta_t_zc		= 0xFFFF;
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!
-			  //motor.angle = (motor.angle - 2) % 6 + 1;
 			  motor.state = OBLDC_STATE_RUNNING_SLOW; // TODO: Make definitions for these values
 		  }
 		  chThdSleepMicroseconds(500);

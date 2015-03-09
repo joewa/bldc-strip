@@ -44,12 +44,14 @@ typedef struct {
 typedef struct {
 	obldc_state state;
 	obldc_pwm_mode pwm_mode;
+	int pwm_d;			// Duty cycle -10000 < d < 10000
 	int pwm_t_on;		// in timer clock ticks
 	int pwm_period;		// in timer clock ticks
 	int pwm_t_on_ADC;	// in ADC clock ticks
 	int pwm_period_ADC;
 	int angle, angle4;
-	int direction;
+	int8_t dir;
+	int dir_v_range;
 	uint8_t sense_inject_pattern[3];
 	uint8_t state_inject, state_ramp, noinject;
 	int16_t u_dc, u_dc2, u_dc_filt;
@@ -64,13 +66,13 @@ typedef struct {
 	uint8_t invSenseSign;// True when voltage must be inverted
 } motor_s;
 
-
+#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
 #define TIMER_CB_PERIOD 60000
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 50000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
 #define OBLDC_PWM_MIN_DUTY_CYCLE 0.02 // Minimum duty cycle
-#define OBLDC_PWM_MAX_DUTY_CYCLE 0.95 // Maximum duty cycle
+#define OBLDC_PWM_MAX_DUTY_CYCLE 1000 // Maximum duty cycle
 
 #define OBLDC_MIN_CATCH_VOLTAGE_OBSOLETE 360 // 1V minimum voltage to evaluate for motor position catching; /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage TODO: Check max ADC voltage 3V or 3.3V?
 

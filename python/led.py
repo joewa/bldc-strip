@@ -59,7 +59,7 @@ if (len(sys.argv) >= 3):
 		str[1] = 0x00
 	elif (sys.argv[2] == "val"):
 		if(len(sys.argv) == 4):
-			str[1] = int(int(sys.argv[3])/256)
+			str[1] = int( (int(sys.argv[3])/256) ) # Signed value
 			str[2] = int(int(sys.argv[3])%256)
 		else:
 			print "Not correct number of arguments. Provide 3 arguments"

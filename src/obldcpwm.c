@@ -90,7 +90,8 @@ void init_motor_struct(motor_s* motor) {
 	motor->i_dc_filt		= 0;
 	motor->i_dc_sum			= 0;
 	motor->angle			= 0;
-	motor->direction		= 0;
+	motor->dir				= 0;
+	motor->dir_v_range		= OBLDC_DIR_V_RANGE;
 	motor->time				= 0;
 	motor->time_zc			= 0;
 	motor->time_last_zc		= 0;
@@ -112,32 +113,42 @@ void init_motor_struct(motor_s* motor) {
 	table_angle2leg[6]=0; table_angle2leg2[0]=2; // 6,  1,  0, -1		1*/
 }
 
+inline void increment_angle(void) {
+	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1;
+	if(motor.dir == 1) {
+		motor.angle = (motor.angle) % 6 + 1;
+	} else {
+		motor.angle = (motor.angle + 4) % 6 + 1;
+	}
+}
+
 void motor_set_duty_cycle(motor_s* m, int d) {
 	int d_percent = (5000 + d / 2) / 100;
 	//TODO: Limitation of duty cycle to prevent over current using motor speed (and resistance)
-	if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
-		motor.pwm_mode = PWM_MODE_SINGLEPHASE;
-		motor.pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
+	m->pwm_d = d;
+	if(m->state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
+		m->pwm_mode = PWM_MODE_SINGLEPHASE;
+		m->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
 		// No zero crossing occurred yet
-		motor.time_zc			= 0;
-		motor.time_last_zc		= 0;
-		motor.time_next_commutate_cb = 0;
-		motor.delta_t_zc		= 0xFFFF;
-		motor.last_delta_t_zc	= 0xFFFF;
+		m->time_zc			= 0;
+		m->time_last_zc		= 0;
+		m->time_next_commutate_cb = 0;
+		m->delta_t_zc		= 0xFFFF;
+		m->last_delta_t_zc	= 0xFFFF;
 	}
 	else {
-		motor.pwm_mode = PWM_MODE_ANTIPHASE;
+		m->pwm_mode = PWM_MODE_ANTIPHASE;
 	}
 	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
 		m->pwm_t_on = m->pwm_period * d / 10000;
 	else {//PWM_MODE_ANTIPHASE
 		eval_vbat_idc(); // Evaluate from last cycle. New external triggered!
 		if(d_percent > 0 && d_percent < 100)// Adaptive PWM period. TODO: Test this!
-			motor.pwm_period = ADC_PWM_DIVIDER * (int)((ADC_PWM_PERIOD * 2500) / ((100 - d_percent) * d_percent));
+			m->pwm_period = ADC_PWM_DIVIDER * (int)((ADC_PWM_PERIOD * 2500) / ((100 - d_percent) * d_percent));
 		else
-			motor.pwm_period = PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY;
-		if(motor.pwm_period > PWM_MAXIMUM_PERIOD)
-			motor.pwm_period = PWM_MAXIMUM_PERIOD;
+			m->pwm_period = PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY;
+		if(m->pwm_period > PWM_MAXIMUM_PERIOD)
+			m->pwm_period = PWM_MAXIMUM_PERIOD;
 		m->pwm_t_on = m->pwm_period * (5000 + d / 2) / 10000;
 	}
 	m->pwm_t_on_ADC = m->pwm_t_on / ADC_PWM_DIVIDER;
@@ -146,6 +157,11 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	//m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
 	m->sumy=0;
 	m->invSenseSign = m->angle % 2;
+	/*if(m->invSenseSign == 0) // TODO REMOVE THIS
+		m->invSenseSign=1;
+	else
+		m->invSenseSign=0;*/
+
 	//get_vbat_sample(); // not external triggered
 	bufferInitStatic(ybuf, NREG);
 }
@@ -223,15 +239,16 @@ static void commutatetimercb(GPTDriver *gptp) {
   adcStopConversionI(&ADCD1);
   if(motor.state == OBLDC_STATE_RUNNING_SLOW || motor.state == OBLDC_STATE_RUNNING) {
 	  //catchcount = 0;
-	  motor.angle = (motor.angle) % 6 + 1;
+	  increment_angle(); // motor.angle = (motor.angle) % 6 + 1;
+	  //motor.angle = (motor.angle + 4) % 6 + 1;
 	  motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
 	  set_bldc_pwm(&motor);
 	  //pwmStop(&PWMD1);
 	  palTogglePad(GPIOB, GPIOB_LEDR);
   }
-  else if(motor.state = OBLDC_STATE_SENSE_INJECT) {
+  else if(motor.state == OBLDC_STATE_SENSE_INJECT) {
 	  motor.angle = (motor.angle) % 6 + 1;
-	  motor.angle = (motor.angle) % 6 + 1;
+	  increment_angle();//motor.angle = (motor.angle) % 6 + 1;
 	  motor_set_duty_cycle(&motor, 0);
 	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);
 	  set_bldc_pwm(&motor);
@@ -398,10 +415,10 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 		  y_off = y_off / sample_cnt_t_off - motor.u_dc;
 	  }
 
-	  if(y_on+300 < y_off) {
+	  if(y_on + motor.dir_v_range < y_off) {
 		  motor.sense_inject_pattern[motor.state_inject] = 3;
 	  }
-	  else if(y_on > y_off + 300) {
+	  else if(y_on > y_off + motor.dir_v_range) {
 		  motor.sense_inject_pattern[motor.state_inject] = 1;
 	  }
 	  else {
@@ -415,8 +432,7 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 	  else {
 		  decode_inject_pattern();
 		  motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position
-		  //motor.angle = (motor.angle) % 6 + 1;
-		  motor.angle4 = (motor.angle4 - 1 + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
+		  motor.angle4 = ((motor.angle4 - 1) + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
 		  if(motor.angle4 != 0) {// Winkel ist gültig; 50% chance dass das klappt
 			  if(motor.state_ramp == 0) { // Injection was called for the first time and the result may be wrong
 				  // The correct equation is motor.angle = ((motor.angle4 + 5) / 4) % 3 + 2; but motor.angle is incremented by 1 in schedule_commutate_cb
@@ -429,12 +445,12 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  //motor.state = OBLDC_STATE_RUNNING_SLOW;
 					  //schedule_commutate_cb(5);
 					  //gptStartOneShotI(&GPTD3, 8);
+					  //TODO motor.dir = sign(pwm_duty_Cycle)
+					  //motor.dir = 1;
+					  //motor.dir_v_range = OBLDC_DIR_V_RANGE;
 				  } else { // bad, angle is at D-axis
-					  //motor.state_ramp = 0; // im nächsten Durchgang nochmal prüfen
 					  motor.angle = (motor.angle) % 6 + 1;
-					  //motor.state = OBLDC_STATE_RUNNING_SLOW;
-					  //schedule_commutate_cb(5);
-					  //gptStartOneShotI(&GPTD3, 8);
+					  //increment_angle();
 				  }
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  //schedule_commutate_cb(5);
@@ -452,9 +468,14 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 
 			  } else { // motor.state_ramp > 1 : Injection, do tracking
 				  // TODO implement proper tracking code here
-				  if( (motor.angle4 - 1) % 4 == 0 ) {
-					  motor.angle = (motor.angle + 5) % 6 + 1;
+				  if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
+				  } else { // Change direction
+					  motor.dir = -motor.dir;
+					  //motor.dir_v_range = -motor.dir_v_range;
 				  }
+				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
+					  motor.angle = (motor.angle + 5) % 6 + 1;
+				  }*/
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  gptStartOneShotI(&GPTD3, 8);
 			  }
@@ -515,7 +536,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
    * 	2.: y_on+margin < y_off; motor has passed the maximum torque position
    * 4. Now immediately increment the angle by 1 and repeat...
    */
-  if(y_on+300 < y_off) {// Detect zero crossing here
+  if(y_on + motor.dir_v_range < y_off) {// Detect zero crossing here
 	  if(motor.state_reluct == 2) {
 		  //motortime_zc(motor.time_next_commutate_cb + k_sample);// gehoert hier nicht hin
 		  motor.state_reluct = 3;
@@ -531,13 +552,13 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
 		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 	  }
-  } else if(y_on > y_off + 300) {
+  } else if(y_on > y_off + motor.dir_v_range) {
 	  if(motor.state_reluct == 0) {
 		  motor.state_reluct = 1;
 	  }
   } else {// Found zero crossing
 	  if(motor.state_reluct == 1) {
-		  if(motor.state_ramp < 1) {
+		  if(motor.state_ramp < 1 && motor.noinject == 0) {
 			  motor.state_ramp++; // Call this sequence only once
 			  adcStopConversionI(&ADCD1);
 			  pwmStop(&PWMD1);
@@ -566,10 +587,8 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 
 		  motor.state_reluct = 2;
 		  //motor.u_dc2 = (y_on + y_off) / 2;
-		  debugbyte = 85;
 		  k_zc = k_sample;
 		  motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
-		  // TODO: Zeitmessung mit TIM3 mit GPT oder PWM-Treiber machen
 	  }
   }
 
