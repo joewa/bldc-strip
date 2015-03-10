@@ -114,10 +114,10 @@ void init_motor_struct(motor_s* motor) {
 }
 
 inline void increment_angle(void) {
-	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1;
+	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1; WARUM GEHT DAS NICHT!?
 	if(motor.dir == 1) {
 		motor.angle = (motor.angle) % 6 + 1;
-	} else {
+	} else if(motor.dir == -1) {
 		motor.angle = (motor.angle + 4) % 6 + 1;
 	}
 }
@@ -156,11 +156,11 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 	m->state_reluct = 0; // Unknown
 	//m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
 	m->sumy=0;
-	m->invSenseSign = m->angle % 2;
-	/*if(m->invSenseSign == 0) // TODO REMOVE THIS
-		m->invSenseSign=1;
+
+	if(m->dir == -1)
+		m->invSenseSign = (m->angle + 1) % 2;
 	else
-		m->invSenseSign=0;*/
+		m->invSenseSign = m->angle % 2;
 
 	//get_vbat_sample(); // not external triggered
 	bufferInitStatic(ybuf, NREG);
@@ -239,8 +239,7 @@ static void commutatetimercb(GPTDriver *gptp) {
   adcStopConversionI(&ADCD1);
   if(motor.state == OBLDC_STATE_RUNNING_SLOW || motor.state == OBLDC_STATE_RUNNING) {
 	  //catchcount = 0;
-	  increment_angle(); // motor.angle = (motor.angle) % 6 + 1;
-	  //motor.angle = (motor.angle + 4) % 6 + 1;
+	  increment_angle();
 	  motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
 	  set_bldc_pwm(&motor);
 	  //pwmStop(&PWMD1);
@@ -248,7 +247,7 @@ static void commutatetimercb(GPTDriver *gptp) {
   }
   else if(motor.state == OBLDC_STATE_SENSE_INJECT) {
 	  motor.angle = (motor.angle) % 6 + 1;
-	  increment_angle();//motor.angle = (motor.angle) % 6 + 1;
+	  motor.angle = (motor.angle) % 6 + 1;
 	  motor_set_duty_cycle(&motor, 0);
 	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);
 	  set_bldc_pwm(&motor);
@@ -431,6 +430,7 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 	  }
 	  else {
 		  decode_inject_pattern();
+		  //increment_angle(); //R
 		  motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position
 		  motor.angle4 = ((motor.angle4 - 1) + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
 		  if(motor.angle4 != 0) {// Winkel ist gültig; 50% chance dass das klappt
@@ -438,7 +438,6 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  // The correct equation is motor.angle = ((motor.angle4 + 5) / 4) % 3 + 2; but motor.angle is incremented by 1 in schedule_commutate_cb
 				  motor.angle = ((motor.angle4 + 5) / 4) % 3 + 1;
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
-				  //schedule_commutate_cb(5);
 				  gptStartOneShotI(&GPTD3, 8);
 			  } else if(motor.state_ramp <= 1){// Injection was called for the second time and we can check weather the first guess was good or bad
 				  if( (motor.angle4 - 1) % 4 != 0 ) { // good, angle is at Q-axis
@@ -450,7 +449,7 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  //motor.dir_v_range = OBLDC_DIR_V_RANGE;
 				  } else { // bad, angle is at D-axis
 					  motor.angle = (motor.angle) % 6 + 1;
-					  //increment_angle();
+					  //increment_angle();//R
 				  }
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  //schedule_commutate_cb(5);
@@ -470,7 +469,7 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  // TODO implement proper tracking code here
 				  if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
 				  } else { // Change direction
-					  motor.dir = -motor.dir;
+					  //motor.dir = -motor.dir;
 					  //motor.dir_v_range = -motor.dir_v_range;
 				  }
 				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
@@ -916,152 +915,4 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	palSetPad(GPIOB, pin_leg_enable[legp]);
     	palSetPad(GPIOB, pin_leg_enable[legn]);
     }
-}
-
-
-
-
-
-/* ---------- Catch mode ---------- */
-void catchcycle_obsolete(int voltage_u, int voltage_v, int voltage_w, uint8_t init) {
-	static int vdiff_1_last;
-	static int vdiff_2_last;
-	static int vdiff_3_last;
-	static int last_zero_crossing;
-	static int direction;
-	static int stopped_count;
-	int crossing_detected;
-	int hall_1, hall_2, hall_3;
-	int hall_code, hall_decoded, last_hall_decoded;
-
-	if (init == 1) {
-		halldecode[0]=0; halldecode[1]=4; halldecode[2]=2; halldecode[3]=3; halldecode[4]=6; halldecode[5]=5; halldecode[6]=1; halldecode[7]=0;
-		vdiff_1_last = 0;
-		vdiff_2_last = 0;
-		vdiff_3_last = 0;
-		last_zero_crossing = 0;
-		direction = 0;
-		stopped_count = 0;
-		last_hall_decoded = 0;
-	} else {
-		// init run variables
-		crossing_detected = 0;
-
-		// determine voltage between the phases
-		int vdiff_1 = voltage_v - voltage_u;
-		int vdiff_2 = voltage_w - voltage_v;
-		int vdiff_3 = voltage_u - voltage_w;
-
-		// determine min and max values
-		int vdiff_max = MAX(MAX(vdiff_1, vdiff_2), vdiff_3);
-		int vdiff_min = MIN(MIN(vdiff_1, vdiff_2), vdiff_3);
-
-		// when difference between min and max values > "MinCatchVoltage" -> Cond 1 fulfilled
-		if (ABS(vdiff_max - vdiff_min) > OBLDC_MIN_CATCH_VOLTAGE_OBSOLETE) {
-			// Cond 1 fulfilled
-			// detect zero crossing of a phase difference voltage
-			if (((vdiff_1 < 0) && (vdiff_1_last > 0)) || ((vdiff_1 > 0) && (vdiff_1_last < 0))) {
-				// zero crossing on vdiff_1
-				if (last_zero_crossing != 1) {
-					crossing_detected = 1;
-					last_zero_crossing = 1;
-				}
-			}
-
-			if (((vdiff_2 < 0) && (vdiff_2_last > 0)) || ((vdiff_2 > 0) && (vdiff_2_last < 0))) {
-				// zero crossing on vdiff_2
-				if (last_zero_crossing != 2) {
-					crossing_detected = 1;
-					last_zero_crossing = 2;
-				}
-			}
-			if (((vdiff_3 < 0) && (vdiff_3_last > 0)) || ((vdiff_3 > 0) && (vdiff_3_last < 0))) {
-				// zero crossing on vdiff_3
-				if (last_zero_crossing != 3) {
-					crossing_detected = 1;
-					last_zero_crossing = 3;
-				}
-			}
-
-			if (crossing_detected == 1) {
-				if (vdiff_1 > 0) {
-					hall_1 = 1;
-				} else {
-					hall_1 = 0;
-				}
-				if (vdiff_2 > 0) {
-					hall_2 = 1;
-				} else {
-					hall_2 = 0;
-				}
-				if (vdiff_3 > 0) {
-					hall_3 = 1;
-				} else {
-					hall_3 = 0;
-				}
-				hall_code = hall_1 + hall_2 * 2 + hall_3 * 4;
-				hall_decoded = halldecode[hall_code]; // determine motor angle in [1-6]
-
-				crossing_detected = 0;
-
-			}
-
-			// check if distance to last 'angle' is = 1
-			if (ABS(hall_decoded - last_hall_decoded) && (last_hall_decoded != 0)) {
-				// determine direction of rotation
-				if (hall_decoded > last_hall_decoded) {
-					direction = 1;
-				} else {
-					direction = 2;
-				}
-			} else {
-				last_hall_decoded = hall_decoded;
-			}
-
-			vdiff_1_last = vdiff_1;
-			vdiff_2_last = vdiff_2;
-			vdiff_3_last = vdiff_3;
-		} else {
-			// count 'elses': if > 10 -> Motor is stopped -> start startup algorithm
-			stopped_count = stopped_count + 1;
-			if (stopped_count > 10) {
-				// start startup algorithm
-			}
-		}
-		// neue adc-messung starten
-		catchconversion();
-	}
-}
-static void pwmcatchmodecb(PWMDriver *pwmp) {
-
-  (void)pwmp;
-  // evaluate last ADC measurement
-  // determine voltage; for efficiency reasons, we calculating with the ADC value and do not convert to a float for [V]
-  int voltage_u = getcatchsamples()[0]; // /4095.0 * 3 * 13.6/3.6; // convert to voltage: /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage
-  int voltage_v = getcatchsamples()[1]; // /4095.0 * 3 * 13.6/3.6;
-  int voltage_w = getcatchsamples()[2]; // /4095.0 * 3 * 13.6/3.6;
-
-  catchcycle_obsolete(voltage_u, voltage_v, voltage_w, FALSE); // evaluate measurements for 'hall decoding'
-}
-
-static PWMConfig pwmcatchmodecfg = {
-  2e6, /* 2MHz PWM clock frequency */
-  20000, /* PWM period 10ms (orig 100us) => Update-event 100Hz (orig 10kHz) */
-  pwmcatchmodecb,  /* No callback */
-  {
-    {PWM_OUTPUT_DISABLED, NULL},
-    {PWM_OUTPUT_DISABLED, NULL},
-    {PWM_OUTPUT_DISABLED, NULL},
-    {PWM_OUTPUT_DISABLED, NULL},
-  }, /* We only need the counter; do not generate any PWM output */
-  0, // TIM CR2 register initialization data, "should normally be zero"
-  0 // TIM DIER register initialization data, "should normally be zero"
-};
-
-void startcatchmodePWM(void) {
-	/* 1. Trigger first ADC measurement
-	 * 2. Start PWM timer for ADC triggering at 10kHz */
-	//catchconversion(); // 1.
-	//catchcycle_obsolete(0, 0, 0, TRUE); // initialize catch state variables
-	//pwmStart(&PWMD3, &pwmcatchmodecfg);
 }

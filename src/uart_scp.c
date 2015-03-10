@@ -145,19 +145,16 @@ static void rxend(UARTDriver *uartp) {
     	motor.dir = 1;
     	motor.dir_v_range = OBLDC_DIR_V_RANGE;
     	temp_int16 = (int16_t)(rxBuffer[1] << 8) + rxBuffer[2];
-    	if(temp_int16 > OBLDC_PWM_MAX_DUTY_CYCLE) {
-    		//motor_cmd.duty_cycle = OBLDC_PWM_MAX_DUTY_CYCLE;
-    		motor_cmd.duty_cycle = OBLDC_PWM_MAX_DUTY_CYCLE;
-    	}
-    	else if(temp_int16 < -OBLDC_PWM_MAX_DUTY_CYCLE)
-    		motor_cmd.duty_cycle = -OBLDC_PWM_MAX_DUTY_CYCLE;
-    	else
-    		motor_cmd.duty_cycle = temp_int16;
     	if(temp_int16 >= 0) {
-    		motor.dir = 1;
+    		motor.dir = 1;// motor.dir = 1; //TODO: bis das python script geht
     	} else {
     		motor.dir = -1;
     	}
+    	if(temp_int16 > OBLDC_PWM_MAX_DUTY_CYCLE)
+    		motor_cmd.duty_cycle = OBLDC_PWM_MAX_DUTY_CYCLE;
+    	else
+    		motor_cmd.duty_cycle = temp_int16;
+
     	txBuffer[0] = SCP_ACK;
       break;
 

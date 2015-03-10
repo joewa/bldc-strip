@@ -50,8 +50,8 @@ typedef struct {
 	int pwm_t_on_ADC;	// in ADC clock ticks
 	int pwm_period_ADC;
 	int angle, angle4;
-	int8_t dir;
-	int dir_v_range;
+	int dir;
+	int16_t dir_v_range;
 	uint8_t sense_inject_pattern[3];
 	uint8_t state_inject, state_ramp, noinject;
 	int16_t u_dc, u_dc2, u_dc_filt;

@@ -238,10 +238,11 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
 		  //motor.state_ramp = 0;
 		  chThdSleepMicroseconds(1000);
-		  //motor.noinject = 1;
+
 
 		  /*
 		  // Einfach und funzt!
+		  motor.noinject = 1;
 		  motor.pwm_mode = PWM_MODE_SINGLEPHASE;
 		  motor.angle = 3;
 		  motor_set_duty_cycle(&motor, 600);// ACHTUNG!!! 1000 geht gerade noch
