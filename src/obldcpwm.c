@@ -90,7 +90,8 @@ void init_motor_struct(motor_s* motor) {
 	motor->i_dc_filt		= 0;
 	motor->i_dc_sum			= 0;
 	motor->angle			= 0;
-	motor->dir				= 0;
+	motor->dir				= 1;
+	motor->dirjustchanged	= 0;
 	motor->dir_v_range		= OBLDC_DIR_V_RANGE;
 	motor->time				= 0;
 	motor->time_zc			= 0;
@@ -246,8 +247,8 @@ static void commutatetimercb(GPTDriver *gptp) {
 	  palTogglePad(GPIOB, GPIOB_LEDR);
   }
   else if(motor.state == OBLDC_STATE_SENSE_INJECT) {
-	  motor.angle = (motor.angle) % 6 + 1;
-	  motor.angle = (motor.angle) % 6 + 1;
+	  //motor.angle = (motor.angle + 1) % 6 + 1;
+	  increment_angle();increment_angle();
 	  motor_set_duty_cycle(&motor, 0);
 	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);
 	  set_bldc_pwm(&motor);
@@ -331,7 +332,12 @@ uint16_t* csamples;
 
 void decode_inject_pattern(void) {
 	uint8_t u,v,w;
-	u = motor.sense_inject_pattern[0]; v = motor.sense_inject_pattern[1]; w = motor.sense_inject_pattern[2];
+	if(motor.dir >= 0) {
+		u = motor.sense_inject_pattern[0]; v = motor.sense_inject_pattern[1]; w = motor.sense_inject_pattern[2];
+	} else {// Injection sequence was called in reversed order
+		//u = motor.sense_inject_pattern[1]; v = motor.sense_inject_pattern[2]; w = motor.sense_inject_pattern[0];
+		u = motor.sense_inject_pattern[0]; v = motor.sense_inject_pattern[1]; w = motor.sense_inject_pattern[2];
+	}
 	if(u == 2) {
 		if(v == 1) {
 			if(w == 3) motor.angle4 = 1; else motor.angle4 = 0; // D
@@ -430,8 +436,8 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 	  }
 	  else {
 		  decode_inject_pattern();
-		  //increment_angle(); //R
-		  motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position
+		  increment_angle(); increment_angle();//R
+		  //motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position
 		  motor.angle4 = ((motor.angle4 - 1) + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
 		  if(motor.angle4 != 0) {// Winkel ist gültig; 50% chance dass das klappt
 			  if(motor.state_ramp == 0) { // Injection was called for the first time and the result may be wrong
@@ -446,10 +452,9 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  //gptStartOneShotI(&GPTD3, 8);
 					  //TODO motor.dir = sign(pwm_duty_Cycle)
 					  //motor.dir = 1;
-					  //motor.dir_v_range = OBLDC_DIR_V_RANGE;
 				  } else { // bad, angle is at D-axis
-					  motor.angle = (motor.angle) % 6 + 1;
-					  //increment_angle();//R
+					  //motor.angle = (motor.angle) % 6 + 1;
+					  increment_angle();//R
 				  }
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  //schedule_commutate_cb(5);
@@ -468,9 +473,12 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 			  } else { // motor.state_ramp > 1 : Injection, do tracking
 				  // TODO implement proper tracking code here
 				  if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
+					  motor.dirjustchanged=0;
 				  } else { // Change direction
-					  //motor.dir = -motor.dir;
-					  //motor.dir_v_range = -motor.dir_v_range;
+					  if(motor.dirjustchanged == 0) {
+						  motor.dir = -motor.dir; motor.dirjustchanged = 1;
+						  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!!
+					  }
 				  }
 				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
 					  motor.angle = (motor.angle + 5) % 6 + 1;
@@ -557,21 +565,16 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  }
   } else {// Found zero crossing
 	  if(motor.state_reluct == 1) {
+		  //if(motor.noinject == 0) {
 		  if(motor.state_ramp < 1 && motor.noinject == 0) {
-			  motor.state_ramp++; // Call this sequence only once
+			  if(motor.state_ramp < 2) motor.state_ramp++;//motor.state_ramp++; // Call this sequence only once
 			  adcStopConversionI(&ADCD1);
 			  pwmStop(&PWMD1);
 			  //trigger injection sequence at the two other phases to check if angle4 refers to a D- or a Q-Axis position
 			  motor.state = OBLDC_STATE_SENSE_INJECT;
 			  motor.sense_inject_pattern[0] = 2;// Keep zero crossing at the the actual phase
 			  motor.state_inject = 1; // Skip actual phase
-			  //motor.angle = (motor.angle) % 6 + 1;
-			  //motor.angle = (motor.angle) % 6 + 1;
-			  //motor.angle = (motor.angle) % 6 + 1;
-			  //motor.angle = (motor.angle) % 6 + 1;
 			  gptStartOneShotI(&GPTD3, 8);
-			  //schedule_commutate_cb(50);
-
 			  /*
 			  // Jetzt injection-messung machen:
 			  // ...

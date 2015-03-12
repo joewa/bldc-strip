@@ -51,6 +51,7 @@ typedef struct {
 	int pwm_period_ADC;
 	int angle, angle4;
 	int dir;
+	uint8_t dirjustchanged;
 	int16_t dir_v_range;
 	uint8_t sense_inject_pattern[3];
 	uint8_t state_inject, state_ramp, noinject;

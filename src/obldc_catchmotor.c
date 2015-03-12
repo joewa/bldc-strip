@@ -238,7 +238,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
 		  //motor.state_ramp = 0;
 		  chThdSleepMicroseconds(1000);
-
+		  //motor.state = OBLDC_STATE_STARTING_SENSE_1; // DEBUG position sensing
 
 		  /*
 		  // Einfach und funzt!
@@ -267,7 +267,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  if(catchcount > 8) {
 			  motor.noinject = 0;
 		  }
-		  if(catchcount > 200) { // Timeout!
+		  if(catchcount > 500) { // Timeout!
 			  pwmStop(&PWMD1);
 			  adcStopConversion(&ADCD1);
 			  catchcount = 0;
