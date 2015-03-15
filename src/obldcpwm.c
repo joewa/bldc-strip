@@ -331,12 +331,13 @@ uint16_t* csamples;
  */
 
 void decode_inject_pattern(void) {
-	uint8_t u,v,w;
+	uint8_t u,v,w;// Is NOT u,v,w phases of the motor
 	if(motor.dir >= 0) {
 		u = motor.sense_inject_pattern[0]; v = motor.sense_inject_pattern[1]; w = motor.sense_inject_pattern[2];
 	} else {// Injection sequence was called in reversed order
 		//u = motor.sense_inject_pattern[1]; v = motor.sense_inject_pattern[2]; w = motor.sense_inject_pattern[0];
 		u = motor.sense_inject_pattern[0]; v = motor.sense_inject_pattern[1]; w = motor.sense_inject_pattern[2];
+		//u = motor.sense_inject_pattern[0]; v = motor.sense_inject_pattern[2]; w = motor.sense_inject_pattern[1];
 	}
 	if(u == 2) {
 		if(v == 1) {
@@ -438,11 +439,14 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 		  decode_inject_pattern();
 		  increment_angle(); increment_angle();//R
 		  //motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position
+		  //motor.angle=1;
 		  motor.angle4 = ((motor.angle4 - 1) + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
 		  if(motor.angle4 != 0) {// Winkel ist gültig; 50% chance dass das klappt
 			  if(motor.state_ramp == 0) { // Injection was called for the first time and the result may be wrong
 				  // The correct equation is motor.angle = ((motor.angle4 + 5) / 4) % 3 + 2; but motor.angle is incremented by 1 in schedule_commutate_cb
-				  motor.angle = ((motor.angle4 + 5) / 4) % 3 + 1;
+				  //motor.angle = ((motor.angle4 + 5) / 4) % 3 + 1; // Nur für motor.dir == 1 !!!
+				  motor.angle = ((motor.angle4 + 5) / 4 - 1) % 3 + 1; increment_angle();
+
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  gptStartOneShotI(&GPTD3, 8);
 			  } else if(motor.state_ramp <= 1){// Injection was called for the second time and we can check weather the first guess was good or bad
@@ -453,7 +457,7 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  //TODO motor.dir = sign(pwm_duty_Cycle)
 					  //motor.dir = 1;
 				  } else { // bad, angle is at D-axis
-					  //motor.angle = (motor.angle) % 6 + 1;
+					  //motor.angle = (motor.angle) % 6 + 1; //Nur für motor.dir == 1 !!!
 					  increment_angle();//R
 				  }
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
@@ -472,14 +476,14 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 
 			  } else { // motor.state_ramp > 1 : Injection, do tracking
 				  // TODO implement proper tracking code here
-				  if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
+				  /*if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
 					  motor.dirjustchanged=0;
 				  } else { // Change direction
 					  if(motor.dirjustchanged == 0) {
 						  motor.dir = -motor.dir; motor.dirjustchanged = 1;
 						  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!!
 					  }
-				  }
+				  }*/
 				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
 					  motor.angle = (motor.angle + 5) % 6 + 1;
 				  }*/
