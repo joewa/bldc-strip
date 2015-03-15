@@ -60,8 +60,8 @@ if (len(sys.argv) >= 3):
 		str[1] = 0x00
 	elif (sys.argv[2] == "val"):
 		if(len(sys.argv) == 4):
-			str[2] = ((numpy.int16(int(sys.argv[3])) & 0xFF00) >> 8)
-			str[3] = (numpy.int16(int(sys.argv[3])) & 0xFF)
+			str[2] = numpy.int8((numpy.int16(int(sys.argv[3])) & 0xFF00) >> 8)
+			str[3] = numpy.int8(numpy.int16(int(sys.argv[3])) & 0xFF)
 		else:
 			print "Not correct number of arguments. Provide 3 arguments"
 			sys.exit()				
