@@ -9,6 +9,7 @@
 
 import serial
 import sys
+import math
 
 
 def	crc8(data_in):
@@ -59,8 +60,15 @@ if (len(sys.argv) >= 3):
 		str[1] = 0x00
 	elif (sys.argv[2] == "val"):
 		if(len(sys.argv) == 4):
-			str[1] = int( (int(sys.argv[3])/256) ) # Signed value
-			str[2] = int(int(sys.argv[3])%256)
+			#str[1] = int( (int(sys.argv[3])/256) ) # Signed value
+			#str[2] = int(int(sys.argv[3])%256)
+			# 1200	-> 100	10110000
+			#	-> 4	
+			if(int(sys.argv[3]) >= 0):
+				str[1] = int(int(sys.argv[3])/256.0)
+			else:
+				str[1] = int(abs(int(sys.argv[3]))/256.0)
+			str[2] = abs(int(sys.argv[3]))%256
 		else:
 			print "Not correct number of arguments. Provide 3 arguments"
 			sys.exit()				
