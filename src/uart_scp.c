@@ -90,7 +90,7 @@ static void rxend(UARTDriver *uartp) {
   (void)uartp;
 
   //chSysLockFromISR(); // commutation is disturbed when called
-  int16_t temp_int16;
+  uint16_t temp_uint16;
   uint8_t crc = crc8(rxBuffer, SCP_PACKET_LENGTH - 1);
 
 
@@ -142,22 +142,35 @@ static void rxend(UARTDriver *uartp) {
       break;
     case SCP_SETDUTYCYCLE:
     	//if(rxBuffer[1]>7) rxBuffer[1] = 7;
-    	motor.dir = 1;
+    	//motor.dir = 1;
     	motor.dir_v_range = OBLDC_DIR_V_RANGE;
-    	temp_int16 = (int16_t)(rxBuffer[1] << 8) + rxBuffer[2];
-    	if(temp_int16 >= 0) {
+    	temp_uint16 = (uint16_t)(rxBuffer[1] << 8) + rxBuffer[2];
+    	/*if(temp_uint16 >= 0) {
     		motor.dir = 1;// motor.dir = 1; //TODO: bis das python script geht
     	} else {
     		motor.dir = -1;
-    	}
-    	if(temp_int16 > OBLDC_PWM_MAX_DUTY_CYCLE)
+    		temp_int16 = -temp_int16;
+    	}*/
+    	if(temp_uint16 > OBLDC_PWM_MAX_DUTY_CYCLE)
     		motor_cmd.duty_cycle = OBLDC_PWM_MAX_DUTY_CYCLE;
     	else
-    		motor_cmd.duty_cycle = temp_int16;
+    		motor_cmd.duty_cycle = temp_uint16;
 
     	txBuffer[0] = SCP_ACK;
       break;
-
+    case SCP_DIRECTION:
+        if (rxBuffer[1] == 0x00) {
+        	motor.dir = -1;
+          txBuffer[0] = SCP_ACK;
+        }
+        else if (rxBuffer[1] == 0xFF) {
+        	motor.dir = 1;
+          txBuffer[0] = SCP_ACK;
+        }
+        else {
+          txBuffer[0] = SCP_NACK;
+        }
+    	break;
     }
 
 

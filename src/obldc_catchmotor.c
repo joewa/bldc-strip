@@ -219,7 +219,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 
   int catchstate = 0; int catchresult = 0; int catchcount = 0;
   //init_motor_struct(&motor);
-  motor.angle = 1;
+  motor.angle = 4;
   //motor.state = OBLDC_STATE_STARTING_SYNC;
   motor.state = OBLDC_STATE_STARTING_SENSE_1;
   //motor.pwm_duty_cycle = 0;
@@ -232,7 +232,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  motor.state = OBLDC_STATE_SENSE_INJECT;
 		  motor.pwm_mode = PWM_MODE_ANTIPHASE;
 		  motor.state_inject = 0;
-		  motor.angle = 1;
+		  motor.angle = 4;
 		  motor.state_ramp = 0;
 		  motor_set_duty_cycle(&motor, 0);
 		  set_bldc_pwm(&motor); // Start position detection by inductance measurement

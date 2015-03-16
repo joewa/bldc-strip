@@ -247,8 +247,8 @@ static void commutatetimercb(GPTDriver *gptp) {
 	  palTogglePad(GPIOB, GPIOB_LEDR);
   }
   else if(motor.state == OBLDC_STATE_SENSE_INJECT) {
-	  //motor.angle = (motor.angle + 1) % 6 + 1;
-	  increment_angle();increment_angle();
+	  motor.angle = (motor.angle + 1) % 6 + 1;
+	  //increment_angle();increment_angle(); // Beide richtugen
 	  motor_set_duty_cycle(&motor, 0);
 	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);
 	  set_bldc_pwm(&motor);
@@ -378,6 +378,8 @@ void decode_inject_pattern(void) {
 			} else motor.angle4 = 0;
 		}
 	}
+
+	if(motor.dir < 0) motor.angle4 = (motor.angle4 + 5) % 12 + 1;
 }
 
 int16_t y_on, y_off, sample_cnt_t_on, sample_cnt_t_off, x_old, y_old;
@@ -437,15 +439,20 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 	  }
 	  else {
 		  decode_inject_pattern();
-		  increment_angle(); increment_angle();//R
-		  //motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position
+		  //increment_angle(); increment_angle();// Beide richtungen?
+		  motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position. Nur für motor.dir == 1 !!!
 		  //motor.angle=1;
 		  motor.angle4 = ((motor.angle4 - 1) + (motor.angle - 1) * 4) % 12 + 1; // correction of result of decode_inject_pattern
 		  if(motor.angle4 != 0) {// Winkel ist gültig; 50% chance dass das klappt
 			  if(motor.state_ramp == 0) { // Injection was called for the first time and the result may be wrong
 				  // The correct equation is motor.angle = ((motor.angle4 + 5) / 4) % 3 + 2; but motor.angle is incremented by 1 in schedule_commutate_cb
 				  //motor.angle = ((motor.angle4 + 5) / 4) % 3 + 1; // Nur für motor.dir == 1 !!!
-				  motor.angle = ((motor.angle4 + 5) / 4 - 1) % 3 + 1; increment_angle();
+				  //motor.angle = ((motor.angle4 + 5) / 4 - 1) % 3 + 1; increment_angle(); // Worked!
+				  if(motor.dir == 1) { // fine tuning...
+					  motor.angle = ((motor.angle4 + 6) / 4 - 1) % 3 + 1; increment_angle();
+				  } else {
+					  motor.angle = ((motor.angle4 + 4) / 4 - 1) % 3 + 1; increment_angle();
+				  }
 
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  gptStartOneShotI(&GPTD3, 8);
@@ -482,8 +489,10 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  if(motor.dirjustchanged == 0) {
 						  motor.dir = -motor.dir; motor.dirjustchanged = 1;
 						  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!!
+						  //increment_angle();increment_angle();increment_angle();//increment_angle();
 					  }
 				  }*/
+
 				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
 					  motor.angle = (motor.angle + 5) % 6 + 1;
 				  }*/
@@ -573,7 +582,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  if(motor.state_ramp < 1 && motor.noinject == 0) {
 			  if(motor.state_ramp < 2) motor.state_ramp++;//motor.state_ramp++; // Call this sequence only once
 			  adcStopConversionI(&ADCD1);
-			  pwmStop(&PWMD1);
+			  //pwmStop(&PWMD1);
 			  //trigger injection sequence at the two other phases to check if angle4 refers to a D- or a Q-Axis position
 			  motor.state = OBLDC_STATE_SENSE_INJECT;
 			  motor.sense_inject_pattern[0] = 2;// Keep zero crossing at the the actual phase

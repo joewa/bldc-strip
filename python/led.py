@@ -9,7 +9,6 @@
 
 import serial
 import sys
-import numpy
 
 
 def	crc8(data_in):
@@ -50,6 +49,9 @@ if (len(sys.argv) >= 3):
 		str[0] = 0xF2
 	elif (sys.argv[1] == "dutycycle"):
 		str[0] = 0xF3
+	elif (sys.argv[1] == "direction"):
+		str[0] = 0xF4
+
 	else:
 		print "Argument 1 is not valid, use led1 or led2 or motorstate";
 		sys.exit()
@@ -60,8 +62,8 @@ if (len(sys.argv) >= 3):
 		str[1] = 0x00
 	elif (sys.argv[2] == "val"):
 		if(len(sys.argv) == 4):
-			str[2] = numpy.int8((numpy.int16(int(sys.argv[3])) & 0xFF00) >> 8)
-			str[3] = numpy.int8(numpy.int16(int(sys.argv[3])) & 0xFF)
+			str[1] = int( (int(sys.argv[3])/256) ) # Signed value
+			str[2] = int(int(sys.argv[3])%256)
 		else:
 			print "Not correct number of arguments. Provide 3 arguments"
 			sys.exit()				
