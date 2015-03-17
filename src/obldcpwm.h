@@ -65,6 +65,7 @@ typedef struct {
 	int32_t sumy;
 	//int64_t sumx, sumx2, sumxy, sumy, sumy2;
 	uint8_t invSenseSign;// True when voltage must be inverted
+	int16_t something;
 } motor_s;
 
 #define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement

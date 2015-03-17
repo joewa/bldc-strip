@@ -378,7 +378,10 @@ void decode_inject_pattern(void) {
 			} else motor.angle4 = 0;
 		}
 	}
-
+	/*
+	 * When motor.dir == -1 the results of sense_inject_pattern are inverted, i.e. 1 is 3 and 3 is 1.
+	 * To get same motor.angle4 in both directions, it must be shifted by 90 deg.
+	 */
 	if(motor.dir < 0) motor.angle4 = (motor.angle4 + 5) % 12 + 1;
 }
 
@@ -483,6 +486,26 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 
 			  } else { // motor.state_ramp > 1 : Injection, do tracking
 				  // TODO implement proper tracking code here
+				  // Calculate true difference between angle4 and angle
+				  if(motor.dir == 1) {
+					  motor.something = ( (motor.angle4 - 1) - ((motor.angle - 1) % 3) * 4 ) % 12;
+				  } else {
+					  motor.something = ( ((motor.angle - 1) % 3) * 4 - (motor.angle4 - 1) ) % 12;
+				  }
+				  if(motor.something >= 6) motor.something -= 12;
+				  // Positive --> negative direction when positive was commanded WORKS!
+				  if(motor.dir == 1 && motor.something > -4 && motor_cmd.duty_cycle > 0 && motor.dirjustchanged == 0) {
+					  motor.dir = -1; motor.dirjustchanged = 1;
+					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!!
+				  } else if(motor.dir == -1 && motor.something > -4 && motor_cmd.duty_cycle > 0 && motor.dirjustchanged == 0) {
+					  // Negative --> positive direction when negative was commanded WORKS!
+					  motor.dir = 1; motor.dirjustchanged = 1;
+					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle;
+				  } else {
+					  motor.dirjustchanged = 0;
+				  }
+
+
 				  /*if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
 					  motor.dirjustchanged=0;
 				  } else { // Change direction
@@ -565,7 +588,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 			  if(motor.state_ramp < 2) motor.state_ramp++;
 			  //trigger injection sequence at the two other phases to check if angle4 refers to a D- or a Q-Axis position
 			  motor.state = OBLDC_STATE_SENSE_INJECT;
-			  motor.sense_inject_pattern[0] = 2;// Keep zero crossing at the the actual phase
+			  motor.sense_inject_pattern[0] = 3; // Keep actually measured value // Keep zero crossing at the the actual phase
 			  motor.state_inject = 1; // Skip actual phase
 		  }
 		  schedule_commutate_cb(50);
