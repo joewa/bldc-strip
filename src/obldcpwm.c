@@ -495,13 +495,24 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  if(motor.something >= 6) motor.something -= 12;
 				  // Positive --> negative direction when positive was commanded WORKS!
 				  if(motor.dir == 1 && motor.something > -4 && motor_cmd.duty_cycle > 0 && motor.dirjustchanged == 0) {
-					  motor.dir = -1; motor.dirjustchanged = 1;
-					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!!
-				  } else if(motor.dir == -1 && motor.something > -4 && motor_cmd.duty_cycle > 0 && motor.dirjustchanged == 0) {
-					  // Negative --> positive direction when negative was commanded WORKS!
-					  motor.dir = 1; motor.dirjustchanged = 1;
+					  motor.dir = -1; //motor.dirjustchanged = 1;// TODO motor_cmd.dir machen!
+					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!! motor.duty
+				  } // Negative --> positive direction when negative was commanded WORKS!
+				  else if(motor.dir == -1 && motor.something > -4 && motor_cmd.duty_cycle > 0 && motor.dirjustchanged == 0) {
+					  motor.dir = 1; //motor.dirjustchanged = 1;
 					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle;
-				  } else {
+				  }
+				  else if(motor.dir == -1 && motor.something > -4 && motor_cmd.duty_cycle < 0 && motor.dirjustchanged == 0) {
+					  increment_angle();increment_angle();
+					  motor.dir = 1; //motor.dirjustchanged = 1;// TODO motor_cmd.dir machen!
+					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!! motor.duty
+				  }
+				  else if(motor.dir == 1 && motor.something > -4 && motor_cmd.duty_cycle < 0 && motor.dirjustchanged == 0) {
+					  increment_angle();increment_angle();
+					  motor.dir = -1; //motor.dirjustchanged = 1;// TODO motor_cmd.dir machen!
+					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!! motor.duty
+				  }
+				  else {
 					  motor.dirjustchanged = 0;
 				  }
 
