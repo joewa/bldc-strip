@@ -15,7 +15,7 @@
 #include "obldcpwm.h"
 
 extern motor_s motor; // Motor-struct from obldcpwm.c
-extern motor_cmd_s motor_cmd;// Motor-cmd from obldcpwm.c
+extern motor_cmd_s motor_cmd, motor_cmd_temp;// Motor-cmd from obldcpwm.c
 
 static uint8_t halldecode[8];
 
@@ -234,7 +234,8 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  motor.state_inject = 0;
 		  motor.angle = 4;
 		  motor.state_ramp = 0;
-		  motor_set_duty_cycle(&motor, 0);
+		  motor_cmd_temp.duty_cycle = 0; motor_cmd_temp.dir = 0;
+		  motor_set_cmd(&motor, &motor_cmd_temp);
 		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
 		  //motor.state_ramp = 0;
 		  chThdSleepMicroseconds(1000);
@@ -267,8 +268,10 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  if(catchcount > 8) {
 			  motor.noinject = 0;
 		  }
-		  if(catchcount > 500) { // Timeout!
+		  if(catchcount > 300) { // Timeout!
 			  pwmStop(&PWMD1);
+			  motor.dir = motor_cmd.dir;// Motor stopped, forget direction. TODO remove when tracking works
+			  //motor.dir = 0;
 			  adcStopConversion(&ADCD1);
 			  catchcount = 0;
 			  motor.delta_t_zc		= 0xFFFF;
@@ -296,7 +299,8 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  }
 	  if(motor.state == OBLDC_STATE_STARTING_SYNC) { // Ramp up the motor
 		  //set_bldc_pwm(angle, 300 + (speed*4)/3, 50); // u/f operation
-		  motor_set_duty_cycle( &motor, 500 + (speed * 6) / 3 );
+		  motor_cmd_temp.duty_cycle = 500 + (speed * 6) / 3; motor_cmd_temp.dir = 1;
+		  motor_set_cmd( &motor, &motor_cmd_temp );
 		  set_bldc_pwm(&motor);
 		  speed = speed + acceleration;
 		  delta_t = 1000000 / speed;
@@ -325,7 +329,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			   * TODO catchcycle scheint fuer Winkel 3 und 5 ordentlich zu funktionieren.
 			   * --> Ueberarbeiten, damit es fuer alle anderen Winkel auch geht!
 			   */
-			  catchresult = catchstate;
+			  /*catchresult = catchstate;
 			  uartSendACK(); // Oszilloskop-Trigger auf UART
 			  palClearPad(GPIOB, GPIOB_LEDR);
 			  //adcStopConversion(&ADCD1);
@@ -346,7 +350,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  catchcount = 0;
 			  for (winkelcount=0; winkelcount < 10; winkelcount++) letzte_winkel[winkelcount] = 9;//Winkelcount ist Debug-Kram
 			  winkelcount = 0;
-			  motor.state = OBLDC_STATE_STARTING_SYNC;
+			  motor.state = OBLDC_STATE_STARTING_SYNC;*/
 		  }
 		  if(catchcount > 10000) { // Timeout!
 			  catchcount = 0;

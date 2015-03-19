@@ -39,6 +39,7 @@ typedef enum {
 
 typedef struct {
 	int16_t duty_cycle; // Duty cycle 100%=10000
+	int16_t dir;
 } motor_cmd_s;
 
 typedef struct {
@@ -86,7 +87,7 @@ void motor_start_timer();
 inline int64_t motortime_now();
 motor_s* get_motor_ptr(void);
 void set_bldc_pwm(motor_s* m);
-void motor_set_duty_cycle(motor_s* m, int d);
+void motor_set_cmd(motor_s* m, motor_cmd_s* cmd);
 void set_bldc_pwm_adc(int angle, int duty_cycle, int period);
 void startcatchmodePWM(void);
 void init_motor_struct(motor_s* motor);

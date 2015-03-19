@@ -151,24 +151,30 @@ static void rxend(UARTDriver *uartp) {
     		motor.dir = -1;
     		temp_int16 = -temp_int16;
     	}*/
-    	if(temp_uint16 > OBLDC_PWM_MAX_DUTY_CYCLE)
+    	if(temp_uint16 > OBLDC_PWM_MAX_DUTY_CYCLE) {
     		motor_cmd.duty_cycle = OBLDC_PWM_MAX_DUTY_CYCLE;
-    	else
+    	}
+    	else {
     		motor_cmd.duty_cycle = temp_uint16;
+    	}
+
+        if(motor.dir == 0) {
+        	motor.dir = motor_cmd.dir;
+        }
 
     	txBuffer[0] = SCP_ACK;
       break;
     case SCP_DIRECTION:
         if (rxBuffer[1] == 0x00) {
-        	motor.dir = -1;
-          txBuffer[0] = SCP_ACK;
+        	motor_cmd.dir = -1;
+        	txBuffer[0] = SCP_ACK;
         }
         else if (rxBuffer[1] == 0xFF) {
-        	motor.dir = 1;
-          txBuffer[0] = SCP_ACK;
+        	motor_cmd.dir = 1;
+        	txBuffer[0] = SCP_ACK;
         }
         else {
-          txBuffer[0] = SCP_NACK;
+        	txBuffer[0] = SCP_NACK;
         }
     	break;
     }

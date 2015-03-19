@@ -18,7 +18,7 @@
 extern uint8_t debugbyte;
 
 motor_s motor;	// Stores all motor data
-motor_cmd_s motor_cmd;
+motor_cmd_s motor_cmd, motor_cmd_temp;
 
 //#define ADC_COMMUTATE_NUM_CHANNELS  5
 //#define ADC_COMMUTATE_BUF_DEPTH     8
@@ -90,7 +90,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->i_dc_filt		= 0;
 	motor->i_dc_sum			= 0;
 	motor->angle			= 0;
-	motor->dir				= 1;
+	motor->dir				= 0;
 	motor->dirjustchanged	= 0;
 	motor->dir_v_range		= OBLDC_DIR_V_RANGE;
 	motor->time				= 0;
@@ -100,7 +100,8 @@ void init_motor_struct(motor_s* motor) {
 	motor->delta_t_zc		= 0xFFFF;
 	motor->last_delta_t_zc	= 0xFFFF;
 	motor->noinject = 0;
-	motor_cmd.duty_cycle = 0; //1000;
+	motor_cmd.duty_cycle 	= 0; //1000;
+	motor_cmd.dir			= 1;
 
 	bufferInitStatic(ubuf, 6);
 	bufferInitStatic(ibuf, 6);
@@ -123,10 +124,16 @@ inline void increment_angle(void) {
 	}
 }
 
-void motor_set_duty_cycle(motor_s* m, int d) {
-	int d_percent = (5000 + d / 2) / 100;
+void motor_set_cmd(motor_s* m, motor_cmd_s* cmd) {
+	int d_percent;
+	if(cmd->dir == m->dir) {
+		m->pwm_d = cmd->duty_cycle;
+	} else {
+		m->pwm_d = -cmd->duty_cycle;
+	}
+	//m->dir = cmd->dir;
+	d_percent = (5000 + m->pwm_d / 2) / 100;
 	//TODO: Limitation of duty cycle to prevent over current using motor speed (and resistance)
-	m->pwm_d = d;
 	if(m->state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
 		m->pwm_mode = PWM_MODE_SINGLEPHASE;
 		m->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
@@ -141,7 +148,7 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 		m->pwm_mode = PWM_MODE_ANTIPHASE;
 	}
 	if(m->pwm_mode == PWM_MODE_SINGLEPHASE)
-		m->pwm_t_on = m->pwm_period * d / 10000;
+		m->pwm_t_on = m->pwm_period * m->pwm_d / 10000;
 	else {//PWM_MODE_ANTIPHASE
 		eval_vbat_idc(); // Evaluate from last cycle. New external triggered!
 		if(d_percent > 0 && d_percent < 100)// Adaptive PWM period. TODO: Test this!
@@ -150,7 +157,7 @@ void motor_set_duty_cycle(motor_s* m, int d) {
 			m->pwm_period = PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY;
 		if(m->pwm_period > PWM_MAXIMUM_PERIOD)
 			m->pwm_period = PWM_MAXIMUM_PERIOD;
-		m->pwm_t_on = m->pwm_period * (5000 + d / 2) / 10000;
+		m->pwm_t_on = m->pwm_period * (5000 + m->pwm_d / 2) / 10000;
 	}
 	m->pwm_t_on_ADC = m->pwm_t_on / ADC_PWM_DIVIDER;
 	m->pwm_period_ADC = m->pwm_period / ADC_PWM_DIVIDER;
@@ -241,7 +248,8 @@ static void commutatetimercb(GPTDriver *gptp) {
   if(motor.state == OBLDC_STATE_RUNNING_SLOW || motor.state == OBLDC_STATE_RUNNING) {
 	  //catchcount = 0;
 	  increment_angle();
-	  motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
+	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
+	  motor_set_cmd(&motor, &motor_cmd);
 	  set_bldc_pwm(&motor);
 	  //pwmStop(&PWMD1);
 	  palTogglePad(GPIOB, GPIOB_LEDR);
@@ -249,7 +257,8 @@ static void commutatetimercb(GPTDriver *gptp) {
   else if(motor.state == OBLDC_STATE_SENSE_INJECT) {
 	  motor.angle = (motor.angle + 1) % 6 + 1;
 	  //increment_angle();increment_angle(); // Beide richtugen
-	  motor_set_duty_cycle(&motor, 0);
+	  motor_cmd_temp.duty_cycle = 0; motor_cmd_temp.dir = motor_cmd.dir;
+	  motor_set_cmd(&motor, &motor_cmd_temp);
 	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);
 	  set_bldc_pwm(&motor);
   }
@@ -456,7 +465,6 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  } else {
 					  motor.angle = ((motor.angle4 + 4) / 4 - 1) % 3 + 1; increment_angle();
 				  }
-
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  gptStartOneShotI(&GPTD3, 8);
 			  } else if(motor.state_ramp <= 1){// Injection was called for the second time and we can check weather the first guess was good or bad
@@ -473,19 +481,15 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  motor.state = OBLDC_STATE_RUNNING_SLOW;
 				  //schedule_commutate_cb(5);
 				  gptStartOneShotI(&GPTD3, 8);
-				  /*
-				   * if good
-				  motor.state = OBLDC_STATE_RUNNING_SLOW;
-				  schedule_commutate_cb(50);
-				  * if bad
-				  motor.angle = (motor.angle) % 6 + 1;
-				  motor.state = OBLDC_STATE_RUNNING_SLOW;
-				  schedule_commutate_cb(50);
-				  *
-				  */
-
 			  } else { // motor.state_ramp > 1 : Injection, do tracking
-				  // TODO implement proper tracking code here
+				  /*
+				   * *** Position tracking method ***
+				   * Depending on the commanded and actual spinning direction one of the following conditions are triggered
+				   * in case the actual direction changes. This is tracked by setting motor.dir to the new spinning direction.
+				   * Note: In case the direction is changed while adc_commutate_cb is in the state motor.state_reluct == 1,
+				   * the motor probably stops since adc_commutate_inject_cb is only called when motor.state_reluct becomes 2.
+				   * This may sometimes occur if motor_cmd.dir != motor.dir
+				   */
 				  // Calculate true difference between angle4 and angle
 				  if(motor.dir == 1) {
 					  motor.something = ( (motor.angle4 - 1) - ((motor.angle - 1) % 3) * 4 ) % 12;
@@ -493,29 +497,38 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  motor.something = ( ((motor.angle - 1) % 3) * 4 - (motor.angle4 - 1) ) % 12;
 				  }
 				  if(motor.something >= 6) motor.something -= 12;
-				  // Positive --> negative direction when positive was commanded WORKS!
-				  if(motor.dir == 1 && motor.something > -4 && motor_cmd.duty_cycle > 0 && motor.dirjustchanged == 0) {
-					  motor.dir = -1; //motor.dirjustchanged = 1;// TODO motor_cmd.dir machen!
-					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!! motor.duty
-				  } // Negative --> positive direction when negative was commanded WORKS!
-				  else if(motor.dir == -1 && motor.something > -4 && motor_cmd.duty_cycle > 0 && motor.dirjustchanged == 0) {
-					  motor.dir = 1; //motor.dirjustchanged = 1;
-					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle;
-				  }
-				  else if(motor.dir == -1 && motor.something > -4 && motor_cmd.duty_cycle < 0 && motor.dirjustchanged == 0) {
-					  increment_angle();increment_angle();
-					  motor.dir = 1; //motor.dirjustchanged = 1;// TODO motor_cmd.dir machen!
-					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!! motor.duty
-				  }
-				  else if(motor.dir == 1 && motor.something > -4 && motor_cmd.duty_cycle < 0 && motor.dirjustchanged == 0) {
-					  increment_angle();increment_angle();
-					  motor.dir = -1; //motor.dirjustchanged = 1;// TODO motor_cmd.dir machen!
-					  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!! motor.duty
+				  // Positive --> negative direction when positive was commanded
+				  if(motor_cmd.dir == 1 && motor.something > -4 && motor.dir == 1) {
+					  if(motor.something < 0) {
+						  motor.dir = -1;
+					  } else {// May this really occur???
+						  //motor.dir = -1; increment_angle();
+					  }
+				  } // Negative --> positive direction when negative was commanded
+				  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
+					  if(motor.something < 0) {
+						  motor.dir = 1;
+					  }
+				  } // Negative --> positive direction when positive was commanded
+				  else if(motor_cmd.dir == 1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
+					  if(motor.something < 0) {
+						  increment_angle();increment_angle();
+						  motor.dir = 1;
+					  } else {
+						  //increment_angle();increment_angle();increment_angle(); motor.dir = 1;
+					  }
+				  } // Positive --> negative direction when negative was commanded
+				  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == 1) {
+					  if(motor.something < 0) {
+						  increment_angle();increment_angle();
+						  motor.dir = -1;
+					  } else {
+						  //increment_angle();increment_angle();increment_angle();motor.dir = -1;
+					  }
 				  }
 				  else {
 					  motor.dirjustchanged = 0;
 				  }
-
 
 				  /*if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
 					  motor.dirjustchanged=0;
