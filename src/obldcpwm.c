@@ -161,7 +161,10 @@ void motor_set_cmd(motor_s* m, motor_cmd_s* cmd) {
 	}
 	m->pwm_t_on_ADC = m->pwm_t_on / ADC_PWM_DIVIDER;
 	m->pwm_period_ADC = m->pwm_period / ADC_PWM_DIVIDER;
-	m->state_reluct = 0; // Unknown
+
+	if(m->state_reluct == 3 && m->state != OBLDC_STATE_SENSE_INJECT) {//
+		m->state_reluct = 0; // Unknown
+	}
 	//m->sumx=0; m->sumx2=0; m->sumxy=0; m->sumy=0; m->sumy2=0;
 	m->sumy=0;
 
@@ -255,7 +258,16 @@ static void commutatetimercb(GPTDriver *gptp) {
 	  palTogglePad(GPIOB, GPIOB_LEDR);
   }
   else if(motor.state == OBLDC_STATE_SENSE_INJECT) {
-	  motor.angle = (motor.angle + 1) % 6 + 1;
+	  if(motor.state_reluct == 3) {
+		  motor.angle = (motor.angle + 1) % 6 + 1;
+	  } else {
+		  if(motor_cmd.dir == -1) {
+			  motor.angle = (motor.angle + 1) % 6 + 1;
+		  } else {
+			  motor.angle = (motor.angle + 1) % 6 + 1;
+		  }
+		  //increment_angle(); increment_angle(); increment_angle(); increment_angle();
+	  }
 	  //increment_angle();increment_angle(); // Beide richtugen
 	  motor_cmd_temp.duty_cycle = 0; motor_cmd_temp.dir = motor_cmd.dir;
 	  motor_set_cmd(&motor, &motor_cmd_temp);
@@ -497,37 +509,42 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  motor.something = ( ((motor.angle - 1) % 3) * 4 - (motor.angle4 - 1) ) % 12;
 				  }
 				  if(motor.something >= 6) motor.something -= 12;
-				  // Positive --> negative direction when positive was commanded
-				  if(motor_cmd.dir == 1 && motor.something > -4 && motor.dir == 1) {
-					  if(motor.something < 0) {
-						  motor.dir = -1;
-					  } else {// May this really occur???
-						  //motor.dir = -1; increment_angle();
+
+				  if(motor.state_reluct == 3) {
+					  // Positive --> negative direction when positive was commanded
+					  if(motor_cmd.dir == 1 && motor.something > -4 && motor.dir == 1) {
+						  if(motor.something < 0) {
+							  motor.dir = -1;
+						  } else {// May this really occur???
+							  //motor.dir = -1; increment_angle();
+						  }
+					  } // Negative --> positive direction when negative was commanded
+					  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
+						  if(motor.something < 0) {
+							  motor.dir = 1;
+						  }
+					  } // Negative --> positive direction when positive was commanded
+					  else if(motor_cmd.dir == 1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
+						  if(motor.something < 0) {
+							  increment_angle();increment_angle();
+							  motor.dir = 1;
+						  } else {
+							  //increment_angle();increment_angle();increment_angle(); motor.dir = 1;
+						  }
+					  } // Positive --> negative direction when negative was commanded
+					  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == 1) {
+						  if(motor.something < 0) {
+							  increment_angle();increment_angle();
+							  motor.dir = -1;
+						  } else {
+							  //increment_angle();increment_angle();increment_angle();motor.dir = -1;
+						  }
 					  }
-				  } // Negative --> positive direction when negative was commanded
-				  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
-					  if(motor.something < 0) {
-						  motor.dir = 1;
+					  else {
+						  motor.dirjustchanged = 0;
 					  }
-				  } // Negative --> positive direction when positive was commanded
-				  else if(motor_cmd.dir == 1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
-					  if(motor.something < 0) {
-						  increment_angle();increment_angle();
-						  motor.dir = 1;
-					  } else {
-						  //increment_angle();increment_angle();increment_angle(); motor.dir = 1;
-					  }
-				  } // Positive --> negative direction when negative was commanded
-				  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == 1) {
-					  if(motor.something < 0) {
-						  increment_angle();increment_angle();
-						  motor.dir = -1;
-					  } else {
-						  //increment_angle();increment_angle();increment_angle();motor.dir = -1;
-					  }
-				  }
-				  else {
-					  motor.dirjustchanged = 0;
+				  } else {// Injection beim 0-durchgang; bei callback winkel nicht erhöhen
+					  increment_angle();increment_angle();increment_angle();increment_angle();increment_angle();
 				  }
 
 				  /*if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
@@ -625,8 +642,8 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  }
   } else {// Found zero crossing
 	  if(motor.state_reluct == 1) {
-		  //if(motor.noinject == 0) {
-		  if(motor.state_ramp < 1 && motor.noinject == 0) {
+		  if(motor.noinject == 0) {
+		  //if(motor.state_ramp < 1 && motor.noinject == 0) {
 			  if(motor.state_ramp < 2) motor.state_ramp++;//motor.state_ramp++; // Call this sequence only once
 			  adcStopConversionI(&ADCD1);
 			  //pwmStop(&PWMD1);

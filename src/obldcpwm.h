@@ -75,7 +75,7 @@ typedef struct {
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
 #define OBLDC_PWM_MIN_DUTY_CYCLE 0.02 // Minimum duty cycle
-#define OBLDC_PWM_MAX_DUTY_CYCLE 2000 // Maximum duty cycle
+#define OBLDC_PWM_MAX_DUTY_CYCLE 2500 // Maximum duty cycle
 
 #define OBLDC_MIN_CATCH_VOLTAGE_OBSOLETE 360 // 1V minimum voltage to evaluate for motor position catching; /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage TODO: Check max ADC voltage 3V or 3.3V?
 

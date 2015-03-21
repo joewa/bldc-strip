@@ -129,6 +129,11 @@ static void rxend(UARTDriver *uartp) {
       }
       break;
     case SCP_MOTORSTATE:
+    	if (rxBuffer[1] == 0x00) {
+    		motor.state = OBLDC_STATE_OFF;
+    	} else {
+    		motor.state = OBLDC_STATE_STARTING_SENSE_1;
+    	}
     	txBuffer[0] = SCP_ACK;
     	txBuffer[1] = (uint8_t)motor.state;
     	txBuffer[2] = (uint8_t)(motor.delta_t_zc >> 8); // High byte
@@ -137,6 +142,7 @@ static void rxend(UARTDriver *uartp) {
     	if (motor.u_dc2<0) motor.u_dc2 = -motor.u_dc2;
     	//txBuffer[5] = (uint8_t)(motor.u_dc2);//((motor.u_dc*100)/1630);
     	txBuffer[5] = (uint8_t)(motor.i_dc_filt / 4);
+    	txBuffer[5] = (uint8_t)(motor.dir+1);
     	//txBuffer[6] = (uint8_t)(motor.i_dc_ref / 4);
     	txBuffer[6] = (uint8_t)(motor.angle4);
       break;

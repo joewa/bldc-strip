@@ -221,18 +221,29 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   //init_motor_struct(&motor);
   motor.angle = 4;
   //motor.state = OBLDC_STATE_STARTING_SYNC;
-  motor.state = OBLDC_STATE_STARTING_SENSE_1;
+  motor.state = OBLDC_STATE_OFF;
   //motor.pwm_duty_cycle = 0;
   //set_bldc_pwm(&motor);
   while (TRUE) {
+	  if(motor.state == OBLDC_STATE_OFF) {
+		  adcStopConversion(&ADCD1);
+		  pwmStop(&PWMD1);
+		  palClearPad(GPIOB, GPIOB_U_NDTS);palClearPad(GPIOB, GPIOB_V_NDTS);palClearPad(GPIOB, GPIOB_W_NDTS);
+		  motor.dir = motor_cmd.dir;// Motor stopped, forget direction. TODO remove when tracking works
+		  //motor.dir = 0;
+		  motor.state_inject = 0;
+		  motor.angle = 1;
+		  motor.state_ramp = 0;
+		  motor_cmd_temp.duty_cycle = 0;
+		  chThdSleepMilliseconds(1);
+	  }
 	  if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
-
 		  // Rotorlageerkennung
 		  chThdSleepMilliseconds(1);
 		  motor.state = OBLDC_STATE_SENSE_INJECT;
 		  motor.pwm_mode = PWM_MODE_ANTIPHASE;
 		  motor.state_inject = 0;
-		  motor.angle = 4;
+		  motor.angle = 1;
 		  motor.state_ramp = 0;
 		  motor_cmd_temp.duty_cycle = 0; motor_cmd_temp.dir = 0;
 		  motor_set_cmd(&motor, &motor_cmd_temp);
