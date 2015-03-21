@@ -510,14 +510,6 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  }
 				  if(motor.something >= 6) motor.something -= 12;
 
-				  if(motor.state_reluct == 2 && motor.inject == 2) {// Injection was called at a zero crossing during a commutation cycle
-					  //motor.inject = 3;
-					  if(motor_cmd.dir == -1 && motor.something == 0 && motor.dir == 1) {
-						  // Drehrichtng wechseln und kommutierne
-						  //motor.dir = 1;
-						  //motor.state = OBLDC_STATE_OFF;
-					  }
-				  }
 				  if(motor.state_reluct == 3) {// Injection was called at the end of a commutation cycle
 					  // Positive --> negative direction when positive was commanded
 					  if(motor_cmd.dir == 1 && motor.something > -4 && motor.dir == 1) {
@@ -551,19 +543,16 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  else {
 						  motor.dirjustchanged = 0;
 					  }
-				  } else {// Injection beim 0-durchgang; bei callback winkel nicht erhöhen
+				  } else if(motor.state_reluct == 2 && motor.inject == 2) {// Injection was called at a zero crossing during a commutation cycle
+					  //motor.inject = 3;
+					  if(motor_cmd.dir == -1 && motor.something == 0 && motor.dir == 1) {
+						  // Drehrichtng wechseln und kommutierne
+						  //motor.dir = 1;
+						  //motor.state = OBLDC_STATE_OFF;
+					  }
+					  // Injection beim 0-durchgang; bei callback winkel nicht erhöhen
 					  increment_angle();increment_angle();increment_angle();increment_angle();increment_angle();
 				  }
-
-				  /*if( (motor.angle4 - 1) % 4 != 0 ) { // direction is still fine
-					  motor.dirjustchanged=0;
-				  } else { // Change direction
-					  if(motor.dirjustchanged == 0) {
-						  motor.dir = -motor.dir; motor.dirjustchanged = 1;
-						  motor_cmd.duty_cycle = -motor_cmd.duty_cycle; // Dirty!!
-						  //increment_angle();increment_angle();increment_angle();//increment_angle();
-					  }
-				  }*/
 
 				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
 					  motor.angle = (motor.angle + 5) % 6 + 1;
@@ -573,8 +562,19 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  gptStartOneShotI(&GPTD3, 8);
 				  }
 			  }
-		  } else {
-			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
+		  } else { // decode_inject_pattern returned motor.angle4 == 0 --> Invalid angle!!!
+			  /*
+			   * Plenty of invalid angles are read when motor_cmd.dir == 1 while everything is fine when motor_cmd.dir == -1
+			   * TODO Investigate whats wrong there...
+			   */
+			  //motor.state = OBLDC_STATE_STARTING_SENSE_1;
+			  //motor.state = OBLDC_STATE_OFF;
+			  if(motor.state_reluct == 3) {
+			  } else if(motor.state_reluct == 2 && motor.inject == 2) {
+				  increment_angle();increment_angle();increment_angle();increment_angle();increment_angle();
+			  }
+			  motor.state = OBLDC_STATE_RUNNING_SLOW;
+			  gptStartOneShotI(&GPTD3, 8);
 		  }
 	  }
   }//if(k_cb_commutate > 1)
