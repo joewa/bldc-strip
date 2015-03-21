@@ -55,7 +55,7 @@ typedef struct {
 	uint8_t dirjustchanged;
 	int16_t dir_v_range;
 	uint8_t sense_inject_pattern[3];
-	uint8_t state_inject, state_ramp, noinject;
+	uint8_t state_inject, state_ramp, inject;
 	int16_t u_dc, u_dc2, u_dc_filt;
 	int16_t i_dc, i_dc_ref, i_dc_filt, i_dc_sum;
 	uint8_t state_reluct; // 0=unknown

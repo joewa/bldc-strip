@@ -232,7 +232,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  motor.dir = motor_cmd.dir;// Motor stopped, forget direction. TODO remove when tracking works
 		  //motor.dir = 0;
 		  motor.state_inject = 0;
-		  motor.angle = 1;
+		  motor.angle = 4;
 		  motor.state_ramp = 0;
 		  motor_cmd_temp.duty_cycle = 0;
 		  chThdSleepMilliseconds(1);
@@ -243,7 +243,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  motor.state = OBLDC_STATE_SENSE_INJECT;
 		  motor.pwm_mode = PWM_MODE_ANTIPHASE;
 		  motor.state_inject = 0;
-		  motor.angle = 1;
+		  motor.angle = 4;
 		  motor.state_ramp = 0;
 		  motor_cmd_temp.duty_cycle = 0; motor_cmd_temp.dir = 0;
 		  motor_set_cmd(&motor, &motor_cmd_temp);
@@ -276,10 +276,14 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  if(motor.time_zc != temp) {
 			  catchcount = 0; temp = motor.time_zc;
 		  }
-		  if(catchcount > 8) {
-			  motor.noinject = 0;
+		  /*if(catchcount > 15 && motor.state_reluct == 2) {
+			  motor.inject = 2;
+			  motor.state_reluct = 1;
+		  } else */if(catchcount > 7) {
+			  motor.inject = 2;//motor.inject = 3;
 		  }
-		  if(catchcount > 300) { // Timeout!
+
+		  if(catchcount > 1000) { // Timeout!
 			  pwmStop(&PWMD1);
 			  motor.dir = motor_cmd.dir;// Motor stopped, forget direction. TODO remove when tracking works
 			  //motor.dir = 0;
@@ -290,7 +294,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
 		  }
 		  if(motor.delta_t_zc < 3000 && motor.last_delta_t_zc < 3000) { // TODO: Make definitions for these values
-			  motor.noinject = 1;
+			  motor.inject = 0;
 		  }
 		  if(motor.delta_t_zc < 1100 && motor.last_delta_t_zc < 1100) { // TODO: Make definitions for these values
 			  catchcount=0;

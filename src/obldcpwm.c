@@ -99,7 +99,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->time_next_commutate_cb = 0;
 	motor->delta_t_zc		= 0xFFFF;
 	motor->last_delta_t_zc	= 0xFFFF;
-	motor->noinject = 0;
+	motor->inject = 0;
 	motor_cmd.duty_cycle 	= 0; //1000;
 	motor_cmd.dir			= 1;
 
@@ -271,7 +271,7 @@ static void commutatetimercb(GPTDriver *gptp) {
 	  //increment_angle();increment_angle(); // Beide richtugen
 	  motor_cmd_temp.duty_cycle = 0; motor_cmd_temp.dir = motor_cmd.dir;
 	  motor_set_cmd(&motor, &motor_cmd_temp);
-	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);
+	  //motor_set_cmd(&motor, &motor_cmd);
 	  set_bldc_pwm(&motor);
   }
   //chSysUnlockFromISR();
@@ -510,7 +510,15 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  }
 				  if(motor.something >= 6) motor.something -= 12;
 
-				  if(motor.state_reluct == 3) {
+				  if(motor.state_reluct == 2 && motor.inject == 2) {// Injection was called at a zero crossing during a commutation cycle
+					  //motor.inject = 3;
+					  if(motor_cmd.dir == -1 && motor.something == 0 && motor.dir == 1) {
+						  // Drehrichtng wechseln und kommutierne
+						  //motor.dir = 1;
+						  //motor.state = OBLDC_STATE_OFF;
+					  }
+				  }
+				  if(motor.state_reluct == 3) {// Injection was called at the end of a commutation cycle
 					  // Positive --> negative direction when positive was commanded
 					  if(motor_cmd.dir == 1 && motor.something > -4 && motor.dir == 1) {
 						  if(motor.something < 0) {
@@ -560,8 +568,10 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
 					  motor.angle = (motor.angle + 5) % 6 + 1;
 				  }*/
-				  motor.state = OBLDC_STATE_RUNNING_SLOW;
-				  gptStartOneShotI(&GPTD3, 8);
+				  if(motor.state != OBLDC_STATE_OFF) {
+					  motor.state = OBLDC_STATE_RUNNING_SLOW;
+					  gptStartOneShotI(&GPTD3, 8);
+				  }
 			  }
 		  } else {
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
@@ -625,7 +635,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  //motortime_zc(motor.time_next_commutate_cb + k_sample);// gehoert hier nicht hin
 		  motor.state_reluct = 3;
 		  adcStopConversionI(&ADCD1); // OK, commutate!
-		  if(motor.noinject == 0) { //if(motor.state_ramp < 2) {
+		  if(motor.inject > 1) { //if(motor.state_ramp < 2) {
 			  if(motor.state_ramp < 2) motor.state_ramp++;
 			  //trigger injection sequence at the two other phases to check if angle4 refers to a D- or a Q-Axis position
 			  motor.state = OBLDC_STATE_SENSE_INJECT;
@@ -642,9 +652,14 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  }
   } else {// Found zero crossing
 	  if(motor.state_reluct == 1) {
-		  if(motor.noinject == 0) {
-		  //if(motor.state_ramp < 1 && motor.noinject == 0) {
-			  if(motor.state_ramp < 2) motor.state_ramp++;//motor.state_ramp++; // Call this sequence only once
+		  motor.state_reluct = 2;
+		  //motor.u_dc2 = (y_on + y_off) / 2;
+		  k_zc = k_sample;
+		  motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
+		  //if(motor.inject == 2) {
+		  //if(motor.state_ramp < 1 && motor.inject == 2) {
+		  if(motor.state_ramp < 1 || motor.inject == 2) {
+			  if(motor.state_ramp < 2) {motor.state_ramp++;}//motor.state_ramp++; // Call this sequence only once
 			  adcStopConversionI(&ADCD1);
 			  //pwmStop(&PWMD1);
 			  //trigger injection sequence at the two other phases to check if angle4 refers to a D- or a Q-Axis position
@@ -663,11 +678,6 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 			  }
 			  */
 		  }
-
-		  motor.state_reluct = 2;
-		  //motor.u_dc2 = (y_on + y_off) / 2;
-		  k_zc = k_sample;
-		  motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
 	  }
   }
 
