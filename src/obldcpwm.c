@@ -698,12 +698,20 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
 		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 	  }
-  } else if( (y_on > y_off + motor.dir_v_range + 50) && motor.state_reluct == 2 && motor.inject == 2) {
-	  motor.state_reluct = 1; // In case direction is reversed when zero crossing already occurred.
+  } else if( (y_on > y_off + motor.dir_v_range + 200) && motor.state_reluct == 2 && motor.inject == 2 && motor.state_ramp >= 2 && motor.dirjustchanged == 0) {
+	  /*
+	   *  Becomes true in case the direction is reversed when zero crossing already occurred. If the motor continues in the new direction,
+	   *  the next zero crossing will occur in a d-axis position and the
+	   */
+	  motor.state_reluct = 1;
 	  motor.persist_in_state_recluct_2_count = 0;
-	  //adcStopConversionI(&ADCD1); motor.state = OBLDC_STATE_OFF;
+	  adcStopConversionI(&ADCD1); //motor.state = OBLDC_STATE_OFF;
+	  if(motor.dir == 1) motor.dir = -1; else motor.dir = 1;
+	  increment_angle(); increment_angle(); increment_angle();
+	  motor.state_reluct = 3; motor.dirjustchanged = 1;
+	  schedule_commutate_cb(50);
 	  // TODO: TEST if this actually works!!!!!!!!!!!!
-  } else if(y_on > y_off + motor.dir_v_range - 50) {
+  } else if(y_on > y_off + motor.dir_v_range) {
 	  if(motor.state_reluct == 0) {
 		  motor.state_reluct = 1;
 	  }
@@ -741,7 +749,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  }
 	  } else if (motor.state_reluct == 2 && motor.state_ramp > 1 && motor.inject == 2) {
 		  // Count up how many cycles state_reluct==2 is active
-		  motor.persist_in_state_recluct_2_count++;
+		  //motor.persist_in_state_recluct_2_count++;
 	  }
   }
 
