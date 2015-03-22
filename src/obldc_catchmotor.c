@@ -281,9 +281,12 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.state_reluct = 1;
 		  } else */if(catchcount > 7) {
 			  motor.inject = 2;//motor.inject = 3;
+			  /*if( (catchcount - 2) % 10 == 0 && motor.state_reluct == 2) { // motor may be in sync position --> re-trigger injection
+				  motor.state_reluct = 1;
+			  }*/
 		  }
 
-		  if(catchcount > 1000) { // Timeout!
+		  if(catchcount > 2000) { // Timeout!
 			  pwmStop(&PWMD1);
 			  motor.dir = motor_cmd.dir;// Motor stopped, forget direction. TODO remove when tracking works
 			  //motor.dir = 0;

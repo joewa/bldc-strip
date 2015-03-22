@@ -13,6 +13,7 @@
 // besser aufgehoben im reglerteil -> simulation
 
 
+
 typedef enum {
 	OBLDC_STATE_OFF = 0,
 	OBLDC_STATE_STARTING_SYNC,
@@ -50,7 +51,7 @@ typedef struct {
 	int pwm_period;		// in timer clock ticks
 	int pwm_t_on_ADC;	// in ADC clock ticks
 	int pwm_period_ADC;
-	int angle, angle4;
+	int16_t angle, angle4, last_angle4, delta_angle4;
 	int dir;
 	uint8_t dirjustchanged;
 	int16_t dir_v_range;

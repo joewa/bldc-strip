@@ -15,6 +15,12 @@
 #include "obldcpwm.h"
 #include "ringbuffer.h"
 
+inline int mod(int a, int b)
+{
+    int r = a % b;
+    return r < 0 ? r + b : r;
+}
+
 extern uint8_t debugbyte;
 
 motor_s motor;	// Stores all motor data
@@ -100,6 +106,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->delta_t_zc		= 0xFFFF;
 	motor->last_delta_t_zc	= 0xFFFF;
 	motor->inject = 0;
+	motor->last_angle4 = 0;
 	motor_cmd.duty_cycle 	= 0; //1000;
 	motor_cmd.dir			= 1;
 
@@ -459,6 +466,9 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 	  motor.state_inject++;
 
 	  if(motor.state_inject < 3) {
+		  if(motor.state_inject == 1) {// reset last angle because the actual angle is unknown
+			  motor.last_angle4 = 0;
+		  }
 		  gptStartOneShotI(&GPTD3, 8);
 	  }
 	  else {
@@ -505,29 +515,34 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  // Calculate true difference between angle4 and angle
 				  if(motor.dir == 1) {
 					  motor.something = ( (motor.angle4 - 1) - ((motor.angle - 1) % 3) * 4 ) % 12;
+					  motor.delta_angle4 = mod(motor.angle4 - motor.last_angle4, 12); // ACHTUNG!
 				  } else {
 					  motor.something = ( ((motor.angle - 1) % 3) * 4 - (motor.angle4 - 1) ) % 12;
+					  motor.delta_angle4 = mod(motor.last_angle4 - motor.angle4, 12); // ACHTUNG!
 				  }
 				  if(motor.something >= 6) motor.something -= 12;
+				  if(motor.delta_angle4 >= 6) motor.delta_angle4 -= 12;
+
+				  //if(motor.delta_angle4 < -8) motor.state = OBLDC_STATE_OFF; // KANN nicht passieren
 
 				  if(motor.state_reluct == 3) {// Injection was called at the end of a commutation cycle
 					  // Positive --> negative direction when positive was commanded
 					  if(motor_cmd.dir == 1 && motor.something > -4 && motor.dir == 1) {
 						  if(motor.something < 0) {
-							  motor.dir = -1;
+							  motor.dir = -1; motor.dirjustchanged = 1;
 						  } else {// May this really occur???
 							  //motor.dir = -1; increment_angle();
 						  }
 					  } // Negative --> positive direction when negative was commanded
 					  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
 						  if(motor.something < 0) {
-							  motor.dir = 1;
+							  motor.dir = 1; motor.dirjustchanged = 1;
 						  }
 					  } // Negative --> positive direction when positive was commanded
 					  else if(motor_cmd.dir == 1 && motor.something > -4 && motor.something < 0 && motor.dir == -1) {
 						  if(motor.something < 0) {
 							  increment_angle();increment_angle();
-							  motor.dir = 1;
+							  motor.dir = 1; motor.dirjustchanged = 1;
 						  } else {
 							  //increment_angle();increment_angle();increment_angle(); motor.dir = 1;
 						  }
@@ -535,7 +550,7 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  else if(motor_cmd.dir == -1 && motor.something > -4 && motor.something < 0 && motor.dir == 1) {
 						  if(motor.something < 0) {
 							  increment_angle();increment_angle();
-							  motor.dir = -1;
+							  motor.dir = -1; motor.dirjustchanged = 1;
 						  } else {
 							  //increment_angle();increment_angle();increment_angle();motor.dir = -1;
 						  }
@@ -545,10 +560,30 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  }
 				  } else if(motor.state_reluct == 2 && motor.inject == 2) {// Injection was called at a zero crossing during a commutation cycle
 					  //motor.inject = 3;
-					  if(motor_cmd.dir == -1 && motor.something == 0 && motor.dir == 1) {
-						  // Drehrichtng wechseln und kommutierne
-						  //motor.dir = 1;
+					  if(motor_cmd.dir == 1 && motor.delta_angle4 > 0 && motor.something == 0 && motor.dir == -1 && motor.dirjustchanged == 1) {
+						  // Motor is stuck in synchronous position.
+						  motor.angle = (motor.angle) % 6 + 1; motor.state_reluct = 3;
 						  //motor.state = OBLDC_STATE_OFF;
+					  } else if(motor_cmd.dir == 1 && motor.delta_angle4 <= 0 && motor.dir == -1) {
+						  // Drehrichtng wechseln und kommutierne. motor.something == 0 vielleicht überflüssig!
+						  if(motor.dirjustchanged == 0) {
+							  increment_angle(); motor.dir = 1; motor.state_reluct = 3;
+							  motor.dirjustchanged = 1;
+						  }
+						  //motor.state = OBLDC_STATE_OFF;
+					  } else if(motor_cmd.dir == -1 && motor.delta_angle4 > 0 && motor.something == 0 && motor.dir == 1 && motor.dirjustchanged == 1) {
+						  // Motor is stuck in synchronous position.
+						  motor.angle = (motor.angle + 4) % 6 + 1; motor.state_reluct = 3;
+						  //motor.state = OBLDC_STATE_OFF;
+					  } else if(motor_cmd.dir == -1 && motor.delta_angle4 <= 0 && motor.dir == 1) {
+						  // Drehrichtng wechseln und kommutierne. motor.something == 0 vielleicht überflüssig!
+						  if(motor.dirjustchanged == 0) {
+							  increment_angle(); motor.dir = 1; motor.state_reluct = 3;
+							  motor.dirjustchanged = 1;
+						  }
+						  //motor.state = OBLDC_STATE_OFF;
+					  } else {
+						  motor.dirjustchanged = 0;
 					  }
 					  // Injection beim 0-durchgang; bei callback winkel nicht erhöhen
 					  increment_angle();increment_angle();increment_angle();increment_angle();increment_angle();
@@ -557,6 +592,8 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 				  /*if( (motor.angle4 - 1) % 4 == 0 ) {
 					  motor.angle = (motor.angle + 5) % 6 + 1;
 				  }*/
+				  motor.last_angle4 = motor.angle4;
+
 				  if(motor.state != OBLDC_STATE_OFF) {
 					  motor.state = OBLDC_STATE_RUNNING_SLOW;
 					  gptStartOneShotI(&GPTD3, 8);
@@ -573,6 +610,11 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 			  } else if(motor.state_reluct == 2 && motor.inject == 2) {
 				  increment_angle();increment_angle();increment_angle();increment_angle();increment_angle();
 			  }
+			  /*if(motor.dir == 1) { // guess that the motor keeps spinning
+				  motor.last_angle4 = (motor.last_angle4 % 12) + 1;
+			  } else {
+				  motor.last_angle4 = ((motor.last_angle4 + 10)% 12) + 1;
+			  }*/
 			  motor.state = OBLDC_STATE_RUNNING_SLOW;
 			  gptStartOneShotI(&GPTD3, 8);
 		  }
@@ -646,10 +688,13 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
 		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 	  }
-  } else if(y_on > y_off + motor.dir_v_range) {
+  } else if(y_on > y_off + motor.dir_v_range - 100) {
 	  if(motor.state_reluct == 0) {
 		  motor.state_reluct = 1;
 	  }
+  } else if( (y_on > y_off + motor.dir_v_range) && motor.state_reluct == 2 && motor.inject == 2) {
+	  motor.state_reluct = 1; // In case direction is reversed when zero crossing already occurred.
+	  // TODO: TEST if this actually works!!!!!!!!!!!!
   } else {// Found zero crossing
 	  if(motor.state_reluct == 1) {
 		  motor.state_reluct = 2;
