@@ -60,6 +60,7 @@ typedef struct {
 	int16_t u_dc, u_dc2, u_dc_filt;
 	int16_t i_dc, i_dc_ref, i_dc_filt, i_dc_sum;
 	uint8_t state_reluct; // 0=unknown
+	uint16_t persist_in_state_recluct_2_count;
 	int64_t time; // Motor time in usec
 	int64_t time_zc, time_last_zc;
 	int64_t time_next_commutate_cb;

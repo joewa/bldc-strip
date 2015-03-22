@@ -563,22 +563,32 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 					  if(motor_cmd.dir == 1 && motor.delta_angle4 > 0 && motor.something == 0 && motor.dir == -1 && motor.dirjustchanged == 1) {
 						  // Motor is stuck in synchronous position.
 						  motor.angle = (motor.angle) % 6 + 1; motor.state_reluct = 3;
+						  motor.dirjustchanged = 0;
 						  //motor.state = OBLDC_STATE_OFF;
-					  } else if(motor_cmd.dir == 1 && motor.delta_angle4 <= 0 && motor.dir == -1) {
+					  } else if(motor_cmd.dir == 1 && motor.delta_angle4 == 0 && motor.something == 0 && motor.dir == 1 && motor.dirjustchanged == 0) {
+						  // Motor is stuck in synchronous position.
+						  //motor.angle = (motor.angle) % 6 + 1;
+						  motor.state_reluct = 3;
+						  motor.dirjustchanged = 0;
+						  //motor.state = OBLDC_STATE_OFF;
+					  } else if(motor_cmd.dir == 1 && motor.delta_angle4 <= 0 && motor.something == 0 && motor.dir == -1) {
 						  // Drehrichtng wechseln und kommutierne. motor.something == 0 vielleicht überflüssig!
-						  if(motor.dirjustchanged == 0) {
-							  increment_angle(); motor.dir = 1; motor.state_reluct = 3;
+						  if(1){//motor.dirjustchanged == 0) {
+							  increment_angle();
+							  motor.dir = 1; motor.state_reluct = 3;
 							  motor.dirjustchanged = 1;
 						  }
 						  //motor.state = OBLDC_STATE_OFF;
 					  } else if(motor_cmd.dir == -1 && motor.delta_angle4 > 0 && motor.something == 0 && motor.dir == 1 && motor.dirjustchanged == 1) {
 						  // Motor is stuck in synchronous position.
 						  motor.angle = (motor.angle + 4) % 6 + 1; motor.state_reluct = 3;
+						  motor.dirjustchanged = 0;
 						  //motor.state = OBLDC_STATE_OFF;
-					  } else if(motor_cmd.dir == -1 && motor.delta_angle4 <= 0 && motor.dir == 1) {
+					  } else if(motor_cmd.dir == -1 && motor.delta_angle4 <= 0 && motor.something == 0 && motor.dir == 1) {
 						  // Drehrichtng wechseln und kommutierne. motor.something == 0 vielleicht überflüssig!
-						  if(motor.dirjustchanged == 0) {
-							  increment_angle(); motor.dir = 1; motor.state_reluct = 3;
+						  if(1){//motor.dirjustchanged == 0) {
+							  increment_angle();
+							  motor.dir = -1; motor.state_reluct = 3;
 							  motor.dirjustchanged = 1;
 						  }
 						  //motor.state = OBLDC_STATE_OFF;
@@ -688,15 +698,21 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
 		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 	  }
-  } else if(y_on > y_off + motor.dir_v_range - 100) {
+  } else if( (y_on > y_off + motor.dir_v_range + 50) && motor.state_reluct == 2 && motor.inject == 2) {
+	  motor.state_reluct = 1; // In case direction is reversed when zero crossing already occurred.
+	  motor.persist_in_state_recluct_2_count = 0;
+	  //adcStopConversionI(&ADCD1); motor.state = OBLDC_STATE_OFF;
+	  // TODO: TEST if this actually works!!!!!!!!!!!!
+  } else if(y_on > y_off + motor.dir_v_range - 50) {
 	  if(motor.state_reluct == 0) {
 		  motor.state_reluct = 1;
 	  }
-  } else if( (y_on > y_off + motor.dir_v_range) && motor.state_reluct == 2 && motor.inject == 2) {
-	  motor.state_reluct = 1; // In case direction is reversed when zero crossing already occurred.
-	  // TODO: TEST if this actually works!!!!!!!!!!!!
+  } else if (motor.persist_in_state_recluct_2_count > 1600) { // Too long in state_reluct==2 --> re-trigger injection
+	  motor.persist_in_state_recluct_2_count = 0; motor.state_reluct = 1;
+	  //adcStopConversionI(&ADCD1); motor.state = OBLDC_STATE_OFF; // Use this line to see if this is actually triggered
   } else {// Found zero crossing
 	  if(motor.state_reluct == 1) {
+		  motor.persist_in_state_recluct_2_count = 0;
 		  motor.state_reluct = 2;
 		  //motor.u_dc2 = (y_on + y_off) / 2;
 		  k_zc = k_sample;
@@ -723,6 +739,9 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 			  }
 			  */
 		  }
+	  } else if (motor.state_reluct == 2 && motor.state_ramp > 1 && motor.inject == 2) {
+		  // Count up how many cycles state_reluct==2 is active
+		  motor.persist_in_state_recluct_2_count++;
 	  }
   }
 
