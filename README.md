@@ -5,7 +5,7 @@ Firmware for OpenBLDC "Strip" (STM32F103).
 
 ## Project description
 
-Bldc-strip is an open-source project aiming to design an ESC (electronic speed controller) for brushless dc motors. The control software is concurrently developed with a motor controller [hardware](https://github.com/joewa/open-bldc-hardware/tree/master/strip/v0.2) and [simulation models](https://github.com/joewa/open-bldc-modelica) which are used to investigate and test the control algorithms before/while they are implemented to the real controller software and hardware. It is designed to a provide better ESC for the control of small multi-rotor aircraft but should also fit other applications.
+Bldc-strip is an open-source project aiming to design an ESC (electronic speed controller) for brushless dc motors. The control software is concurrently developed with a motor controller [hardware](https://github.com/joewa/open-bldc-hardware/tree/master/strip/v0.2) and [simulation models](https://github.com/joewa/open-bldc-modelica) which are used to investigate and test the control algorithms before/while they are implemented to the real controller software and hardware. It is designed to provide a better ESC for the control of small multi-rotor aircraft but should also fit other applications.
 
 ## Features
 
