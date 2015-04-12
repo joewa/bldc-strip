@@ -16,6 +16,7 @@ Bldc-strip is an open-source project aiming to design an ESC (electronic speed c
 - [x] Dedicated control methods for fast, slow and very slow to zero rotation speed.
 - [x] Seamless 4-quadrant operation with regenerative braking.
 - [x] Smooth change of rotation direction.
+- [ ] Catch start of a rotation motor
 - [ ] Adequate protection functions:
   - [ ] limitation of motor current
   - [ ] limitation of input current
@@ -32,6 +33,8 @@ Designed and tested with the [OpenBLDC "Strip" V0.2 ESC](https://github.com/joew
 Using [ChibiOS Real-Time Operating System](http://www.chibios.org).
 
 Multi-physics, open-source [Modelica simulation models](https://github.com/joewa/open-bldc-modelica) are designed to investigate appropriate motor control methods. In the future, they may be merged with this repository.
+
+Demo video on [YouTube](https://youtu.be/5QIjhmtY5ok) and [Vimeo](https://vimeo.com/124761289).
 
 Overview of sensorless 6-step control methods.
 
