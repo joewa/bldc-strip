@@ -37,6 +37,7 @@ Multi-physics, open-source [Modelica simulation models](https://github.com/joewa
 Demo video on [YouTube](https://youtu.be/5QIjhmtY5ok) and [Vimeo](https://vimeo.com/124761289).
 
 Overview of sensorless 6-step control methods.
+	Review: [José Carlos Gamazo-Real, Ernesto Vázquez-Sánchez, Jaime Gómez-Gil, "Position and Speed Control of Brushless DC Motors Using Sensorless Techniques and Application Trends", Department of Signal Theory, Communications and Telematic Engineering, University of Valladolid, Sensors 2010, ISSN 1424-8220](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.287.5781)
 
 ## Status and contribution
 
