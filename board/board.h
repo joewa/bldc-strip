@@ -435,7 +435,7 @@
 //#define VAL_GPIOBCRL            0x4B338888      /*  PB7...PB0 */
 //#define VAL_GPIOBCRH            0xAAA88888      /* PB15...PB8 */
 #define VAL_GPIOBCRL            0x4B778888      /*  PB7...PB0 */
-#define VAL_GPIOBCRH            0x77788888      /* PB15...PB8 */
+#define VAL_GPIOBCRH            0x777888BB      /* PB15...PB8 */ // TODO Configure PB8 and PB9 for CAN1
 
 #define VAL_GPIOBODR            0xFFFFFFFF
 
