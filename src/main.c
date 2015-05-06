@@ -23,6 +23,7 @@ int main(void) {
     chThdSleepMicroseconds(500);
 	temp = catchmotor_setup();
 	startRampMotorThread();
+	obldc_can_init(); // Start CAN bus
 	// Just idle on the main loop
 	while (TRUE) {
 // palTogglePad(GPIOB, GPIOB_LEDG);
