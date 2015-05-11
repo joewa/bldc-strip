@@ -23,8 +23,10 @@ static uint8_t can_rx_buffer_last_id;
  */
 static const CANConfig cancfg = {
   CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP, // , automatic wakeup,
-  CAN_BTR_LBKM | CAN_BTR_SJW(0) | CAN_BTR_TS2(1) | // Loop back mode
-  CAN_BTR_TS1(10) |
+  CAN_BTR_LBKM | // Loop back mode
+  CAN_BTR_SJW(3) | // Synchronization jump width; must be smaller or equal 4 and smaller than TS1 & TS2
+  CAN_BTR_TS2(5) | // Time Segment 2;
+  CAN_BTR_TS1(6) | // Time Segment 1;
   CAN_BTR_BRP(1) // BaudRatePrescaler is 2 --> half frequency of APB1(here 28MHz) see Fig 395 "Bit timing"
 };
 
