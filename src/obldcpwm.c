@@ -262,7 +262,7 @@ static void commutatetimercb(GPTDriver *gptp) {
 	  motor_set_cmd(&motor, &motor_cmd);
 	  set_bldc_pwm(&motor);
 	  //pwmStop(&PWMD1);
-	  palTogglePad(GPIOB, GPIOB_LEDR);
+	  //palTogglePad(GPIOB, GPIOB_LEDR);
   }
   else if(motor.state == OBLDC_STATE_SENSE_INJECT) {
 	  if(motor.state_reluct == 3) {
