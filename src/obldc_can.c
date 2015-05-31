@@ -23,7 +23,7 @@ static uint8_t can_rx_buffer_last_id;
  */
 static const CANConfig cancfg = {
   CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP, // , automatic wakeup,
-  CAN_BTR_LBKM | // Loop back mode
+  CAN_BTR_LBKM | // Loop back mode - for testing
   CAN_BTR_SJW(3) | // Synchronization jump width; must be smaller or equal 4 and smaller than TS1 & TS2
   CAN_BTR_TS2(5) | // Time Segment 2;
   CAN_BTR_TS1(6) | // Time Segment 1;
@@ -84,14 +84,13 @@ static THD_FUNCTION(can_tx, p) {
     canTransmit(&CAND1, CAN_ANY_MAILBOX, &txmsg, MS2ST(10));
     chThdSleepMilliseconds(50);
   }
-  return 0;
 }
 
 
 void obldc_can_init(void) {
 	canStart(&CAND1, &cancfg);
 
-	//chThdCreateStatic(waCanComThread, sizeof(waCanComThread), NORMALPRIO + 7, tCanComThread, NULL);
+	chThdCreateStatic(waCanComThread, sizeof(waCanComThread), NORMALPRIO + 7, tCanComThread, NULL);
 	// Empfangsthread hängt manchmal wenn was empfangen wird
 
     chThdCreateStatic(can_tx_wa, sizeof(can_tx_wa), NORMALPRIO + 7, can_tx, NULL);

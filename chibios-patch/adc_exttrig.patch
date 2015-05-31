@@ -1,0 +1,14 @@
+diff -rupN /home/joerg/repos/ChibiOS/os/hal/ports/STM32/STM32F1xx/adc_lld.c ../chibios/os/hal/ports/STM32/STM32F1xx/adc_lld.c
+--- /home/joerg/repos/ChibiOS/os/hal/ports/STM32/STM32F1xx/adc_lld.c	2015-02-08 18:34:51.671770178 +0100
++++ ../chibios/os/hal/ports/STM32/STM32F1xx/adc_lld.c	2015-02-08 18:41:37.655784138 +0100
+@@ -211,8 +211,8 @@ void adc_lld_start_conversion(ADCDriver
+   adcp->adc->SQR2  = grpp->sqr2;
+   adcp->adc->SQR3  = grpp->sqr3;
+ 
+-  /* ADC start by writing ADC_CR2_ADON a second time.*/
+-  adcp->adc->CR2   = cr2;
++  /* ADC start by writing ADC_CR2_ADON a second time - if EXTTRIG is NOT selected */
++  if ((cr2 & (ADC_CR2_EXTTRIG | ADC_CR2_JEXTTRIG)) == 0) adcp->adc->CR2   = cr2;
+ }
+ 
+ /**

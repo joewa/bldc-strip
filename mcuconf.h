@@ -14,6 +14,10 @@
     limitations under the License.
 */
 
+
+#ifndef _MCUCONF_H_
+#define _MCUCONF_H_
+
 #define STM32F103_MCUCONF
 
 /*
@@ -205,3 +209,7 @@
 #define STM32_USB_LOW_POWER_ON_SUSPEND      FALSE
 #define STM32_USB_USB1_HP_IRQ_PRIORITY      13
 #define STM32_USB_USB1_LP_IRQ_PRIORITY      14
+
+
+
+#endif /* _MCUCONF_H_ */

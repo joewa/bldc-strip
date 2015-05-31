@@ -224,7 +224,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
   motor.state = OBLDC_STATE_OFF;
   //motor.pwm_duty_cycle = 0;
   //set_bldc_pwm(&motor);
-  while (TRUE) {
+  while (true) {
 	  if(motor.state == OBLDC_STATE_OFF) {
 		  adcStopConversion(&ADCD1);
 		  pwmStop(&PWMD1);
@@ -378,7 +378,6 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  }
 	  }
   }
-  return 0;
 }
 
 void startRampMotorThread(void) {
