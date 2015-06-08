@@ -310,7 +310,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  if( (motor.delta_t_zc > 1200 && motor.last_delta_t_zc > 1200) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow!
 			  motor.delta_t_zc		= 0xFFFF;
 			  motor.last_delta_t_zc	= 0xFFFF;
-			  motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!
+			  //motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!
 			  motor.state = OBLDC_STATE_RUNNING_SLOW; // TODO: Make definitions for these values
 		  }
 		  chThdSleepMicroseconds(500);

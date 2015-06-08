@@ -90,7 +90,7 @@ static THD_FUNCTION(can_tx, p) {
 void obldc_can_init(void) {
 	canStart(&CAND1, &cancfg);
 
-	chThdCreateStatic(waCanComThread, sizeof(waCanComThread), NORMALPRIO + 7, tCanComThread, NULL);
+	//chThdCreateStatic(waCanComThread, sizeof(waCanComThread), NORMALPRIO + 7, tCanComThread, NULL);
 	// Empfangsthread hängt manchmal wenn was empfangen wird
 
     chThdCreateStatic(can_tx_wa, sizeof(can_tx_wa), NORMALPRIO + 7, can_tx, NULL);
