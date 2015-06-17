@@ -72,6 +72,7 @@ typedef struct {
 } motor_s;
 
 #define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
+//#define OBLDC_DIR_V_RANGE 700		// Threshold for Hacker A200-8
 #define TIMER_CB_PERIOD 60000
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 50000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]

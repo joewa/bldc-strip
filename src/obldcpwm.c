@@ -719,7 +719,8 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	  motor.persist_in_state_recluct_2_count = 0; motor.state_reluct = 1;
 	  //adcStopConversionI(&ADCD1); motor.state = OBLDC_STATE_OFF; // Use this line to see if this is actually triggered
   } else {// Found zero crossing
-	  if(motor.state_reluct == 1) {
+	  if(motor.state_reluct == 1) { // Zero crossing happened HERE!
+	  // if(motor.state_reluct == 1 && y_on < y_off) { // Zero crossing happened HERE! --> Threshold removed because it is sometimes not crossed when the motor is at standstill
 		  motor.persist_in_state_recluct_2_count = 0;
 		  motor.state_reluct = 2;
 		  //motor.u_dc2 = (y_on + y_off) / 2;
