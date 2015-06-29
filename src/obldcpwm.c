@@ -96,6 +96,9 @@ void init_motor_struct(motor_s* motor) {
 	motor->i_dc_filt		= 0;
 	motor->i_dc_sum			= 0;
 	motor->angle			= 0;
+	motor->angle_sum		= 0;
+	motor->positioncontrol	= 0;
+	motor->P_position		= 20; // P-gain of position controller
 	motor->dir				= 0;
 	motor->dirjustchanged	= 0;
 	motor->dir_v_range		= OBLDC_DIR_V_RANGE;
@@ -123,12 +126,16 @@ void init_motor_struct(motor_s* motor) {
 }
 
 inline void increment_angle(void) {
-	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1; WARUM GEHT DAS NICHT!?
+	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1; WARUM GEHT DAS NICHT!? Weil Modulo nicht Rest der ganzzahligen Division ist...
 	if(motor.dir == 1) {
 		motor.angle = (motor.angle) % 6 + 1;
 	} else if(motor.dir == -1) {
 		motor.angle = (motor.angle + 4) % 6 + 1;
 	}
+}
+
+inline void count_angle4control(void) {
+	motor.angle_sum += motor.dir;
 }
 
 void motor_set_cmd(motor_s* m, motor_cmd_s* cmd) {
@@ -188,7 +195,7 @@ void motor_set_cmd(motor_s* m, motor_cmd_s* cmd) {
 // TODO: void motor_set_pwm_mode(motor_s* m, obldc_pwm_mode pwm_mode)
 
 uint32_t k_cb_commutate; // Counts how often the ADC callback was called
-inline void reset_adc_commutate_count() {
+inline void reset_adc_commutate_count(void) {
 	k_cb_commutate = 0;
 }
 
@@ -237,7 +244,7 @@ static PWMConfig genpwmcfg= {
 
 
 
-inline int64_t motortime_now() {
+inline int64_t motortime_now(void) {
 	return (motor.time + gptGetCounterX(&GPTD4));
 }
 
@@ -258,7 +265,22 @@ static void commutatetimercb(GPTDriver *gptp) {
   if(motor.state == OBLDC_STATE_RUNNING_SLOW || motor.state == OBLDC_STATE_RUNNING) {
 	  //catchcount = 0;
 	  increment_angle();
-	  //motor_set_duty_cycle(&motor, motor_cmd.duty_cycle);// ACHTUNG!!! 1000 geht gerade noch
+	  //BEGIN Position controller
+	  if(motor.positioncontrol) {
+		  count_angle4control();
+		  motor_cmd.duty_cycle = motor.P_position * (motor_cmd.angle - motor.angle_sum); // P-position-controller
+		  if(motor_cmd.duty_cycle < 0) {
+			  motor_cmd.duty_cycle = -motor_cmd.duty_cycle;
+			  motor_cmd.dir = -1;
+		  } else {
+			  motor_cmd.dir = 1;
+		  }
+
+		  if(motor_cmd.duty_cycle > 1000) {
+			  motor_cmd.duty_cycle = 1000;
+		  }
+	  }
+	  //END Position controller
 	  motor_set_cmd(&motor, &motor_cmd);
 	  set_bldc_pwm(&motor);
 	  //pwmStop(&PWMD1);
@@ -331,7 +353,7 @@ static inline void schedule_commutate_cb(gptcnt_t time2fire) {
 	//} // TODO: Else something went terribly wrong. Stop!
 }
 
-void motor_start_timer() {
+void motor_start_timer(void) {
 	motor.time				= 0;
 	motor.time_zc			= 0;
 	motor.time_last_zc		= 0;

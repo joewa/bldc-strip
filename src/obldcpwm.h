@@ -41,6 +41,8 @@ typedef enum {
 typedef struct {
 	int16_t duty_cycle; // Duty cycle 100%=10000
 	int16_t dir;
+	int16_t dir_control;
+	int16_t angle; // When positioncontrol == true
 } motor_cmd_s;
 
 typedef struct {
@@ -52,6 +54,9 @@ typedef struct {
 	int pwm_t_on_ADC;	// in ADC clock ticks
 	int pwm_period_ADC;
 	int16_t angle, angle4, last_angle4, delta_angle4;
+	int32_t angle_sum; // absolute angle used for position control loops
+	uint8_t positioncontrol; // True when position control is enabled
+	int16_t P_position; // Gain of the position controller
 	int dir;
 	uint8_t dirjustchanged;
 	int16_t dir_v_range;
@@ -86,8 +91,8 @@ typedef struct {
 
 
 
-void motor_start_timer();
-inline int64_t motortime_now();
+void motor_start_timer(void);
+inline int64_t motortime_now(void);
 motor_s* get_motor_ptr(void);
 void set_bldc_pwm(motor_s* m);
 void motor_set_cmd(motor_s* m, motor_cmd_s* cmd);

@@ -271,7 +271,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  if(motor.state == OBLDC_STATE_SENSE_INJECT) {
 		  chThdSleepMicroseconds(500);
 	  }
-	  if(motor.state == OBLDC_STATE_RUNNING_SLOW) { // Ramp up the motor
+	  if(motor.state == OBLDC_STATE_RUNNING_SLOW) {
 		  catchcount++;
 		  if(motor.time_zc != temp) {
 			  catchcount = 0; temp = motor.time_zc;
@@ -286,7 +286,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  }*/
 		  }
 
-		  if(catchcount > 2000) { // Timeout!
+		  if(catchcount > 4000) { // Timeout! 2000
 			  pwmStop(&PWMD1);
 			  motor.dir = motor_cmd.dir;// Motor stopped, forget direction. TODO remove when tracking works
 			  //motor.dir = 0;

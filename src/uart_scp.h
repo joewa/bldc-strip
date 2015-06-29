@@ -40,7 +40,9 @@
 #define SCP_LEDGREEN	0xF1
 #define SCP_MOTORSTATE	0xF2
 #define SCP_SETDUTYCYCLE 0xF3
-#define SCP_DIRECTION 0xF4
+#define SCP_DIRECTION	0xF4
+#define SCP_POSITIONCONTROL 0xF5
+#define SCP_ANGLE		0xF6
 
 void uartSendACK(void);
 void uartSCPInit(void);

@@ -178,16 +178,48 @@ static void rxend(UARTDriver *uartp) {
     case SCP_DIRECTION:
         if (rxBuffer[1] == 0x00) {
         	motor_cmd.dir = -1;
+        	motor_cmd.dir_control = -1;
         	txBuffer[0] = SCP_ACK;
         }
         else if (rxBuffer[1] == 0xFF) {
         	motor_cmd.dir = 1;
+        	motor_cmd.dir_control = 1;
         	txBuffer[0] = SCP_ACK;
         }
         else {
         	txBuffer[0] = SCP_NACK;
         }
     	break;
+    case SCP_POSITIONCONTROL:
+        if (rxBuffer[1] == 0x00) {
+        	motor.positioncontrol = 0;
+        	txBuffer[0] = SCP_ACK;
+        }
+        else if (rxBuffer[1] == 0xFF) {
+        	motor.positioncontrol = 1;
+        	txBuffer[0] = SCP_ACK;
+        	motor_cmd.angle = 0;
+        	motor_cmd.dir_control = motor_cmd.dir;
+        	motor.angle_sum = 0;
+        	motor_cmd.angle = 0;
+        }
+        else {
+        	txBuffer[0] = SCP_NACK;
+        }
+    	break;
+    case SCP_ANGLE:
+    	temp_uint16 = (uint16_t)(rxBuffer[1] << 8) + rxBuffer[2];
+    	if(temp_uint16 > 30000) {
+    		motor_cmd.angle = 30000;
+    	}
+    	else {
+    		motor_cmd.angle = temp_uint16;
+    	}
+        if(motor.dir == 0) {
+        	motor.dir = motor_cmd.dir;
+        }
+    	txBuffer[0] = SCP_ACK;
+      break;
     }
 
 

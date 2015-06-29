@@ -51,9 +51,14 @@ if (len(sys.argv) >= 3):
 		str[0] = 0xF3
 	elif (sys.argv[1] == "direction"):
 		str[0] = 0xF4
+	elif (sys.argv[1] == "positioncontrol"):
+		str[0] = 0xF5
+	elif (sys.argv[1] == "angle"):
+		str[0] = 0xF6
+		
 
 	else:
-		print "Argument 1 is not valid, use led1 or led2 or motorstate";
+		print "Argument 1 is not valid, use led1 or led2 or motorstate or dutycycle or direction or positioncontrol";
 		sys.exit()
 		
 	if (sys.argv[2] == "on"):
