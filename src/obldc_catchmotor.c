@@ -285,6 +285,12 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 				  motor.state_reluct = 1;
 			  }*/
 		  }
+		  if(motor_cmd.newcmd == 1) { // new command was set
+			  adcStopConversion(&ADCD1);
+			  motor_set_cmd(&motor, &motor_cmd);
+			  set_bldc_pwm(&motor);
+			  motor_cmd.newcmd = 0;
+		  }
 
 		  if(catchcount > 4000) { // Timeout! 2000
 			  pwmStop(&PWMD1);

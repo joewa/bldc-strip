@@ -208,6 +208,7 @@ static void rxend(UARTDriver *uartp) {
         }
     	break;
     case SCP_ANGLE:
+    	motor_cmd.newcmd = 1; // Wird in obldc_catchmotor ausgewertet. Funzt noch nicht.
     	temp_uint16 = (uint16_t)(rxBuffer[1] << 8) + rxBuffer[2];
     	if(temp_uint16 > 30000) {
     		motor_cmd.angle = 30000;

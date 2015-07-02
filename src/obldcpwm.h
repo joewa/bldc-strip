@@ -43,6 +43,7 @@ typedef struct {
 	int16_t dir;
 	int16_t dir_control;
 	int16_t angle; // When positioncontrol == true
+	int8_t newcmd;
 } motor_cmd_s;
 
 typedef struct {
@@ -54,6 +55,7 @@ typedef struct {
 	int pwm_t_on_ADC;	// in ADC clock ticks
 	int pwm_period_ADC;
 	int16_t angle, angle4, last_angle4, delta_angle4;
+	int16_t last_angle; // used for proper counting of angle_sum (quick'n dirty)
 	int32_t angle_sum; // absolute angle used for position control loops
 	uint8_t positioncontrol; // True when position control is enabled
 	int16_t P_position; // Gain of the position controller

@@ -95,10 +95,11 @@ void init_motor_struct(motor_s* motor) {
 	motor->u_dc_filt		= 0;
 	motor->i_dc_filt		= 0;
 	motor->i_dc_sum			= 0;
+	motor->last_angle		= 0;
 	motor->angle			= 0;
 	motor->angle_sum		= 0;
 	motor->positioncontrol	= 0;
-	motor->P_position		= 20; // P-gain of position controller
+	motor->P_position		= 100; // P-gain of position controller
 	motor->dir				= 0;
 	motor->dirjustchanged	= 0;
 	motor->dir_v_range		= OBLDC_DIR_V_RANGE;
@@ -112,6 +113,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->last_angle4 = 0;
 	motor_cmd.duty_cycle 	= 0; //1000;
 	motor_cmd.dir			= 1;
+	motor_cmd.newcmd		= 0;
 
 	bufferInitStatic(ubuf, 6);
 	bufferInitStatic(ibuf, 6);
@@ -135,7 +137,19 @@ inline void increment_angle(void) {
 }
 
 inline void count_angle4control(void) {
-	motor.angle_sum += motor.dir;
+	int16_t r = (motor.angle - motor.last_angle) % 6;
+	if(r > 3) { // wird groeszer
+		motor.angle_sum += r - 6;
+		//motor.angle_sum -= 1;
+	} else if(r < -2) { // wird kleiner
+		motor.angle_sum += 6 + r;
+		//motor.angle_sum += 1;
+	} else {
+		motor.angle_sum += r; // Quick'n dirty
+	}
+	motor.last_angle = motor.angle;
+	//uint8_t debugbyte=motor.angle; uartStartSendI(&UARTD1, 1, &debugbyte );// TODO Debug!
+	// TODO: motor.angle auf serielle schnittstelle zum debuggen schreiben - sieht gut aus.
 }
 
 void motor_set_cmd(motor_s* m, motor_cmd_s* cmd) {
