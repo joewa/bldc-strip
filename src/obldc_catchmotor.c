@@ -285,10 +285,14 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 				  motor.state_reluct = 1;
 			  }*/
 		  }
-		  if(motor_cmd.newcmd == 1) { // new command was set
+		  if(motor_cmd.newcmd == 1 && catchcount > 10) { // new command was set
 			  adcStopConversion(&ADCD1);
-			  motor_set_cmd(&motor, &motor_cmd);
-			  set_bldc_pwm(&motor);
+			  //schedule_commutate_cb(50);
+			  palTogglePad(GPIOB, GPIOB_LEDR);
+			  increment_angle();increment_angle();increment_angle();increment_angle();increment_angle();
+			  gptStartOneShot(&GPTD3, 100); // ACHTUNG DIRTY: Könnte schon aufgerufen gewesen sein!
+			  //motor_set_cmd(&motor, &motor_cmd);
+			  //set_bldc_pwm(&motor);
 			  motor_cmd.newcmd = 0;
 		  }
 

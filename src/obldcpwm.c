@@ -99,7 +99,7 @@ void init_motor_struct(motor_s* motor) {
 	motor->angle			= 0;
 	motor->angle_sum		= 0;
 	motor->positioncontrol	= 0;
-	motor->P_position		= 100; // P-gain of position controller
+	motor->P_position		= 70; // P-gain of position controller
 	motor->dir				= 0;
 	motor->dirjustchanged	= 0;
 	motor->dir_v_range		= OBLDC_DIR_V_RANGE;
@@ -277,7 +277,7 @@ static void commutatetimercb(GPTDriver *gptp) {
   //chSysLockFromISR();
   adcStopConversionI(&ADCD1);
   if(motor.state == OBLDC_STATE_RUNNING_SLOW || motor.state == OBLDC_STATE_RUNNING) {
-	  //catchcount = 0;
+	  motor_cmd.newcmd = 0;
 	  increment_angle();
 	  //BEGIN Position controller
 	  if(motor.positioncontrol) {
@@ -720,7 +720,6 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
    */
   if(y_on + motor.dir_v_range < y_off) {// Detect zero crossing here
 	  if(motor.state_reluct == 2) {
-		  //motortime_zc(motor.time_next_commutate_cb + k_sample);// gehoert hier nicht hin
 		  motor.state_reluct = 3;
 		  adcStopConversionI(&ADCD1); // OK, commutate!
 		  if(motor.inject > 1) { //if(motor.state_ramp < 2) {
