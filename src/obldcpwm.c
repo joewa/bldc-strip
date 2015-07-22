@@ -55,7 +55,7 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
  */
 
 #define PWM_CLOCK_FREQUENCY			28e6 //2e6 //14e6 	// [Hz]
-#define PWM_DEFAULT_FREQUENCY		100000 // [40e3, 50e3, 62500, 100e3]	choose one of these base frequencies [Hz]
+#define PWM_DEFAULT_FREQUENCY		100000 // [40000, 50000, 62500, 100000, 125000]	choose one of these base frequencies [Hz]
 #define PWM_MINIMUM_FREQUENCY		40000
 
 #define ADC_COMMUTATE_FREQUENCY		1e6		// [Hz]
@@ -473,7 +473,8 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 			  sample_cnt_t_on++;
 			  y_on += buffer[i];
 		  }
-		  else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
+		  //else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
+		  else if (k_pwm_period > motor.pwm_t_on_ADC + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
 			  sample_cnt_t_off++;
 			  y_off += buffer[i];  // Sensebridgesign
 			  }
@@ -690,7 +691,8 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  sample_cnt_t_on++;
 		  y_on += buffer[i];
 	  }
-	  else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
+	  //else if (k_pwm_period > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
+	  else if (k_pwm_period > motor.pwm_t_on_ADC + DROPNOISYSAMPLES && k_pwm_period < motor.pwm_period_ADC)  {// Samples during t_off
 		  sample_cnt_t_off++;
     	  y_off += buffer[i];  // Sensebridgesign
 	  }

@@ -16,6 +16,7 @@ Bldc-strip is an open-source project aiming to design an ESC (electronic speed c
 - [x] Dedicated control methods for fast, slow and very slow to zero rotation speed.
 - [x] Seamless 4-quadrant operation with regenerative braking.
 - [x] Smooth change of rotation direction.
+- [x] Closed loop sensorless position control (proove of concept)
 - [ ] Catch start of a rotation motor
 - [ ] Adequate protection functions:
   - [ ] limitation of motor current
