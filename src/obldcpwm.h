@@ -78,8 +78,8 @@ typedef struct {
 	int16_t something;
 } motor_s;
 
-//#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
-#define OBLDC_DIR_V_RANGE 80		// Range for detection of voltage zero crossing in the inductance measurement
+#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
+//#define OBLDC_DIR_V_RANGE 80		// Threshold for Lima
 //#define OBLDC_DIR_V_RANGE 700		// Threshold for Hacker A200-8
 #define TIMER_CB_PERIOD 60000
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 50000 // lowest switching frequency [Hz]

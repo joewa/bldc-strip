@@ -279,13 +279,13 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  /*if(catchcount > 15 && motor.state_reluct == 2) {
 			  motor.inject = 2;
 			  motor.state_reluct = 1;
-		  } else */if(catchcount > 30) { // 7
+		  } else */if(catchcount > 7) { // Lima: 30
 			  motor.inject = 2;//motor.inject = 3;
 			  /*if( (catchcount - 2) % 10 == 0 && motor.state_reluct == 2) { // motor may be in sync position --> re-trigger injection
 				  motor.state_reluct = 1;
 			  }*/
 		  }
-		  if(motor_cmd.newcmd == 1 && catchcount > 35) { // new command was set
+		  if(motor_cmd.newcmd == 1 && catchcount > 10) { // new command was set; Lima: 35
 			  adcStopConversion(&ADCD1);
 			  //schedule_commutate_cb(50);
 			  palTogglePad(GPIOB, GPIOB_LEDR);
@@ -306,10 +306,10 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
 		  }
-		  if(motor.delta_t_zc < 12000 && motor.last_delta_t_zc < 12000) { // TODO: Make definitions for these values!!!! 3000
+		  if(motor.delta_t_zc < 3000 && motor.last_delta_t_zc < 3000) { // TODO: Make definitions for these values!!!! Lima: 12000
 			  motor.inject = 0;
 		  }
-		  if(motor.delta_t_zc < 10000 && motor.last_delta_t_zc < 10000) { // TODO: Make definitions for these values // 1100
+		  if(motor.delta_t_zc < 1100 && motor.last_delta_t_zc < 1100) { // TODO: Make definitions for these values // Lima: 10000
 			  catchcount=0;
 			  motor.state = OBLDC_STATE_RUNNING;
 		  }
@@ -317,7 +317,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  }
 	  if(motor.state == OBLDC_STATE_RUNNING) { // Motor is fast!
 		  //catchcount++;
-		  if( (motor.delta_t_zc > 10000 && motor.last_delta_t_zc > 10000) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow! // 1200
+		  if( (motor.delta_t_zc > 1200 && motor.last_delta_t_zc > 1200) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow! Lima: 1000
 			  motor.delta_t_zc		= 0xFFFF;
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  //motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!

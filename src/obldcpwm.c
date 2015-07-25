@@ -55,7 +55,7 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
  */
 
 #define PWM_CLOCK_FREQUENCY			28e6 //2e6 //14e6 	// [Hz]
-#define PWM_DEFAULT_FREQUENCY		40000 // [40000, 50000, 62500, 100000, 125000]	choose one of these base frequencies [Hz]
+#define PWM_DEFAULT_FREQUENCY		100000 // [40000, 50000, 62500, 100000, 125000]	choose one of these base frequencies [Hz] Lima: 40000
 #define PWM_MINIMUM_FREQUENCY		40000
 
 #define ADC_COMMUTATE_FREQUENCY		1e6		// [Hz]
