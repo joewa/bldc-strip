@@ -137,9 +137,9 @@ static void rxend(UARTDriver *uartp) {
     		}
     	}
     	txBuffer[0] = SCP_ACK;
-    	//txBuffer[1] = (uint8_t)motor.state;
+    	txBuffer[1] = (uint8_t)motor.state;
     	//txBuffer[1] = (uint8_t)motor.dirjustchanged;
-    	txBuffer[1] = (uint8_t)motor.state_reluct;
+    	//txBuffer[1] = (uint8_t)motor.state_reluct;
     	txBuffer[2] = (uint8_t)(motor.delta_t_zc >> 8); // High byte
     	txBuffer[3] = (uint8_t)(motor.delta_t_zc); // Low byte
     	//txBuffer[4] = (uint8_t)(motor.u_dc/10);//((motor.u_dc*100)/1630);

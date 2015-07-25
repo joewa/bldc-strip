@@ -78,14 +78,15 @@ typedef struct {
 	int16_t something;
 } motor_s;
 
-#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
+//#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
+#define OBLDC_DIR_V_RANGE 80		// Range for detection of voltage zero crossing in the inductance measurement
 //#define OBLDC_DIR_V_RANGE 700		// Threshold for Hacker A200-8
 #define TIMER_CB_PERIOD 60000
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 50000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
 #define OBLDC_PWM_MIN_DUTY_CYCLE 0.02 // Minimum duty cycle
-#define OBLDC_PWM_MAX_DUTY_CYCLE 5000 // Maximum duty cycle
+#define OBLDC_PWM_MAX_DUTY_CYCLE 8000 // Maximum duty cycle
 
 #define OBLDC_MIN_CATCH_VOLTAGE_OBSOLETE 360 // 1V minimum voltage to evaluate for motor position catching; /4095 ADC resolution, *3 = ADC pin voltage, *13.6/3.6 = phase voltage TODO: Check max ADC voltage 3V or 3.3V?
 
