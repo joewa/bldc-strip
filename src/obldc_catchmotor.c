@@ -245,6 +245,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  motor.state_inject = 0;
 		  motor.angle = 4;
 		  motor.state_ramp = 0;
+		  motor.state_calibrate_leg = 1;
 		  motor_cmd_temp.duty_cycle = 0; motor_cmd_temp.dir = 0;
 		  motor_set_cmd(&motor, &motor_cmd_temp);
 		  set_bldc_pwm(&motor); // Start position detection by inductance measurement
@@ -279,7 +280,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  /*if(catchcount > 15 && motor.state_reluct == 2) {
 			  motor.inject = 2;
 			  motor.state_reluct = 1;
-		  } else */if(catchcount > 7) { // Lima: 30
+		  } else */if(catchcount > 6) { // Lima: 30
 			  motor.inject = 2;//motor.inject = 3;
 			  /*if( (catchcount - 2) % 10 == 0 && motor.state_reluct == 2) { // motor may be in sync position --> re-trigger injection
 				  motor.state_reluct = 1;
@@ -306,10 +307,10 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  motor.state = OBLDC_STATE_STARTING_SENSE_1;
 		  }
-		  if(motor.delta_t_zc < 3000 && motor.last_delta_t_zc < 3000) { // TODO: Make definitions for these values!!!! Lima: 12000
+		  if(motor.delta_t_zc < OBLDC_TRANSITION_DEACTIVATE_INJECTION && motor.last_delta_t_zc < OBLDC_TRANSITION_DEACTIVATE_INJECTION) {
 			  motor.inject = 0;
 		  }
-		  if(motor.delta_t_zc < 700 && motor.last_delta_t_zc < 700) { // TODO: Make definitions for these values // Lima: 10000
+		  if(motor.delta_t_zc < OBLDC_TRANSITION_RUNNING_SLOW_2_RUNNING && motor.last_delta_t_zc < OBLDC_TRANSITION_RUNNING_SLOW_2_RUNNING) {
 			  catchcount=0;
 			  motor.state = OBLDC_STATE_RUNNING;
 		  }
@@ -317,7 +318,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  }
 	  if(motor.state == OBLDC_STATE_RUNNING) { // Motor is fast!
 		  //catchcount++;
-		  if( (motor.delta_t_zc > 800 && motor.last_delta_t_zc > 800) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow! Lima: 1000
+		  if( (motor.delta_t_zc > OBLDC_TRANSITION_RUNNING_2_RUNNING_SLOW && motor.last_delta_t_zc > OBLDC_TRANSITION_RUNNING_2_RUNNING_SLOW)) {
 			  motor.delta_t_zc		= 0xFFFF;
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  //motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!

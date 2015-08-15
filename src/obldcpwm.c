@@ -69,8 +69,8 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
 #define ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH 12
 
 
-static adcsample_t vbat_current_samples[ADC_VBAT_CURRENT_NUM_CHANNELS * ADC_VBAT_CURRENT_BUF_DEPTH];
-
+//static adcsample_t vbat_current_samples[ADC_VBAT_CURRENT_NUM_CHANNELS * ADC_VBAT_CURRENT_BUF_DEPTH];
+static adcsample_t vbat_current_samples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH];// ist das noetig???
 
 
 void startmyadc(void) {
@@ -89,6 +89,9 @@ void init_motor_struct(motor_s* motor) {
 	motor->pwm_mode			= PWM_MODE_ANTIPHASE; //PWM_MODE_SINGLEPHASE;
 	motor->pwm_t_on			= 0;
 	motor->pwm_period		= PWM_CLOCK_FREQUENCY / PWM_DEFAULT_FREQUENCY; // in ticks
+	motor->offset_leg[0]	= 0;
+	motor->offset_leg[1]	= 0;
+	motor->offset_leg[2]	= 0;
 	motor->u_dc				= 0;
 	motor->i_dc				= 0;
 	motor->i_dc_ref			= 0;
@@ -360,8 +363,8 @@ static inline void schedule_commutate_cb(gptcnt_t time2fire) {
 			gptStartOneShotI(&GPTD3, time2fire);
 			//adcStartConversionI(&ADCD1, &adc_vbat_current_group, vbat_current_samples, ADC_VBAT_CURRENT_BUF_DEPTH); // Now, not triggered
 			// TODO: call this only when running whithout injection
-			if(motor.state == OBLDC_STATE_RUNNING) {
-				adcStartConversionI(&ADCD1, &adc_vbat_current_exttrig_group, commutatesamples, ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH); // triggered
+			if(motor.state == OBLDC_STATE_RUNNING || (motor.state == OBLDC_STATE_RUNNING_SLOW) ) {
+				adcStartConversionI(&ADCD1, &adc_vbat_current_exttrig_group, vbat_current_samples, ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH); // triggered
 			}
 		//}
 	//} // TODO: Else something went terribly wrong. Stop!
@@ -482,6 +485,9 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 		  //csamples[i] = buffer[i]; // For debugging
 	  }
 
+	  if(motor.state_calibrate_leg) { //Ugly
+		  motor.u_dc = motor.u_dc2;
+	  }
 	  if (motor.invSenseSign) {
 		  y_on = -(y_on / sample_cnt_t_on - motor.u_dc);
 		  y_off = -(y_off / sample_cnt_t_off - motor.u_dc);
@@ -489,6 +495,11 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 	  else {
 		  y_on = y_on / sample_cnt_t_on - motor.u_dc;
 		  y_off = y_off / sample_cnt_t_off - motor.u_dc;
+	  }
+
+	  if(motor.state_calibrate_leg) {
+		  //HIER den u_dc vom Anfang (Startup) nehmen!
+		  motor.offset_leg[motor.legoff] = y_on + y_off;
 	  }
 
 	  if(y_on + motor.dir_v_range < y_off) {
@@ -509,6 +520,8 @@ static void adc_commutate_inject_cb(ADCDriver *adcp, adcsample_t *buffer, size_t
 		  gptStartOneShotI(&GPTD3, 8);
 	  }
 	  else {
+		  // Put breakpoint here to check if motor.offset_leg[0..2] is close to zero. If not tune gain for u_dc
+		  motor.state_calibrate_leg = 0; // If this was an initial calibration, it is finished now!
 		  decode_inject_pattern();
 		  //increment_angle(); increment_angle();// Beide richtungen?
 		  motor.angle = (motor.angle + 1) % 6 + 1; // restore initial rotor position. Nur für motor.dir == 1 !!!
@@ -937,8 +950,10 @@ adcsample_t get_vbat_sample(void) { // value scaled to be 50% of phase voltage s
 		i_raw += vbat_current_samples[i+1] - vbat_current_samples[i+2];
 		i_raw_ref += vbat_current_samples[i+2];
 	}
-	v_scaled = u_raw / ADC_VBAT_CURRENT_BUF_DEPTH * 4140 / 2040 / 2;
+	//v_scaled = u_raw / ADC_VBAT_CURRENT_BUF_DEPTH * 4140 / 2040 / 2; // aus Bauteilen
+	v_scaled = u_raw / ADC_VBAT_CURRENT_BUF_DEPTH * 4210 / 2040 / 2; // Nach Kalibrierung mit state_calibrate_leg
 	motor.u_dc = v_scaled; // UGLY!
+	motor.u_dc2 = v_scaled;
 	motor.i_dc = i_raw / ADC_VBAT_CURRENT_BUF_DEPTH;
 	motor.i_dc_ref = i_raw_ref / ADC_VBAT_CURRENT_BUF_DEPTH;
 	return (adcsample_t)v_scaled;
@@ -962,17 +977,18 @@ void eval_vbat_idc(void) { // value scaled to be 50% of phase voltage sample TOD
 	for (i=0; i<(ADC_VBAT_CURRENT_EXTTRIG_NUM_CHANNELS*ADC_VBAT_CURRENT_EXTTRIG_BUF_DEPTH); i+=ADC_VBAT_CURRENT_EXTTRIG_NUM_CHANNELS ) {// halbe puffertiefe
 		if ( i > DROPNOISYSAMPLES && i < motor.pwm_t_on_ADC) { // Samples during t_on!!!
 			sample_cnt_t_on++;
-			u_raw_on += commutatesamples[i];
-			i_raw_on += commutatesamples[i+1] - motor.i_dc_ref;
+			u_raw_on += vbat_current_samples[i];
+			i_raw_on += vbat_current_samples[i+1] - motor.i_dc_ref;
 		}
-		else if (i > motor.pwm_t_on_ADC + 1 + DROPNOISYSAMPLES && i < motor.pwm_period_ADC)  {// Samples during t_off
+		else if (i > motor.pwm_t_on_ADC + DROPNOISYSAMPLES && i < motor.pwm_period_ADC)  {// Samples during t_off
 		    sample_cnt_t_off++;
-			u_raw_off += commutatesamples[i];
-			i_raw_off += commutatesamples[i+1] - motor.i_dc_ref;
+			u_raw_off += vbat_current_samples[i];
+			i_raw_off += vbat_current_samples[i+1] - motor.i_dc_ref;
 		}
 		  //csamples[i] = buffer[i]; // For debugging
 	}
-	motor.u_dc = u_raw_on / sample_cnt_t_on * 4140 / 2040 / 2;
+	//motor.u_dc = u_raw_on / sample_cnt_t_on * 4140 / 2040 / 2;
+	motor.u_dc = u_raw_on / sample_cnt_t_on * 4210 / 2040 / 2;
 	motor.i_dc = i_raw_on / sample_cnt_t_on;
 
 	if (isBufferFull(ibuf_ptr)) {
@@ -1067,6 +1083,7 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     		adc_commutate_group.sqr3 = ADC_SQR3_SQ1_N(ADC_CHANNEL_IN1); // V_VOLTAGE
     		legp = 0; legn = 2; legoff=1;
     	}
+    	m->legoff = legoff; // this leg is used for sensing now
     	adc_vbat_current_exttrig_group.cr2 = adc_commutate_group.cr2;
 
     	//adcStart(&ADCD1, &adc_commutate_group);

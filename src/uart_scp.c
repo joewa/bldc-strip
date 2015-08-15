@@ -142,14 +142,14 @@ static void rxend(UARTDriver *uartp) {
     	//txBuffer[1] = (uint8_t)motor.state_reluct;
     	txBuffer[2] = (uint8_t)(motor.delta_t_zc >> 8); // High byte
     	txBuffer[3] = (uint8_t)(motor.delta_t_zc); // Low byte
-    	//txBuffer[4] = (uint8_t)(motor.u_dc/10);//((motor.u_dc*100)/1630);
-    	txBuffer[4] = (uint8_t)(motor.dir+1);//((motor.u_dc*100)/1630);
+    	txBuffer[4] = (uint8_t)(motor.u_dc/10);//((motor.u_dc*100)/1630);
+    	//txBuffer[4] = (uint8_t)(motor.dir+1);//((motor.u_dc*100)/1630);
     	if (motor.u_dc2<0) motor.u_dc2 = -motor.u_dc2;
     	//txBuffer[5] = (uint8_t)(motor.u_dc2);//((motor.u_dc*100)/1630);
     	//txBuffer[5] = (uint8_t)(motor.i_dc_filt / 4);
     	txBuffer[5] = (uint8_t)(motor.delta_angle4+20);
     	//txBuffer[6] = (uint8_t)(motor.i_dc_ref / 4);
-    	txBuffer[6] = (uint8_t)(motor.something+20);
+    	//txBuffer[6] = (uint8_t)(motor.u_dc);
       break;
     case SCP_SETDUTYCYCLE:
     	//if(rxBuffer[1]>7) rxBuffer[1] = 7;

@@ -66,6 +66,9 @@ typedef struct {
 	uint8_t state_inject, state_ramp, inject;
 	int16_t u_dc, u_dc2, u_dc_filt;
 	int16_t i_dc, i_dc_ref, i_dc_filt, i_dc_sum;
+	uint8_t legoff; // id of the inverter leg which is used fo sensing now
+	int16_t offset_leg[3]; // calibration of the voltage sensors
+	uint8_t state_calibrate_leg; // do voltage divider calibration when 1 (motor must be at standstill)
 	uint8_t state_reluct; // 0=unknown
 	uint16_t persist_in_state_recluct_2_count;
 	int64_t time; // Motor time in usec
@@ -81,7 +84,11 @@ typedef struct {
 #define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
 //#define OBLDC_DIR_V_RANGE 80		// Threshold for Lima
 //#define OBLDC_DIR_V_RANGE 700		// Threshold for Hacker A200-8
-#define TIMER_CB_PERIOD 60000
+#define OBLDC_TRANSITION_RUNNING_SLOW_2_RUNNING 500 // Lima: 10000
+#define OBLDC_TRANSITION_RUNNING_2_RUNNING_SLOW 600
+#define OBLDC_TRANSITION_DEACTIVATE_INJECTION 2000 // Lima: 12000
+
+
 #define OBLDC_PWM_SWITCH_FREQUENCY_MIN 50000 // lowest switching frequency [Hz]
 #define OBLDC_PWM_SWITCH_FREQUENCY_MAX 40000 // highest switching frequency [Hz]
 #define OBLDC_PWM_PWM_MODE PWM_MODE_SINGLEPHASE // Default PWM mode
