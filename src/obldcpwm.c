@@ -321,7 +321,7 @@ static void commutatetimercb(GPTDriver *gptp) {
 }
 
 
-static void gpttimercb(GPTDriver *gptp) {
+/*static void gpttimercb(GPTDriver *gptp) {
 	  msg_t msg;
 
 	  (void)gptp;
@@ -337,7 +337,7 @@ static void gpttimercb(GPTDriver *gptp) {
 	  //gptStartOneShotI(&GPTD4, (gptcnt_t)time2fire);
   }
   chSysUnlockFromISR();
-}
+}*/
 
 static const GPTConfig gptcommutatecfg = {
   1000000,  /* 1MHz timer clock.*/
@@ -346,12 +346,12 @@ static const GPTConfig gptcommutatecfg = {
   0
 };
 
-static const GPTConfig gptcfg3 = {
-  1000000,  /* 1MHz timer clock.*/
-  gpttimercb,   /* Timer callback.*/
+/*static const GPTConfig gptcfg3 = {
+  1000000,  // 1MHz timer clock.
+  gpttimercb,   // Timer callback.
   0,
   0
-};
+};*/
 
 static inline void schedule_commutate_cb(gptcnt_t time2fire) {
 		motor.time_next_commutate_cb = motor.time_zc + time2fire;//motor.time_next_commutate_cb = t;
@@ -731,9 +731,10 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 			  motor.sense_inject_pattern[0] = 3; // Keep actually measured value // Keep zero crossing at the the actual phase
 			  motor.state_inject = 1; // Skip actual phase
 		  }
+		  motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing - hier eigentlich zu spaet - dann stimmt aber der speed
 		  schedule_commutate_cb(50);
 		  // Problem: delta_t ist zu groß: prüfe mit Oszi!
-		  motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
+		  //motor.time_next_commutate_cb += k_sample - k_zc;// set correct time: add time from zero crossing to now
 	  }
   } else if( (y_on > y_off + motor.dir_v_range + 200) && motor.state_reluct == 2 && motor.inject == 2 && motor.state_ramp >= 2 && motor.dirjustchanged == 0) {
 	  /*
@@ -762,7 +763,7 @@ static void adc_commutate_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		  motor.state_reluct = 2;
 		  //motor.u_dc2 = (y_on + y_off) / 2;
 		  k_zc = k_sample;
-		  motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
+		  //motortime_zc(motor.time_next_commutate_cb + k_sample); // Write time of zero crossing
 		  //if(motor.inject == 2) {
 		  //if(motor.state_ramp < 1 && motor.inject == 2) {
 		  if(motor.state_ramp < 1 || motor.inject == 2) {

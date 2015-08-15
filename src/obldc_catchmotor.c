@@ -309,7 +309,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  if(motor.delta_t_zc < 3000 && motor.last_delta_t_zc < 3000) { // TODO: Make definitions for these values!!!! Lima: 12000
 			  motor.inject = 0;
 		  }
-		  if(motor.delta_t_zc < 1100 && motor.last_delta_t_zc < 1100) { // TODO: Make definitions for these values // Lima: 10000
+		  if(motor.delta_t_zc < 700 && motor.last_delta_t_zc < 700) { // TODO: Make definitions for these values // Lima: 10000
 			  catchcount=0;
 			  motor.state = OBLDC_STATE_RUNNING;
 		  }
@@ -317,7 +317,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 	  }
 	  if(motor.state == OBLDC_STATE_RUNNING) { // Motor is fast!
 		  //catchcount++;
-		  if( (motor.delta_t_zc > 1200 && motor.last_delta_t_zc > 1200) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow! Lima: 1000
+		  if( (motor.delta_t_zc > 800 && motor.last_delta_t_zc > 800) /*|| (motortime_now() - motor.time_zc > 3500)*/) { // motor tooo slow! Lima: 1000
 			  motor.delta_t_zc		= 0xFFFF;
 			  motor.last_delta_t_zc	= 0xFFFF;
 			  //motor.angle = (motor.angle) % 6 + 1; // Vorwärts immer, rückwärts nimmer!
