@@ -280,7 +280,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  /*if(catchcount > 15 && motor.state_reluct == 2) {
 			  motor.inject = 2;
 			  motor.state_reluct = 1;
-		  } else */if(catchcount > 6) { // Lima: 30
+		  } else */if(catchcount > 6) {//6 // Lima: 30
 			  motor.inject = 2;//motor.inject = 3;
 			  /*if( (catchcount - 2) % 10 == 0 && motor.state_reluct == 2) { // motor may be in sync position --> re-trigger injection
 				  motor.state_reluct = 1;

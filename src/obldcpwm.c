@@ -834,7 +834,7 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
   //k_end = k_start + (ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2;
   k_sample = (ADC_COMMUTATE_BUF_DEPTH / 2) * k_cb_commutate;
   //motor.sumy = 0; // ENTFERNEN!! Nur zum probieren!
-  if(k_cb_commutate > 1) // evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero
+  if(k_cb_commutate > 1) // evaluate only if k_pwm_period > DROPSTARTCOMMUTATIONSAMPLES to allow current at sensed phase to become zero WAR 1
   for (i=0; i<(ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_BUF_DEPTH) / 2; i++ ) {// halbe puffertiefe
 	  k_pwm_period = k_sample % motor.pwm_period_ADC;
 	  if ( k_pwm_period > DROPNOISYSAMPLES && k_pwm_period < motor.pwm_t_on_ADC) { // Samples during t_on!!!
@@ -861,7 +861,7 @@ static void adc_commutate_fast_cb(ADCDriver *adcp, adcsample_t *buffer, size_t n
 
 			  y_off=0;
 			  //schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) * 2 / 5 );
-			  schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) / 4 - 10);
+			  schedule_commutate_cb( (motor.delta_t_zc + motor.last_delta_t_zc) / 4 - 25); // Orig 10
 			  return;
 	  }
 	  k_sample++;
