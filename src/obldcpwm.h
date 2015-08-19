@@ -84,7 +84,7 @@ typedef struct {
 //#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
 //#define OBLDC_DIR_V_RANGE 80		// Threshold for Lima
 //#define OBLDC_DIR_V_RANGE 700		// Threshold for Hacker A200-8
-#define OBLDC_DIR_V_RANGE 160		// Threshold for amaxrc.de GOLD 62822-1200kV
+#define OBLDC_DIR_V_RANGE 160		// Threshold for amaxrc.de AMAX GOLD G2822-1200kV
 
 #define OBLDC_TRANSITION_RUNNING_SLOW_2_RUNNING 500 // Lima: 10000
 #define OBLDC_TRANSITION_RUNNING_2_RUNNING_SLOW 600

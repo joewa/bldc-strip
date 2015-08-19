@@ -46,6 +46,10 @@ This is a part-time development project and is not dedicated for productive usag
 
 You may report any issues or share ideas by using the [Issues](https://github.com/joewa/bldc-strip/issues) button.
 
+Additionally, there is a chat room on Gitter:
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/joewa/bldc-strip?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=body_badge)
+
+
 ## License
 
 The project is released under the GNU GENERAL PUBLIC LICENSE - Version 3.
