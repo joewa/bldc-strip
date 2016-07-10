@@ -130,7 +130,7 @@ void init_motor_struct(motor_s* motor) {
 	table_angle2leg[6]=0; table_angle2leg2[0]=2; // 6,  1,  0, -1		1*/
 }
 
-inline void increment_angle(void) {
+static inline void increment_angle(void) {
 	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1; WARUM GEHT DAS NICHT!? Weil Modulo nicht Rest der ganzzahligen Division ist...
 	if(motor.dir == 1) {
 		motor.angle = (motor.angle) % 6 + 1;
@@ -139,7 +139,17 @@ inline void increment_angle(void) {
 	}
 }
 
-inline void count_angle4control(void) {
+void increment_angle_functioncall(void) {
+	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1; WARUM GEHT DAS NICHT!? Weil Modulo nicht Rest der ganzzahligen Division ist...
+	if(motor.dir == 1) {
+		motor.angle = (motor.angle) % 6 + 1;
+	} else if(motor.dir == -1) {
+		motor.angle = (motor.angle + 4) % 6 + 1;
+	}
+}
+
+
+static inline void count_angle4control(void) {
 	int16_t r = (motor.angle - motor.last_angle) % 6;
 	if(r > 3) { // wird groeszer
 		motor.angle_sum += r - 6;

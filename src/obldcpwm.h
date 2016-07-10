@@ -116,6 +116,8 @@ void v_bat_current_conversion(void);
 adcsample_t get_vbat_sample(void);
 void eval_vbat_idc(void);
 
+void increment_angle_functioncall(void);
+
 
 
 #endif /* OBLDCPWM_H_ */

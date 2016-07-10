@@ -290,7 +290,7 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 			  adcStopConversion(&ADCD1);
 			  //schedule_commutate_cb(50);
 			  palTogglePad(GPIOB, GPIOB_LEDR);
-			  increment_angle();increment_angle();increment_angle();increment_angle();increment_angle();
+			  increment_angle_functioncall();increment_angle_functioncall();increment_angle_functioncall();increment_angle_functioncall();increment_angle_functioncall();
 			  gptStartOneShot(&GPTD3, 100); // ACHTUNG DIRTY: Könnte schon aufgerufen gewesen sein!
 			  //motor_set_cmd(&motor, &motor_cmd);
 			  //set_bldc_pwm(&motor);

@@ -30,7 +30,8 @@ endif
 
 # Enable this if you want link time optimizations (LTO)
 ifeq ($(USE_LTO),)
-  USE_LTO = yes
+  # USE_LTO = yes removed because of bug in gcc5
+  USE_LTO = no
 endif
 
 # If enabled, this option allows to compile the application in THUMB mode.
