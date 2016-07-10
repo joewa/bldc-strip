@@ -22,7 +22,8 @@ typedef enum {
 	OBLDC_STATE_SENSE_INJECT,
 	//OBLDC_STATE_RUNNING_INJECT,
 	OBLDC_STATE_RUNNING_SLOW,
-	OBLDC_STATE_RUNNING
+	OBLDC_STATE_RUNNING,
+	OBLDC_STATE_SIGNALGENERATOR
 } obldc_state;
 
 typedef enum {
@@ -81,10 +82,11 @@ typedef struct {
 	int16_t something;
 } motor_s;
 
-//#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
+#define OBLDC_DIR_V_RANGE 300		// Range for detection of voltage zero crossing in the inductance measurement
 //#define OBLDC_DIR_V_RANGE 80		// Threshold for Lima
+//#define OBLDC_DIR_V_RANGE 40		// Threshold for Nema 34, 3-phase stepper motor
 //#define OBLDC_DIR_V_RANGE 700		// Threshold for Hacker A200-8
-#define OBLDC_DIR_V_RANGE 160		// Threshold for amaxrc.de AMAX GOLD G2822-1200kV
+//#define OBLDC_DIR_V_RANGE 160		// Threshold for amaxrc.de AMAX GOLD G2822-1200kV
 
 #define OBLDC_TRANSITION_RUNNING_SLOW_2_RUNNING 500 // Lima: 10000
 #define OBLDC_TRANSITION_RUNNING_2_RUNNING_SLOW 600
@@ -117,7 +119,7 @@ adcsample_t get_vbat_sample(void);
 void eval_vbat_idc(void);
 
 void increment_angle_functioncall(void);
-
+void set_pwm_antiphase(int t_on, uint8_t legp, uint8_t legn);
 
 
 #endif /* OBLDCPWM_H_ */

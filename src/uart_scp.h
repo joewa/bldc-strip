@@ -43,6 +43,7 @@
 #define SCP_DIRECTION	0xF4
 #define SCP_POSITIONCONTROL 0xF5
 #define SCP_ANGLE		0xF6
+#define SCP_SIGNALGENERATOR_BIPOLARPWM 0xF7
 
 void uartSendACK(void);
 void uartSCPInit(void);

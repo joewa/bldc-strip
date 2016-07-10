@@ -55,10 +55,12 @@ if (len(sys.argv) >= 3):
 		str[0] = 0xF5
 	elif (sys.argv[1] == "angle"):
 		str[0] = 0xF6
+	elif (sys.argv[1] == "signalgenerator_bipolarpwm"):
+		str[0] = 0xF7
 		
 
 	else:
-		print "Argument 1 is not valid, use led1 or led2 or motorstate or dutycycle or direction or positioncontrol";
+		print "Argument 1 is not valid, use led1 or led2 or motorstate or dutycycle or direction or positioncontrol or angle or signalgenerator_bipolarpwm";
 		sys.exit()
 		
 	if (sys.argv[2] == "on"):

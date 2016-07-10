@@ -128,6 +128,22 @@ static void rxend(UARTDriver *uartp) {
         txBuffer[0] = SCP_NACK;
       }
       break;
+    case SCP_SIGNALGENERATOR_BIPOLARPWM:
+    	if(motor.state == OBLDC_STATE_OFF || OBLDC_STATE_SIGNALGENERATOR) {
+    		motor.state = OBLDC_STATE_SIGNALGENERATOR;
+    		temp_uint16 = (uint16_t)(rxBuffer[1] << 8) + rxBuffer[2];
+        	if(temp_uint16 > OBLDC_PWM_MAX_DUTY_CYCLE) {
+        		motor_cmd.duty_cycle = OBLDC_PWM_MAX_DUTY_CYCLE;
+        	}
+        	else {
+        		motor_cmd.duty_cycle = temp_uint16;
+        	}
+  		  motor_cmd.dir = 1;
+  		  motor_set_cmd( &motor, &motor_cmd );
+  		  set_pwm_antiphase(motor.pwm_t_on, 0, 1);
+    	}
+    	txBuffer[0] = SCP_ACK;
+    	break;
     case SCP_MOTORSTATE:
     	if (rxBuffer[1] == 0x00) {
     		motor.state = OBLDC_STATE_OFF;

@@ -55,7 +55,7 @@ static adcsample_t commutatesamples[ADC_COMMUTATE_NUM_CHANNELS * ADC_COMMUTATE_B
  */
 
 #define PWM_CLOCK_FREQUENCY			28e6 //2e6 //14e6 	// [Hz]
-#define PWM_DEFAULT_FREQUENCY		100000 // [40000, 50000, 62500, 100000, 125000]	choose one of these base frequencies [Hz] Lima: 40000
+#define PWM_DEFAULT_FREQUENCY		100000 // [40000, 50000, 62500, 100000, 125000]	choose one of these base frequencies [Hz] Lima+Nema34: 40000
 #define PWM_MINIMUM_FREQUENCY		40000
 
 #define ADC_COMMUTATE_FREQUENCY		1e6		// [Hz]
@@ -140,12 +140,7 @@ static inline void increment_angle(void) {
 }
 
 void increment_angle_functioncall(void) {
-	//motor.angle = ((motor.angle - 1 + motor.dir) % 6) + 1; WARUM GEHT DAS NICHT!? Weil Modulo nicht Rest der ganzzahligen Division ist...
-	if(motor.dir == 1) {
-		motor.angle = (motor.angle) % 6 + 1;
-	} else if(motor.dir == -1) {
-		motor.angle = (motor.angle + 4) % 6 + 1;
-	}
+	increment_angle();
 }
 
 
@@ -1143,4 +1138,15 @@ void set_bldc_pwm(motor_s* m) { // Mache neu mit motor_struct (pointer)
     	palSetPad(GPIOB, pin_leg_enable[legp]);
     	palSetPad(GPIOB, pin_leg_enable[legn]);
     }
+}
+
+
+void set_pwm_antiphase(int t_on, uint8_t legp, uint8_t legn) {
+	genpwmcfg.channels[legp].mode = PWM_OUTPUT_ACTIVE_HIGH;
+	genpwmcfg.channels[legn].mode = PWM_OUTPUT_ACTIVE_LOW;
+	pwmStart(&PWMD1, &genpwmcfg); // PWM signal generation
+	pwmEnableChannel(&PWMD1, legp, t_on);
+	pwmEnableChannel(&PWMD1, legn, t_on);
+	palSetPad(GPIOB, pin_leg_enable[legp]);
+	palSetPad(GPIOB, pin_leg_enable[legn]);
 }

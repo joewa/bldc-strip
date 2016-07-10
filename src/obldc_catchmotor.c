@@ -237,6 +237,10 @@ static THD_FUNCTION(tRampMotorTread, arg) {
 		  motor_cmd_temp.duty_cycle = 0;
 		  chThdSleepMilliseconds(1);
 	  }
+	  if(motor.state == OBLDC_STATE_SIGNALGENERATOR) {
+		  adcStopConversion(&ADCD1);
+		  chThdSleepMilliseconds(2);
+	  }
 	  if(motor.state == OBLDC_STATE_STARTING_SENSE_1) { // Ramp up the motor
 		  // Rotorlageerkennung
 		  chThdSleepMilliseconds(1);
