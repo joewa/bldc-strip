@@ -1,6 +1,8 @@
 bldc-strip
 ==========
 
+[![Join the chat at https://gitter.im/joewa/bldc-strip](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/joewa/bldc-strip?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Firmware for OpenBLDC "Strip" (STM32F103).
 
 ## Project description
